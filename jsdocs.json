@@ -1,0 +1,61 @@
+{
+  "plugins": [
+    "plugins/markdown",
+    "plugins/summarize",
+    "node_modules/jsdoc-mermaid",
+    "node_modules/better-docs/typescript",
+    "node_modules/better-docs/category"
+  ],
+  "typescript": {
+    "moduleRoot": "."
+  },
+  "package": "package.json",
+  "recurseDepth": 10,
+  "source": {
+    "include": [
+      "./ts-workspace/src"
+    ],
+    "exclude": [
+      "node_modules",
+      "*/esm/**.*",
+      "zone-flags.ts",
+      "polyfills.ts",
+      "(spec|test|e2e|prod).(jsx|js|ts|tsx)$"
+    ],
+    "includePattern": "\\.(jsx|js|ts|tsx)$"
+  },
+  "tags": {
+    "allowUnknownTags": true,
+    "dictionaries": ["jsdoc","closure"]
+  },
+  "templates": {
+    "better-docs": {
+      "name": "ts-multi-module",
+      "title": "ts-multi-module",
+      "hideGenerator": true,
+      "useLongnameInNav": true,
+      "navLinks": [
+        {
+          "label": "Test Results",
+          "href": "workdocs/coverage"
+        },
+        {
+          "label": "Github Profile",
+          "href": "https://github.com/decaf-ts"
+        }
+      ]
+    },
+    "cleverLinks": true,
+    "monospaceLinks": true,
+    "search": true
+  },
+  "opts": {
+    "encoding": "utf-8",
+    "template": "./node_modules/better-docs",
+    "destination": "./docs/",
+    "readme": "./README.md",
+    "recurse": true,
+    "verbose": true,
+    "tutorials": "./workdocs/tutorials"
+  }
+}
