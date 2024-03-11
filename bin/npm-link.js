@@ -7,12 +7,6 @@ let operation = process.argv.find(a => a.startsWith("--"));
 operation = operation ? operation.substring(2, operation.length) : "link"
 
 if (operation === "link"){
-    try {
-        const exists = fs.statSync(path.join(process.cwd(), "web-components/dist"))
-    } catch (e){
-        fs.mkdirSync("web-components/dist/aeon-web-components", {recursive: true})
-    }
-
     libs.forEach(l => {
         const iterations = l.includes("control-panel") ? [`${l}/frontend`, `${l}/backend`] : [l]
         iterations.forEach(l => {
