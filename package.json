@@ -3,7 +3,6 @@
   "version": "0.0.1",
   "description": "template for multi-module ts projects",
   "scripts": {
-    "initial-setup": "./bin/template_setup.sh",
     "preinstall": "git submodule update --init --recursive",
     "do-install": "TOKEN=$(cat .token) npm install",
     "postinstall": "node ./bin/run-all.js npm install && npm run set-dev",
@@ -29,6 +28,9 @@
     "clean-publish": "npx clean-publish",
     "drawings": "for FILE in workdocs/drawings/*.drawio; do echo \"converting $FILE to image...\" && docker run --rm -v $(pwd):/data rlespinasse/drawio-export --format png $FILE; done && cp -rf workdocs/drawings/export/* workdocs/resources/",
     "uml": "cd workdocs/uml && for FILE in ./*.puml; do docker run --rm -v $(pwd):/work -w /work miy4/plantuml -DPLANTUML_LIMIT_SIZE=8192 -tpng $FILE; done && cd ../.. && cp -fr workdocs/uml/*.png workdocs/resources/",
+    "build:banner": "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -sOutputFile=workdocs/resources/banner.png workdocs/illustrator/banner.ai",
+    "build:cover": "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -sOutputFile=workdocs/resources/cover.png workdocs/illustrator/cover.ai",
+    "build:icon": "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -sOutputFile=workdocs/resources/icon.png workdocs/illustrator/icon.ai",
     "docs": "npx rimraf ./docs && mkdir docs && npm install better-docs taffydb && gulp docs; npm remove better-docs taffydb"
   },
   "repository": {

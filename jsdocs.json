@@ -13,7 +13,7 @@
   "recurseDepth": 10,
   "source": {
     "include": [
-      "./ts-workspace/src"
+      "./decorator-validation/src"
     ],
     "exclude": [
       "node_modules",
