@@ -1,6 +1,9 @@
 [submodule "decorator-validation"]
 	path = decorator-validation
 	url = git@github.com:decaf-ts/decorator-validation.git
+[submodule "injectable-decorators"]
+	path = injectable-decorators
+	url = git@github.com:decaf-ts/injectable-decorators.git
 [submodule "db-decorators"]
 	path = db-decorators
 	url = git@github.com:decaf-ts/db-decorators.git
