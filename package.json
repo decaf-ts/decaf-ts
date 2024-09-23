@@ -1,7 +1,7 @@
 {
-  "name": "@decaf-ts/ts-multi-module-workspace",
+  "name": "@decaf-ts/decaf-ts",
   "version": "0.0.1",
-  "description": "template for multi-module ts projects",
+  "description": "Workspace for the decaf-ts (not so) framework",
   "scripts": {
     "preinstall": "git submodule update --init --recursive",
     "do-install": "TOKEN=$(cat .token) npm install",
@@ -35,7 +35,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/decaf-ts/ts-multi-module-workspace.git"
+    "url": "git+https://github.com/decaf-ts/decaf-ts.git"
   },
   "engines": {
     "node": ">=20.0.0",
