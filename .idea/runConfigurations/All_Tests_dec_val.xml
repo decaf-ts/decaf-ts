@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="All Tests@dec-val" type="JavaScriptTestRunnerJest" folderName="decorator-validation">
+    <node-interpreter value="project" />
+    <node-options value="" />
+    <jest-package value="$PROJECT_DIR$/decorator-validation/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/decorator-validation" />
+    <envs />
+    <scope-kind value="ALL" />
+    <method v="2" />
+  </configuration>
+</component>
