@@ -8,7 +8,8 @@
 /workdocs/uml/*
 !/workdocs/drawings/*.drawio
 !/workdocs/uml/*.puml
-/.idea
-!/.idea/runConfigurations
+/.idea/*.xml
+/.idea/*.iml
 /.token
+/.npmtoken
 /node_modules

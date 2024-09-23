@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="reflections.test.ts" type="JavaScriptTestRunnerJest" folderName="decorator-validation" nameIsGenerated="true">
+    <node-interpreter value="project" />
+    <node-options value="" />
+    <jest-package value="$PROJECT_DIR$/decorator-validation/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/decorator-validation" />
+    <envs />
+    <scope-kind value="TEST_FILE" />
+    <test-file value="$PROJECT_DIR$/decorator-validation/tests/unit/reflections.test.ts" />
+    <method v="2" />
+  </configuration>
+</component>
