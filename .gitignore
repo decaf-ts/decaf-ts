@@ -10,6 +10,9 @@
 !/workdocs/uml/*.puml
 /.idea/*.xml
 /.idea/*.iml
+/.idea/codeStyles
+/.idea/inspectionProfiles
+/.idea/jsLinters
 !/.idea/runConfigurations/*.xml
 /.token
 /.npmtoken

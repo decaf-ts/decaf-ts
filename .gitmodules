@@ -1,3 +1,6 @@
+[submodule "reflection"]
+	path = reflection
+	url = git@github.com:decaf-ts/reflection.git
 [submodule "decorator-validation"]
 	path = decorator-validation
 	url = git@github.com:decaf-ts/decorator-validation.git
@@ -7,3 +10,6 @@
 [submodule "db-decorators"]
 	path = db-decorators
 	url = git@github.com:decaf-ts/db-decorators.git
+[submodule "persistence"]
+	path = persistence
+	url = git@github.com:decaf-ts/persistence.git
