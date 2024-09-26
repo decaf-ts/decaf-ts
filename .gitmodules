@@ -10,6 +10,6 @@
 [submodule "db-decorators"]
 	path = db-decorators
 	url = git@github.com:decaf-ts/db-decorators.git
-[submodule "persistence"]
-	path = persistence
-	url = git@github.com:decaf-ts/persistence.git
+[submodule "core"]
+	path = core
+	url = git@github.com:decaf-ts/core.git
