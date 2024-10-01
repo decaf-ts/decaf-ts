@@ -6,10 +6,14 @@ const fs = require("fs");
 let operation = process.argv.find(a => a.startsWith("--"));
 operation = operation ? operation.substring(2, operation.length) : "link"
 
+const outerPkg = require(path.join(process.cwd(), "package.json"));
+
+const scope = outerPkg["name"].split("/")[0];
+
 if (operation === "link"){
     libs.forEach(l => {
         const pkg = require(path.join(process.cwd(), l, "package.json"))
-        const dependencies = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {}), ...Object.keys(pkg.peerDependencies || {})].filter(d => d.startsWith("@decaf-ts/"));
+        const dependencies = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {}), ...Object.keys(pkg.peerDependencies || {})].filter(d => d.startsWith(scope));
         dependencies.forEach(d => {
             try {
 
@@ -18,7 +22,7 @@ if (operation === "link"){
                 let name = d.split("/")[1]
                 let linkPath = name;
                 let linkName = name;
-                let cwd = path.join(process.cwd(), l, "node_modules/@decaf-ts")
+                let cwd = path.join(process.cwd(), l, `node_modules/${scope}`)
 
                 console.log(`${operation}ing ${d} as a dependency of ${l}`)
                 execSync(`rm -rf ${pathToRemove}`, {
@@ -38,7 +42,7 @@ if (operation === "link"){
 } else if (operation === "unlink"){
     libs.forEach(l => {
         const pkg = require(path.join(process.cwd(), l, "package.json"))
-        const dependencies = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {}), ...Object.keys(pkg.peerDependencies || {})].filter(d => d.startsWith("@decaf-ts/"));
+        const dependencies = [...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {}), ...Object.keys(pkg.peerDependencies || {})].filter(d => d.startsWith(scope));
         dependencies.forEach(d => {
             console.log(`${operation}ing ${d} as a dependency of ${l}`)
             try {
