@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="All Tests@injectables" type="JavaScriptTestRunnerJest" folderName="injectables">
+  <configuration default="false" name="All Tests@injectable-decorators" type="JavaScriptTestRunnerJest">
     <node-interpreter value="project" />
     <node-options value="" />
     <jest-package value="$PROJECT_DIR$/injectable-decorators/node_modules/jest" />

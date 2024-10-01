@@ -13,3 +13,6 @@
 [submodule "core"]
 	path = core
 	url = git@github.com:decaf-ts/core.git
+[submodule "for-couchdb"]
+	path = for-couchdb
+	url = git@github.com:decaf-ts/for-couchdb.git
