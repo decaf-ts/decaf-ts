@@ -14,7 +14,7 @@ if (operation === "link"){
             try {
 
                 let pathToRemove = `node_modules/${d}/lib`;
-                let linkRel = `../../../`;
+                let linkRel = `../../../../`;
                 let name = d.split("/")[1]
                 let linkPath = name;
                 let linkName = name;
@@ -25,8 +25,8 @@ if (operation === "link"){
                     cwd: path.join(process.cwd(), l),
                     env: process.env
                 })
-                execSync(`ln -s ${linkRel}${linkPath}/lib ${linkName}/lib`, {
-                    cwd: cwd,
+                execSync(`ln -s ${linkRel}${linkPath}/lib ./lib`, {
+                    cwd: path.join(cwd, linkName),
                     env: process.env
                 })
             } catch (e){
@@ -42,7 +42,7 @@ if (operation === "link"){
         dependencies.forEach(d => {
             console.log(`${operation}ing ${d} as a dependency of ${l}`)
             try {
-                execSync(`rm -rf  node_modules/@decaf-ts/${d}`, {
+                execSync(`rm -rf  node_modules/${d}`, {
                     cwd: path.join(process.cwd(), l),
                     env: process.env
                 })
