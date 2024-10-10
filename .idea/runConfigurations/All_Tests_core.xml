@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="All Tests@core" type="JavaScriptTestRunnerJest">
+    <node-interpreter value="project" />
+    <node-options value="" />
+    <jest-package value="$PROJECT_DIR$/core/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/core" />
+    <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot;" />
+    <envs />
+    <scope-kind value="ALL" />
+    <method v="2" />
+  </configuration>
+</component>
