@@ -1,0 +1,90 @@
+@startgantt
+Project starts the 2024/05/01
+ganttscale monthly
+
+[Framework Conception] happens 2024/05/01
+
+[reflection module] as [reflect] requires 15 days and is 100% complete
+[reflect] starts at [Framework Conception]'s start
+[reflect] is colored in Lavender/LightBlue
+
+[decoration-validation module] as [dec-val] requires 70 days and is 90% complete
+[dec-val] starts at [reflect]'s end
+[dec-val] is colored in Lavender/LightBlue
+
+[db-decorators module] as [db-dec] requires 80 days and is 90% complete
+[db-dec] starts at [dec-val]'s end
+[db-dec] is colored in Lavender/LightBlue
+
+[ui-decorators module] as [ui-dec] requires 20 days and is 100% complete
+[ui-dec] starts at [dec-val]'s end
+[ui-dec] is colored in Lavender/LightBlue
+
+[injectable-decorators module] as [inject] requires 60 days and is 90% complete
+[inject] starts at [reflect]'s end
+[inject] is colored in Lavender/LightBlue
+
+[transactional-decorators module] as [transact] requires 60 days and is 90% complete
+[transact] starts at [db-dec]'s start
+[transact] is colored in Lavender/LightBlue
+
+[core module] as [core] requires 60 days and is 70% complete
+[core] starts at [db-dec]'s end
+[core] starts at [ui-dec]'s end
+[core] starts at [transact]'s end
+[core] starts at [inject]'s end
+[core] is colored in Lavender/LightBlue
+
+[Core Framework completed] happens at [core]'s end
+
+[couch-db module] as [couch] requires 60 days and is 50% complete
+[couch] starts at [core]'s end
+[couch] is colored in salmon
+
+[hl-fabric module] as [fabric] requires 60 days and is 50% complete
+[fabric] starts at [couch]'s end
+[fabric] is colored in salmon
+
+[sql module] as [sql] requires 60 days and is 0% complete
+[sql] starts at [core]'s end
+[sql] is colored in salmon
+
+[cli module] as [cli] requires 60 days and is 0% complete
+[cli] starts at [fabric]'s end
+[cli] starts at [sql]'s end
+[cli] starts at [couch]'s end
+[cli] is colored in brown
+
+[nest module] as [nest] requires 60 days and is 0% complete
+[nest] starts at [cli]'s end
+[nest] is colored in pink
+
+[angular module] as [angular] requires 60 days and is 70% complete
+[angular] starts at [cli]'s end
+[angular] is colored in green
+
+[react module] as [react] requires 60 days and is 0% complete
+[react] starts at [cli]'s end
+[react] is colored in green
+
+[ionic module] as [ionic] requires 60 days and is 50% complete
+[ionic] starts at [cli]'s end
+[ionic] is colored in green
+
+[vue module] as [vue] requires 60 days and is 0% complete
+[vue] starts at [cli]'s end
+[vue] is colored in green
+
+[Planned extension modules completed] happens at [couch]'s end
+[Planned extension modules completed] happens at [sql]'s end
+[Planned extension modules completed] happens at [cli]'s end
+[Planned extension modules completed] happens at [nest]'s end
+[Planned extension modules completed] happens at [angular]'s end
+[Planned extension modules completed] happens at [react]'s end
+[Planned extension modules completed] happens at [ionic]'s end
+[Planned extension modules completed] happens at [vue]'s end
+
+[marketing] starts at [Planned extension modules completed]'s end
+[marketing] requires 150 days and is 0% complete
+[marketing] is colored in yellow
+@endgantt
