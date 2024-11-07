@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="All Tests@for-pouch" type="JavaScriptTestRunnerJest">
+    <node-interpreter value="project" />
+    <jest-package value="$PROJECT_DIR$/for-pouch/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/for-pouch" />
+    <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot; --passWithNoTests" />
+    <envs />
+    <scope-kind value="ALL" />
+    <method v="2" />
+  </configuration>
+</component>
