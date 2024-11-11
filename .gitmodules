@@ -31,3 +31,6 @@
 [submodule "ui-decorators"]
 	path = ui-decorators
 	url = git@github.com:decaf-ts/ui-decorators.git
+[submodule "for-angular"]
+	path = for-angular
+	url = https://github.com/decaf-ts/for-angular.git
