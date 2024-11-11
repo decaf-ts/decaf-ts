@@ -28,3 +28,6 @@
 [submodule "for-pouch"]
 	path = for-pouch
 	url = git@github.com:decaf-ts/for-pouch.git
+[submodule "ui-decorators"]
+	path = ui-decorators
+	url = git@github.com:decaf-ts/ui-decorators.git
