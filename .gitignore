@@ -10,6 +10,7 @@
 !/workdocs/uml/*.puml
 /.idea/*.xml
 /.idea/*.iml
+/.idea/shelf
 /.idea/codeStyles
 /.idea/inspectionProfiles
 /.idea/jsLinters
