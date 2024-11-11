@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="build@for-nano" type="js.build_tools.npm">
+  <configuration default="false" name="build@for-nano" type="js.build_tools.npm" folderName="build">
     <package-json value="$PROJECT_DIR$/for-nano/package.json" />
     <command value="run" />
     <scripts>

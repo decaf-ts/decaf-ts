@@ -1,7 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="All Tests@decorator-validation" type="JavaScriptTestRunnerJest">
+  <configuration default="false" name="All Tests@decorator-validation" type="JavaScriptTestRunnerJest" folderName="test">
     <node-interpreter value="project" />
-    <node-options value="" />
     <jest-package value="$PROJECT_DIR$/decorator-validation/node_modules/jest" />
     <working-dir value="$PROJECT_DIR$/decorator-validation" />
     <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot;" />

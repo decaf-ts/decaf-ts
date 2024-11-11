@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="All Tests@core" type="JavaScriptTestRunnerJest" folderName="test">
+  <configuration default="false" name="All Tests@logging" type="JavaScriptTestRunnerJest" folderName="test">
     <node-interpreter value="project" />
-    <jest-package value="$PROJECT_DIR$/core/node_modules/jest" />
-    <working-dir value="$PROJECT_DIR$/core" />
+    <jest-package value="$PROJECT_DIR$/logging/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/logging" />
     <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot;" />
     <envs />
     <scope-kind value="ALL" />

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="build@injectable-decorators" type="js.build_tools.npm">
+  <configuration default="false" name="build@injectable-decorators" type="js.build_tools.npm" folderName="build">
     <package-json value="$PROJECT_DIR$/injectable-decorators/package.json" />
     <command value="run" />
     <scripts>

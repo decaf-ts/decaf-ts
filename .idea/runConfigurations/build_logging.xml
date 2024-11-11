@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="build@for-couchdb" type="js.build_tools.npm" folderName="build">
-    <package-json value="$PROJECT_DIR$/for-couchdb/package.json" />
+  <configuration default="false" name="build@logging" type="js.build_tools.npm" folderName="build">
+    <package-json value="$PROJECT_DIR$/logging/package.json" />
     <command value="run" />
     <scripts>
       <script value="build" />

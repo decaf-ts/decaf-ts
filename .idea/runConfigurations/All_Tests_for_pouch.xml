@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="All Tests@for-pouch" type="JavaScriptTestRunnerJest">
+  <configuration default="false" name="All Tests@for-pouch" type="JavaScriptTestRunnerJest" folderName="test">
     <node-interpreter value="project" />
     <jest-package value="$PROJECT_DIR$/for-pouch/node_modules/jest" />
     <working-dir value="$PROJECT_DIR$/for-pouch" />
