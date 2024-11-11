@@ -13,6 +13,9 @@
 [submodule "transactional-decorators"]
 	path = transactional-decorators
 	url = git@github.com:decaf-ts/transactional-decorators.git
+[submodule "logging"]
+	path = logging
+	url = git@github.com:decaf-ts/logging.git
 [submodule "core"]
 	path = core
 	url = git@github.com:decaf-ts/core.git
