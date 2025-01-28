@@ -1,0 +1,5 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="debug@for-angular" type="JavascriptDebugType" uri="http://localhost:8120" useFirstLineBreakpoints="true">
+    <method v="2" />
+  </configuration>
+</component>

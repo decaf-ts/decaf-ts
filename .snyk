@@ -1,0 +1,8 @@
+ignore: {}
+patch: {}
+exclude:
+  global:
+    - bin/**
+    - workdocs/**
+    - gulpfile.mjs
+    - jest.config.js
