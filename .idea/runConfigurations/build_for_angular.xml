@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="build@for-angular" type="js.build_tools.npm" folderName="build">
+    <package-json value="$PROJECT_DIR$/for-angular/package.json" />
+    <command value="run" />
+    <scripts>
+      <script value="build:new" />
+    </scripts>
+    <node-interpreter value="project" />
+    <envs />
+    <method v="2" />
+  </configuration>
+</component>
