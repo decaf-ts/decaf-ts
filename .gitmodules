@@ -37,3 +37,6 @@
 [submodule "for-angular"]
 	path = for-angular
 	url = git@github.com:decaf-ts/for-angular.git
+[submodule "cli"]
+	path = cli
+	url = git@github.com:decaf-ts/cli.git
