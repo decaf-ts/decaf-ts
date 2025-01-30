@@ -1,0 +1,5 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="run cli help test" type="NodeJSConfigurationType" folderName="cli" application-parameters="help test command" path-to-js-file="lib/cli.cjs" working-dir="$PROJECT_DIR$/cli">
+    <method v="2" />
+  </configuration>
+</component>
