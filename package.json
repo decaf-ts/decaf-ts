@@ -1,6 +1,6 @@
 {
   "name": "@decaf-ts/decaf-ts",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Workspace for the decaf-ts (not so) framework",
   "scripts": {
     "preinstall": "git submodule update --init --recursive",

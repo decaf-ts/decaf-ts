@@ -68,7 +68,7 @@ function createBundle(name, version, dependencies) {
   pkg.description = `Decaf-ts' ${name} install`;
   dependencies.forEach((dependency) => {
     const version = getVersion(dependency);
-    pkg.peerDependencies[dependency] = `^${version}`;
+    pkg.dependencies[dependency] = `^${version}`;
   });
   fs.writeFileSync(
     path.join(basePath, name, "package.json"),
