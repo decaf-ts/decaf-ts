@@ -25,6 +25,7 @@
     "run-all": "node ./bin/run-all.js",
     "prepare-release": "npm run build-all:prod && npm run coverage && npm run docs",
     "release": "./bin/tag-release.sh",
+    "bundle": "node ./bin/bundle.js",
     "clean-publish": "npx clean-publish",
     "drawings": "for FILE in workdocs/drawings/*.drawio; do echo \"converting $FILE to image...\" && docker run --rm -v $(pwd):/data rlespinasse/drawio-export --format png $FILE; done && cp -rf workdocs/drawings/export/* workdocs/resources/",
     "uml": "cd workdocs/uml && for FILE in ./*.puml; do docker run --rm -v $(pwd):/work -w /work miy4/plantuml -DPLANTUML_LIMIT_SIZE=8192 -tpng $FILE; done && cd ../.. && cp -fr workdocs/uml/*.png workdocs/resources/",
@@ -66,9 +67,9 @@
   "author": "decaf-ts",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/decaf-ts/ts-multi-module-workspace/issues"
+    "url": "https://github.com/decaf-ts/decaf-ts/issues"
   },
-  "homepage": "https://github.com/decaf-ts/ts-multi-module-workspace#readme",
+  "homepage": "https://github.com/decaf-ts/decaf-ts#readme",
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
