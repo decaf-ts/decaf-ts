@@ -1,4 +1,4 @@
-/bin/releases
+/bin/releases/*
 !/bin/releases/bundles.json
 !/bin/releases/package-template.json
 /docs
