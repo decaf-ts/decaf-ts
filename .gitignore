@@ -1,6 +1,7 @@
 /lib
 /dist
 /docs
+/bin/releases/*
 /workdocs/coverage
 /workdocs/resources/*
 !/workdocs/resources/.gitlock
