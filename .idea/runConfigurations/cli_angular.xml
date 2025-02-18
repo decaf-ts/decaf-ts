@@ -1,0 +1,5 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="cli@angular" type="NodeJSConfigurationType" folderName="cli" application-parameters="test" path-to-js-file="node_modules/@decaf-ts/cli/lib/cli.cjs" working-dir="$PROJECT_DIR$/for-angular">
+    <method v="2" />
+  </configuration>
+</component>

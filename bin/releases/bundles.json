@@ -1,0 +1,30 @@
+{
+  "dist-lite": [
+    "@decaf-ts/db-decorators",
+    "@decaf-ts/decorator-validation",
+    "@decaf-ts/injectable-decorators",
+    "@decaf-ts/reflection"
+  ],
+  "dist-base": [
+    "@decaf-ts/cli",
+    "@decaf-ts/core",
+    "@decaf-ts/db-decorators",
+    "@decaf-ts/ui-decorators",
+    "@decaf-ts/transactional-decorators",
+    "@decaf-ts/decorator-validation",
+    "@decaf-ts/injectable-decorators",
+    "@decaf-ts/reflection"
+  ],
+  "dist-angular": [
+    "@decaf-ts/for-angular",
+    "@decaf-ts/for-http",
+    "@decaf-ts/cli",
+    "@decaf-ts/core",
+    "@decaf-ts/db-decorators",
+    "@decaf-ts/ui-decorators",
+    "@decaf-ts/transactional-decorators",
+    "@decaf-ts/decorator-validation",
+    "@decaf-ts/injectable-decorators",
+    "@decaf-ts/reflection"
+  ]
+}

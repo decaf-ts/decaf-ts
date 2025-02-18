@@ -1,5 +1,6 @@
-/lib
-/dist
+/bin/releases/*
+!/bin/releases/bundles.json
+!/bin/releases/package-template.json
 /docs
 /bin/releases/*
 /workdocs/coverage
