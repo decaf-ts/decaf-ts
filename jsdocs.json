@@ -30,8 +30,8 @@
   },
   "templates": {
     "better-docs": {
-      "name": "ts-multi-module",
-      "title": "ts-multi-module",
+      "name": "Decaf-ts",
+      "title": "Decaf is almost a framework",
       "hideGenerator": true,
       "useLongnameInNav": true,
       "navLinks": [
