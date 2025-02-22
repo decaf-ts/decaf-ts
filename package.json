@@ -23,7 +23,7 @@
     "git-pull": "npm run git-all -- pull",
     "git-all": "npm run run-all -- git",
     "run-all": "node ./bin/run-all.js",
-    "prepare-release": "npm run build-all:prod",
+    "prepare-release": "",
     "release": "./bin/tag-release.sh",
     "bundle": "node ./bin/bundle.js",
     "clean-publish": "npx clean-publish",
