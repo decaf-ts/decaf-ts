@@ -74,7 +74,7 @@ npm version "$TAG" -m "$MESSAGE"
 
 if [[ $(git status --porcelain) ]]; then
   git add .
-  git commit -m "after release preparation"
+  git commit -m "$TAG $MESSAGE - after release preparation"
 fi
 
 git push --follow-tags
