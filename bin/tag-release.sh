@@ -67,6 +67,10 @@ if [[ -z "$MESSAGE" ]];then
   MESSAGE=$(ask "Tag Message")
 fi
 
+echo "publishing all under version update $TAG with message $MESSAGE"
+
+npm run run-all -- "npm run update-dependencies --if-present && npm run release -- $TAG $MESSAGE"
+
 if [[ $(git status --porcelain) ]]; then
   git add .
   git commit -m "after release preparation"
@@ -76,5 +80,8 @@ npm version "$TAG" -m "$MESSAGE"
 
 git push --follow-tags
 
+if [[ "$MESSAGE" =~ -no-ci$ ]]; then
+  TOKEN=$(cat .npmtoken) npm publish
+fi
 
 
