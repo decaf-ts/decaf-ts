@@ -80,8 +80,6 @@ npm version "$TAG" -m "$MESSAGE"
 
 git push --follow-tags
 
-if [[ "$MESSAGE" =~ -no-ci$ ]]; then
-  TOKEN=$(cat .npmtoken) npm publish
-fi
+npm run bundles
 
 
