@@ -69,7 +69,7 @@ fi
 
 echo "publishing all under version update $TAG with message $MESSAGE"
 
-npm run run-all -- "npm run update-dependencies --if-present && npm run release -- $TAG $MESSAGE"
+npm run run-all -- "npm run update-dependencies --if-present && npm run release -- $MESSAGE"
 
 if [[ $(git status --porcelain) ]]; then
   git add .
