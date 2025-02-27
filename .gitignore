@@ -3,6 +3,7 @@
 !/bin/releases/package-template.json
 /docs
 /bin/releases/*
+/workdocs/spec/modules/*
 /workdocs/coverage
 /workdocs/resources/*
 !/workdocs/resources/.gitlock
