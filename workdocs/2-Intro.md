@@ -1,7 +1,7 @@
 ## Decaf
-##### Decaf's not a framework
+##### Decaf's almost a framework
 
-##### Why we need a TS almost framework?
+##### Why we need a yet another TS almost framework?
 
 I know... like there aren't enough... Good this DECAF is not quite a Framework.
 
