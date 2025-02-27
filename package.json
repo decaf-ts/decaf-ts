@@ -34,7 +34,7 @@
     "build:icon": "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -sOutputFile=workdocs/resources/icon.png workdocs/illustrator/icon.ai",
     "docs": "npx rimraf ./docs && mkdir docs && npm install better-docs taffydb && gulp docs; npm remove better-docs taffydb",
     "compile-spec": "rimraf ./workdocs/spec/modules/* && git submodule foreach 'ln -s ../../../$sm_path/workdocs/spec ../workdocs/spec/modules/$sm_path'",
-    "publish-docs": "npm run compile-specs && docker run -it --rm --user 1001:1001 -v \"$(pwd)/workdocs/spec:/content\" -e ATLASSIAN_API_TOKEN=$(cat .confluence-token) ghcr.io/markdown-confluence/publish:latest"
+    "publish-docs": "npm run compile-spec && docker run -it --rm --user 1001:1001 -v \"$(pwd)/workdocs/spec:/content\" -e ATLASSIAN_API_TOKEN=$(cat .confluence-token) ghcr.io/markdown-confluence/publish:latest"
   },
   "repository": {
     "type": "git",
