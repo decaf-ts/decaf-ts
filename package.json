@@ -3,7 +3,7 @@
   "version": "0.0.3",
   "description": "Workspace for the decaf-ts (not so) framework",
   "scripts": {
-    "preinstall": "git submodule update --init --recursive",
+    "preinstall": "git submodule update --init --merge --recursive",
     "do-install": "TOKEN=$(cat .token) npm install",
     "postinstall": "node ./bin/run-all.js npm install && npm run set-dev",
     "reset": "rm -rf * && git checkout . && git pull && npm run do-install",
