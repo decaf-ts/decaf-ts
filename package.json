@@ -4,7 +4,7 @@
   "description": "Workspace for the decaf-ts (not so) framework",
   "scripts": {
     "preinstall": "git submodule update --init --remote --merge --recursive",
-    "sync-branches": "BRANCH=\"$(git rev-parse --abbrev-ref HEAD)\" git submodule foreach '[[ -n \"$(git branch --list $BRANCH)\" ]] && git checkout $BRANCH || git checkout master'",
+    "sync-branches": "BRANCH=\"$(git rev-parse --abbrev-ref HEAD)\" git submodule foreach '([[ -n \"$(git branch --list $BRANCH)\" ]] || [[ -n \"$(git ls-remote --heads origin $BRANCH)\" ]]) && git checkout $BRANCH || git checkout master'",
     "do-install": "TOKEN=$(cat .token) npm install",
     "postinstall": "node ./bin/run-all.js npm run do-install",
     "reset": "rm -rf * && git checkout . && git pull && npm run do-install",
