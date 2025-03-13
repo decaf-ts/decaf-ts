@@ -5,7 +5,7 @@
   "scripts": {
     "preinstall": "git submodule update --init --merge --recursive",
     "do-install": "TOKEN=$(cat .token) npm install",
-    "postinstall": "node ./bin/run-all.js npm install && npm run set-dev",
+    "postinstall": "node ./bin/run-all.js npm run do-install",
     "reset": "rm -rf * && git checkout . && git pull && npm run do-install",
     "reset-build": "npm run reset && npm run build-all",
     "link-token": "node ./bin/npm-token.js",
