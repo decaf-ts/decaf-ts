@@ -3,7 +3,7 @@
   "version": "0.0.3",
   "description": "Workspace for the decaf-ts (not so) framework",
   "scripts": {
-    "preinstall": "git submodule update --init --remote --merge --recursive",
+    "init": "git submodule update --init --remote --merge --recursive",
     "sync-branches": "BRANCH=\"$(git rev-parse --abbrev-ref HEAD)\" git submodule foreach '([[ -n \"$(git branch --list $BRANCH)\" ]] || [[ -n \"$(git ls-remote --heads origin $BRANCH)\" ]]) && git checkout $BRANCH || git checkout master'",
     "do-install": "TOKEN=$(cat .token) npm install",
     "postinstall": "node ./bin/run-all.js npm run do-install",
