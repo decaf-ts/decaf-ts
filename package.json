@@ -68,7 +68,7 @@
     "ts"
   ],
   "author": "decaf-ts",
-  "license": "MIT",
+  "license": "LGPL-3.0-or-later",
   "bugs": {
     "url": "https://github.com/decaf-ts/decaf-ts/issues"
   },
