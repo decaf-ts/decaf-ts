@@ -1,7 +1,7 @@
 {
   "name": "@decaf-ts/decaf-ts",
   "version": "0.0.3",
-  "description": "Workspace for the decaf-ts (not so) framework",
+  "description": "Workspace for decaf-ts (is almost) framework",
   "scripts": {
     "init": "git submodule update --init --remote --merge --recursive",
     "sync-branches": "BRANCH=\"$(git rev-parse --abbrev-ref HEAD)\" git submodule foreach '([[ -n \"$(git branch --list $BRANCH)\" ]] || [[ -n \"$(git ls-remote --heads origin $BRANCH)\" ]]) && git checkout $BRANCH || git checkout master'",
