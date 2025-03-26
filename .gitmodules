@@ -1,3 +1,6 @@
+[submodule "utils"]
+	path = utils
+	url = https://github.com/decaf-ts/utils
 [submodule "reflection"]
 	path = reflection
 	url = https://github.com/decaf-ts/reflection.git
