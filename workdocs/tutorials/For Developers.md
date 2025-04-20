@@ -19,7 +19,7 @@ The following npm scripts are available for development:
 - `reset` - updates all dependencies. Take care, This may not be desirable is some cases;
 - `reset-build` - resets and then builds;
 - `link-token` - creates symlinks in all modules to the `.token`;
-- `set-dev` - checout out master on all modules and symlinks the relative dependencies according to the modules;
+- `set-dev` - checkout out master on all modules and symlinks the relative dependencies according to the modules;
 - `test` - runs unit tests;
 - `test:unit` - runs it tests;
 - `test:all` - runs all tests;
