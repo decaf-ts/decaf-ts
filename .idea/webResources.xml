@@ -6,6 +6,19 @@
         <entryData>
           <resourceRoots>
             <path value="file://$PROJECT_DIR$/workdocs" />
+            <path value="file://$PROJECT_DIR$/cli/workdocs" />
+            <path value="file://$PROJECT_DIR$/db-decorators/workdocs" />
+            <path value="file://$PROJECT_DIR$/decorator-validation/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-angular/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-couchdb/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-http/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-nano/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-pouch/workdocs" />
+            <path value="file://$PROJECT_DIR$/injectable-decorators/workdocs" />
+            <path value="file://$PROJECT_DIR$/logging/workdocs" />
+            <path value="file://$PROJECT_DIR$/transactional-decorators/workdocs" />
+            <path value="file://$PROJECT_DIR$/ui-decorators/workdocs" />
+            <path value="file://$PROJECT_DIR$/utils/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>
