@@ -11,13 +11,6 @@
 /workdocs/uml/*
 !/workdocs/drawings/*.drawio
 !/workdocs/uml/*.puml
-/.idea/*.xml
-/.idea/*.iml
-/.idea/shelf
-/.idea/codeStyles
-/.idea/inspectionProfiles
-/.idea/jsLinters
-!/.idea/runConfigurations/*.xml
 /.token
 /.npmtoken
 /.confluence-token
