@@ -1,6 +1,5 @@
+const data = require("fs").readFileSync(".gitmodules", "utf8");
 
-const data = require("fs").readFileSync(".gitmodules", 'utf8');
+const modules = data.toString().match(/(?<=").*?(?="])/g);
 
-const modules = data.toString().match(/(?<=").*?(?="])/g)
-
-module.exports = modules
+module.exports = modules;

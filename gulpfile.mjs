@@ -35,12 +35,12 @@ function makeDocs() {
   };
 
   function compileReadme() {
-    return run.default("npx markdown-include ./mdCompile.json")();
+    return run.default("npx markdown-include ./workdocs/readme-md.json")();
   }
 
   function compileDocs() {
     return run.default(
-      "npx jsdoc -c jsdocs.json -t ./node_modules/better-docs",
+      "npx jsdoc -c ./workdocs/jsdocs.json -t ./node_modules/better-docs",
     )();
   }
 

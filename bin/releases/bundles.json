@@ -6,25 +6,25 @@
     "@decaf-ts/reflection"
   ],
   "dist-base": [
-    "@decaf-ts/cli",
-    "@decaf-ts/core",
-    "@decaf-ts/db-decorators",
-    "@decaf-ts/ui-decorators",
+    "@decaf-ts/dist-lite",
     "@decaf-ts/transactional-decorators",
     "@decaf-ts/decorator-validation",
     "@decaf-ts/injectable-decorators",
     "@decaf-ts/reflection"
   ],
+  "dist-nano": [
+    "@decaf-ts/dist-base",
+    "@decaf-ts/for-couchdb",
+    "@decaf-ts/for-nano"
+  ],
+  "dist-pouch": [
+    "@decaf-ts/dist-base",
+    "@decaf-ts/for-couchdb",
+    "@decaf-ts/for-pouch"
+  ],
   "dist-angular": [
+    "@decaf-ts/dist-base",
     "@decaf-ts/for-angular",
-    "@decaf-ts/for-http",
-    "@decaf-ts/cli",
-    "@decaf-ts/core",
-    "@decaf-ts/db-decorators",
-    "@decaf-ts/ui-decorators",
-    "@decaf-ts/transactional-decorators",
-    "@decaf-ts/decorator-validation",
-    "@decaf-ts/injectable-decorators",
-    "@decaf-ts/reflection"
+    "@decaf-ts/for-http"
   ]
 }

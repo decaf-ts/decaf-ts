@@ -1,263 +1,126 @@
 ![Banner](./workdocs/assets/Banner.png)
-## Typescript Template
+
+## Decaf
+##### Decaf's almost a framework
+
+##### Why we need yet another TS almost framework?
+
+I know... like there aren't enough right?!... Good thing DECAF is not quite a Framework.
+
+No. Really,
 
 
+![Licence](https://img.shields.io/github/license/decaf-ts/decaf-ts.svg?style=plastic)
+![GitHub language count](https://img.shields.io/github/languages/count/decaf-ts/decaf-ts?style=plastic)
+![GitHub top language](https://img.shields.io/github/languages/top/decaf-ts/decaf-ts?style=plastic)
 
-![Licence](https://img.shields.io/github/license/decaf-ts/ts-multi-module-workspace.svg?style=plastic)
-![GitHub language count](https://img.shields.io/github/languages/count/decaf-ts/ts-multi-module-workspace?style=plastic)
-![GitHub top language](https://img.shields.io/github/languages/top/decaf-ts/ts-multi-module-workspace?style=plastic)
-[![Tests](https://github.com/decaf-ts/ts-multi-module-workspace/actions/workflows/jest-test.yaml/badge.svg)](http://www.pdmfc.com)
-[![CodeQL](https://github.com/starnowski/posmulten/workflows/CodeQL/badge.svg)](https://github.com/decaf-ts/ts-multi-module-workspace/actions?query=workflow%3ACodeQL)
+[![Build & Test](https://github.com/decaf-ts/decaf-ts/actions/workflows/nodejs-build-prod.yaml/badge.svg)](https://github.com/decaf-ts/decaf-ts/actions/workflows/nodejs-build-prod.yaml)
+[![CodeQL](https://github.com/decaf-ts/decaf-ts/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/decaf-ts/decaf-ts/actions/workflows/codeql-analysis.yml)[![Snyk Analysis](https://github.com/decaf-ts/decaf-ts/actions/workflows/snyk-analysis.yaml/badge.svg)](https://github.com/decaf-ts/decaf-ts/actions/workflows/snyk-analysis.yaml)
+[![Pages builder](https://github.com/decaf-ts/decaf-ts/actions/workflows/pages.yaml/badge.svg)](https://github.com/decaf-ts/decaf-ts/actions/workflows/pages.yaml)
+[![.github/workflows/release-on-tag.yaml](https://github.com/decaf-ts/decaf-ts/actions/workflows/release-on-tag.yaml/badge.svg?event=release)](https://github.com/decaf-ts/decaf-ts/actions/workflows/release-on-tag.yaml)
 
-![Open Issues](https://img.shields.io/github/issues/decaf-ts/ts-multi-module-workspace.svg)
-![Closed Issues](https://img.shields.io/github/issues-closed/decaf-ts/ts-multi-module-workspace.svg)
-![Pull Requests](https://img.shields.io/github/issues-pr-closed/decaf-ts/ts-multi-module-workspace.svg)
+![Open Issues](https://img.shields.io/github/issues/decaf-ts/decaf-ts.svg)
+![Closed Issues](https://img.shields.io/github/issues-closed/decaf-ts/decaf-ts.svg)
+![Pull Requests](https://img.shields.io/github/issues-pr-closed/decaf-ts/decaf-ts.svg)
 ![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 
-![Line Coverage](workdocs/badges/badge-lines.svg)
-![Function Coverage](workdocs/badges/badge-functions.svg)
-![Statement Coverage](workdocs/badges/badge-statements.svg)
-![Branch Coverage](workdocs/badges/badge-branches.svg)
-
-
-![Forks](https://img.shields.io/github/forks/decaf-ts/ts-multi-module-workspace.svg)
-![Stars](https://img.shields.io/github/stars/decaf-ts/ts-multi-module-workspace.svg)
-![Watchers](https://img.shields.io/github/watchers/decaf-ts/ts-multi-module-workspace.svg)
+![Forks](https://img.shields.io/github/forks/decaf-ts/decaf-ts.svg)
+![Stars](https://img.shields.io/github/stars/decaf-ts/decaf-ts.svg)
+![Watchers](https://img.shields.io/github/watchers/decaf-ts/decaf-ts.svg)
 
 ![Node Version](https://img.shields.io/badge/dynamic/json.svg?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbadges%2Fshields%2Fmaster%2Fpackage.json&label=Node&query=$.engines.node&colorB=blue)
 ![NPM Version](https://img.shields.io/badge/dynamic/json.svg?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbadges%2Fshields%2Fmaster%2Fpackage.json&label=NPM&query=$.engines.npm&colorB=purple)
 
-Defaults to module, but exports to CommonJS and ESM.
+Documentation available [here](https://decaf-ts.github.io/decaf-ts/)
 
-With documentation, update and release mechanisms and gitlab/github workflows to match;
+## Description
 
-Defines a 'way' to write jsDocs to optimize the output
+The Decaf Project presents a modular approach. 
+Several modules can be added to your project according to your needs, adding up to the smallest footprint possible.
 
-Optimized for github in terms of badges. CI is equivalent between Gitlab and Github.
+#### Stable Releases:
 
-Auto setup on first `npm install`
+| Distribution                                                               | Description                                                                             | Version |
+|----------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|---------|
+| ![decorator-validation](https://github.com/decaf-ts/decorator-validation ) | Holds the Model class.                                                                  |         |
+| ![Decaf Lite]()                                                            | Introduces the Repository base class<br/>allowing you to use it for your projects       |         |
+| ![Decaf Base]()                                                            | Further extends the Repository, making it<br/>suitable for all persistence layers       |         |
+| ![Decaf For Nano]()                                                        | Adds the persistence layer for CouchDB using nano<br/>suitable for all CouchDB projects |         |
+| ![Decaf For Pouch]()                                                       | Adds the persistence layer for CouchDB using PouchDB<br/>suitable for digital wallets   |         |
+| ![Decaf For Angular]()                                                     | Angular UI Engine. Converts Models into functional CRUD and Listing screens             |         |
+|                                                                            |                                                                                         |         |
 
-Will accept a `.token` file containing token valid for private npm dependencies, npm and docker registries
+### Core Modules
 
-### ***Initial Setup***
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=decaf-ts&repo=reflection)](https://github.com/decaf-ts/reflection)
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=decaf-ts&repo=decorator-validation)](https://github.com/decaf-ts/decorator-validation)
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=decaf-ts&repo=db-decorators)](https://github.com/decaf-ts/db-decorators)
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=decaf-ts&repo=core)](https://github.com/decaf-ts/core)
 
-#### if you use github
+### Persistence Adapters
 
-create a new project using this one as a template.
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=decaf-ts&repo=for-couchdb)](https://github.com/decaf-ts/for-couchdb)
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=decaf-ts&repo=for-fabric)](https://github.com/decaf-ts/for-fabric)
 
-clone it `git clone <project>` and navigate to the root folder `cd <project>`
+### UI Engines
 
-#### If your project has private dependencies or publishes to private npm registries, create an `.npmrc` containing:
+[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=decaf-ts&repo=for-angular)](https://github.com/decaf-ts/for-angular)
 
-```text
-@<scope1>:registry=https://<ADDRESS>.com/api/v4/packages/npm/
-@<scope2>:registry=https://<ADDRESS>.<DOMAIN>.com/api/v4/packages/npm/
-//<ADDRESS>.<DOMAIN>.com/:_authToken=${TOKEN}
-//<ADDRESS>.<DOMAIN>.com/api/v4/groups/<GROUP_ID>/packages/npm/:_authToken=${TOKEN}
-//<ADDRESS>.<DOMAIN>.com/api/v4/projects/<PROJECT_ID>/packages/npm/:_authToken=${TOKEN}
-```
+## Bundled Distribution Structure Template
 
-Changing:
- - <ADDRESS> to `gitlab` or `github` (or other);
- - <DOMAIN> to your domain if any (if you are using plain gitlab or github use empty and take care to remove the extra `.`);
- - <GROUP_ID> to your project's group id (if any). otherwise remove this line
- - <PROJECT_ID> to your project's id
+### DECAF Lite
 
-and adding a `.token` file containing your access token to the private registries na repositories.
+- @decaf-ts/reflection;
+- @decaf-ts/decorator-validation;
+- @decaf-ts/injectable-decorators;
+- @decaf-ts/db-decorators;
 
-### Installation
+### Persistence DECAF suite
 
-run `npm run initial-setup`
+- @decaf-ts/reflection;
+- @decaf-ts/decorator-validation;
+- @decaf-ts/injectable-decorators;
+- @decaf-ts/db-decorators;
+- @decaf-ts/transactional-decorators;
+- @decaf-ts/core;
+- @decaf-ts/<persistence adapter>;
 
-Run `npm install` (or `npm run do-install` if you have private dependencies and a `.token` file) to install the dependencies:
+### Fullstack DECAF suite
 
-If this is the first time you are running this command it will also:
- - update this repository's dependencies to their latest version;
- - creates a `.token` file which you can leave empty unless you have private dependencies or publish to private registries
- - delete this 'first run script' file and npm call from the `package.json`;
- - try to commit the updated `package.json` and deleted files (having ssh access helps here);
-## Testing
+- @decaf-ts/decorator-validation;
+- @decaf-ts/db-decorators;
+- @decaf-ts/injectable-decorators;
+- @decaf-ts/transactional-decorators; (optional)
+- @decaf-ts/core;
+- @decaf-ts/<persistence adapter>;
+- @decaf-ts/ui-decorators;
+- @decaf-ts/<rendering engine>; Suited for your frontend Framework (or several);
 
-Preconfigured Jest based testing:
+### How to Use
 
-- Configured to goup all modules in their testing, and test them as a whole.
-- When adding a new submodule, add it to `jest.config.js`
-### Building
+- [Initial Setup](./tutorials/For%20Developers.md#_initial-setup_)
+- [Installation](./tutorials/For%20Developers.md#installation)
+- [Scripts](./tutorials/For%20Developers.md#scripts)
+- [Linting](./tutorials/For%20Developers.md#testing)
+- [CI/CD](./tutorials/For%20Developers.md#continuous-integrationdeployment)
+- [Publishing](./tutorials/For%20Developers.md#publishing)
+- [Structure](./tutorials/For%20Developers.md#repository-structure)
+- [IDE Integrations](./tutorials/For%20Developers.md#ide-integrations)
+  - [VSCode(ium)](./tutorials/For%20Developers.md#visual-studio-code-vscode)
+  - [WebStorm](./tutorials/For%20Developers.md#webstorm)
+- [Considerations](./tutorials/For%20Developers.md#considerations)
 
-Make sure your `.gitmodules` file contains your modules in the required build order so the build script can conclude.
 
 
-### Releases
 
-This repository automates releases in the following manner:
-
-- run `npm run release -- <major|minor|patch|version> <message>`:
-  - if arguments are missing you will be prompted for them;
-- it will run `npm run prepare-release` npm script;
-- it will commit all changes;
-- it will push the new tag;
-
-If publishing to a private repo's npm registry, make sure you add to your `package.json`:
-
-```json
-{
-  "publishConfig": {
-    "<SCOPE>:registry": " https://<REGISTRY>/api/v4/projects/<PROJECT_ID>/packages/npm/"
-  }
-}
-```
-
-Where:
-
-- `<SCOPE>` - Is the scope of your package;
-- `<REGISTRY>` - your registry host;
-- `<PROJECT_ID>` - you project ID number (easy to grab via UI in gitlab or by
-  running `$("meta[name=octolytics-dimension-repository_id]").getAttribute('content')` in the repository page in github)
-  ;
-
-### Publishing
-
-Unless the `-no-ci` flag is passed in the commit message to the `npm run release` command, publishing will be handled
-automatically by github/gitlab (triggered by the tag).
-
-When the `-no-ci` flag is passed then you can:
-
-- run `npm run publish`. This command assumes :
-  - you have previously run the `npm run release`;
-  - you have you publishing properly configured in `npmrc` and `package.json`;
-  - The token for any special access required is stored in the `.token` file;
- 
-## Continuous Integration/Deployment
-
-Since CI for multi module projects can be anything. No CI is included.
-
-For the default CI reference ts-workspace
-## Considerations
- - Setup for a linux based environment (Sorry windows users. use WSL... or just change already);
- - Setup for node 20, but will work at least with 16;
- - Requires docker to build documentation (drawings and PlantUML)
-## Documentation
-
-The repository proposes a way to generate documentation that while still not ideal, produces verys consitest results.
-
-In the code you see an example on how to properly document each code object, but the overall structure is:
-  - each package is a `@module`;
-  - Classes and Interfaces are categorized into `@category` and `@subcategory`;
-  - All other objects are categorized by `@namespace` and `@memberOf`;
-  - Enums and const are declared as `@const` and both must describe their properties as `@property` (when constants are objects);
-  - Interfaces must declare their methods `@method`;
-
-There are 3 steps the generating the documentation (automated in CI):
- - `npm run drawings` - generates png files from each drawing in the `workdocs/drawings` folder and moves them to the `workdocs/resources` folder (requires Docker);
- - `npm run uml` - generates png files from each PlantUML diagram in the `workdocs/uml` folder and moves them to the `workdocs/resources` folder (requires Docker);
- - `npm run docs` - this has several stages, defined under the `gulp docs` (gulpfile.js):
-   - compiles the Readme file via md compile:
-     - enables keeping separate files for sections that are then joined into a single file;
-     - Allows keeping specific files in the jsdocs tutorial folder so they show up on their own menu;
-   - compiles the documentation from the source code using jsdocs:
-     - uses the better docs template with the category and component plugins
-     - uses the mermaid jsdoc plugin to embue uml diagrams in the docs
-     - includes a nav link to the test coverage results;
-   - copies the jsdoc and mds to `/docs`;
-   - copies the `./workdocs/{drawings, uml, assets, resources}` to `./docs`;
-
-The produced `docs` folder contains the resulting documentation;
-
-***When adding a new submodule, do not forget to add it the jsdocs list***
-### Related
-
-[![Readme Card](https://github-readme-stats.vercel.app/api/pin/?username=decaf-ts&repo=ts-multi-module-workspace)](https://github.com/decaf-ts/ts-multi-module-workspace)
 ### Social
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/decaf-ts/)
-### Scripts
 
-The following npm scripts are available for development:
 
-- `inital-setup` - will run only on the first install to trigger the dep update. will self delete;
-- `preinstall` - initializes the git modules;
-- `do-install` - sets a `TOKEN` environment variable to the contents of `.token` and runs npm install (useful when you
-  have private dependencies);
-- `postinstall` - checkout master on all modules, pulls and install dependencies;
-- `flash-forward` - updates all dependencies. Take care, This may not be desirable is some cases;
-- `reset` - updates all dependencies. Take care, This may not be desirable is some cases;
-- `reset-build` - resets and then builds;
-- `link-token` - creates symlinks in all modules to the `.token`;
-- `set-dev` - checout out master on all modules and symlinks the relative dependencies according to the modules;
-- `test` - runs unit tests;
-- `test:unit` - runs it tests;
-- `test:all` - runs all tests;
-- `coverage` - runs all test, calculates coverage and generates badges for readme;
-- `build-all` - builds the code (via gulp `gulpfile.js`) in development mode (generates `lib` and `dist` folder);
-- `build-all:prod` - builds the code (via gulp `gulpfile.js`) in production mode (generates `lib` and `dist` folder);
-- `npm-link` - symlinks relative dependencies;
-- `npm-unlink` - reverses the dependency symlink process;
-- `set-to-latest` - checkout all modules to master;
-- `git-checkout` - checkout all modules to master;
-- `git-pull` - pull all modules;
-- `git-all` - runs git command in all modules;
-- `run-all` - runs command in all modules;
-- `prepare-release` - defines the commands to run prior to a new tag (defaults to linting, building production code,
-  running tests and documentation generation);
-- `release` - triggers a new tag being pushed to master (via `./bin/tag_release.sh`);
-- `clean-publish` - cleans the package.json for publishing;
-- `drawings` - compiles all DrawIO `*.drawio` files in the `workdocs/drawings` folder to png and moves them to
-  the `workdocs/resources` folder;
-- `uml` - compiles all PlantUML `*.puml` files in the `workdocs/uml` folder to png and moves them to
-  the `workdocs/resources` folder;
-- `docs` - compiles all the coverage, drawings, uml, jsdocs and md docs into a readable web page under `./docs`;
 
-### Repository Structure
 
-```
-ts-multi-module-workspace
-│
-│   .gitignore              <-- Defines files ignored to git
-│   .npmignore              <-- Defines files ignored by npm
-│   .nmprc                  <-- Defines the Npm registry for this package
-│   .eslintrc.cjs           <-- linting for the project
-│   .prettier.config.cjs    <-- Code style for the project
-│   .gitlab-ci.yml          <-- Gillab CI/CD file
-│   gulpfile.js             <-- Gulp build scripts. used for building na other features (eg docs)
-│   jest.config.ts          <-- Tests Configuration file
-│   mdCompile.json          <-- md Documentation generation configuration file
-│   jsdocs.json             <-- jsdoc Documentation generation configuration file
-│   Dockerfile              <-- minimal example of a node service Dockerfile
-│   LICENCE.md              <-- Licence disclamer
-│   package.json
-│   package-lock.json
-│   README.md               <-- Readme File dynamically compiled from 'workdocs' via the 'docs' npm script
-│   tsconfig.json           <-- Typescript config file. Is overriden in 'gulpfile.js' 
-│
-└───bin
-│   │   tag_release.sh      <-- Script to help with releases
-│   
-└───docs
-│   │   ...                 <-- Dinamically generated folder, containing the compiled documentation for this repository. generated via the 'docs' npm script
-│   
-└───src
-│   │   ...                 <-- Source code for this repository
-│   
-└───tests
-│   │───unit                <-- Unit tests
-│   └───integration         <-- Integration tests
-│   
-└───workdocs                <-- Folder with all pre-compiled documentation
-│   │───assets              <-- Documentation asset folder
-│   │───badges              <-- Auto generated coverage badges folder
-│   │───coverage            <-- Auto generated coverage results
-│   │───drawings            <-- DrawIO folder. Drawings (*.drawio) here will be processed to generate documentation (requires docker)
-│   │───uml                 <-- PlantUML folder. Diagrams (*.puml) here will be processed to generate documentation (requires docker)
-│   │───tutorials           <-- Tutorial folder
-│   │   ...                 <-- Categorized *.md files that are merged to generate the final readme (via md compile)
-│   │   Readme.md           <-- Entry point to the README.md   
-│  
-└───dist
-│   │   ...                 <-- Dinamically generated folder containing the bundles for distribution
-│
-└───lib
-    |   ...                 <-- Dinamically generated folder containing the compiled code
-```
+#### Languages
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
@@ -266,7 +129,7 @@ ts-multi-module-workspace
 
 ## Getting help
 
-If you have bug reports, questions or suggestions please [create a new issue](https://github.com/decaf-ts/ts-multi-module-workspace/issues/new/choose).
+If you have bug reports, questions or suggestions please [create a new issue](https://github.com/decaf-ts/ts-workspace/issues/new/choose).
 
 ## Contributing
 
@@ -276,14 +139,12 @@ I am grateful for any contributions made to this project. Please read [this](./w
 
 The first and easiest way you can support it is by [Contributing](./workdocs/98-Contributing.md). Even just finding a typo in the documentation is important.
 
-Financial support is always welcome and helps keep the both me and the project alive and healthy.
+Financial support is always welcome and helps keep both me and the project alive and healthy.
 
 So if you can, if this project in any way. either by learning something or simply by helping you save precious time, please consider donating.
 
 ## License
 
-This project is released under the [MIT License](LICENSE.md).
+This project is released under the [MIT License](./LICENSE.md).
 
-#### Disclaimer:
-
-badges found [here](https://dev.to/envoy_/150-badges-for-github-pnk), [here](https://github.com/alexandresanlim/Badges4-README.md-Profile#-social-) and [here](https://github.com/Ileriayo/markdown-badges)
+By developers, for developers...
