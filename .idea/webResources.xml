@@ -20,6 +20,8 @@
             <path value="file://$PROJECT_DIR$/ui-decorators/workdocs" />
             <path value="file://$PROJECT_DIR$/utils/workdocs" />
             <path value="file://$PROJECT_DIR$/core/workdocs" />
+            <path value="file://$PROJECT_DIR$/styles/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-fabric/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>
