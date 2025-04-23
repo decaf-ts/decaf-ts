@@ -43,3 +43,12 @@
 [submodule "for-angular"]
 	path = for-angular
 	url = https://github.com/decaf-ts/for-angular.git
+[submodule "for-fabric"]
+	path = for-fabric
+	url = https://github.com/decaf-ts/for-fabric
+[submodule "for-nest"]
+	path = for-nest
+	url = https://github.com/decaf-ts/for-nest
+[submodule "styles"]
+	path = styles
+	url = https://github.com/decaf-ts/styles
