@@ -1,27 +1,32 @@
-import { Config } from "@jest/types";
-import conf from "../../jest.config";
+const path = require("path");
+let conf;
+try {
+  conf = require(path.join(__dirname, "../../jest.config"));
+} catch (e) {
+  conf = require(path.join(__dirname, "../../../jest.config"));
+}
 
-const config: Config.InitialOptions = {
+const config = {
   ...conf,
   collectCoverage: true,
-  coverageDirectory: "./workdocs/reports/coverage",
+  coverageDirectory: path.join(__dirname, "coverage"),
   reporters: [
     "default",
     [
       "jest-junit",
       {
-        outputDirectory: "./workdocs/reports/junit",
+        outputDirectory: path.join(__dirname, "junit"),
         outputName: "junit-report.xml",
       },
     ],
     [
       "jest-html-reporters",
       {
-        publicPath: "./workdocs/reports/html",
+        publicPath: path.join(__dirname, "/html"),
         filename: "test-report.html",
         openReport: true,
         expand: true,
-        pageTitle: "ts-workspace Test Report",
+        pageTitle: "Decaf-ts (is almost a) Framework Test Report",
         stripSkippedTest: true,
         darkTheme: true,
         enableMergeData: true,
@@ -39,4 +44,4 @@ const config: Config.InitialOptions = {
   },
 };
 
-export default config;
+module.exports = config;
