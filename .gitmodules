@@ -40,6 +40,9 @@
 [submodule "cli"]
 	path = cli
 	url = https://github.com/decaf-ts/cli.git
+[submodule "styles"]
+	path = styles
+	url = https://github.com/decaf-ts/styles
 [submodule "for-angular"]
 	path = for-angular
 	url = https://github.com/decaf-ts/for-angular.git
@@ -49,6 +52,3 @@
 [submodule "for-nest"]
 	path = for-nest
 	url = https://github.com/decaf-ts/for-nest
-[submodule "styles"]
-	path = styles
-	url = https://github.com/decaf-ts/styles
