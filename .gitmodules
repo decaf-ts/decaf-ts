@@ -1,3 +1,6 @@
+[submodule "logging"]
+	path = logging
+	url = https://github.com/decaf-ts/logging.git
 [submodule "utils"]
 	path = utils
 	url = https://github.com/decaf-ts/utils
@@ -16,9 +19,6 @@
 [submodule "transactional-decorators"]
 	path = transactional-decorators
 	url = https://github.com/decaf-ts/transactional-decorators.git
-[submodule "logging"]
-	path = logging
-	url = https://github.com/decaf-ts/logging.git
 [submodule "core"]
 	path = core
 	url = https://github.com/decaf-ts/core.git
