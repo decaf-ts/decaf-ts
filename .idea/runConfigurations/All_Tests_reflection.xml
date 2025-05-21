@@ -3,7 +3,7 @@
     <node-interpreter value="project" />
     <jest-package value="$PROJECT_DIR$/reflection/node_modules/jest" />
     <working-dir value="$PROJECT_DIR$/reflection" />
-    <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot;" />
+    <jest-options value="--testPathPattern=&quot;/tests/(unit|integration)&quot;" />
     <envs />
     <scope-kind value="ALL" />
     <method v="2" />
