@@ -3,7 +3,7 @@
     <node-interpreter value="project" />
     <jest-package value="$PROJECT_DIR$/decorator-validation/node_modules/jest" />
     <working-dir value="$PROJECT_DIR$/decorator-validation" />
-    <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot;" />
+    <jest-options value="--testPathPattern=&quot;/tests&quot;" />
     <envs />
     <scope-kind value="ALL" />
     <method v="2" />
