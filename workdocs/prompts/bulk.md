@@ -114,8 +114,8 @@ respond upon completion without additional input
 - base_folder is `<base>`;
 - find all code files using `find ./<base_folder> -type f -name '*.ts'``
 - for each file, identify all classes and functions;
-- from the identified elements, elaborate a short summary of the intent of the library and write in `workdocs/1-Header.md` under the banner and title
-- from the identified elements, elaborate a detailed description of the intent of the library and write in `workdocs/4-Description.md` under the title
+- from the identified elements, elaborate a short summary of the intent of the library and write in `<base_folder>/workdocs/1-Header.md` under the banner and title
+- from the identified elements, elaborate a detailed description of the intent of the library and write in `<base_folder>/workdocs/4-Description.md` under the title
 - write examples in the `<base_folder>/workdocs/5-HowToUse.md` file for all the identified elements
 - each exaple MUST contain:
   - Description of the use case;
