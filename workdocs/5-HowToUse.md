@@ -11,5 +11,3 @@
   - [VSCode(ium)](./tutorials/For%20Developers.md#visual-studio-code-vscode)
   - [WebStorm](./tutorials/For%20Developers.md#webstorm)
 - [Considerations](./tutorials/For%20Developers.md#considerations)
-
-
