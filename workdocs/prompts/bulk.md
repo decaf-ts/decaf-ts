@@ -3,7 +3,8 @@
  - Bulk JSDoc
 ```
 Act as a seasoned typescript developer.
-- find all code files using `find ./utils/src -type f -name '*.ts'`;
+- base_patch is `utils`
+- find all code files using `find ./<base_path>/src -type f -name '*.ts'`;
 - double check you have listed all files;
 - Document all files globbed according to:
  - classes: document the entire class and each of its functions including always including the @description tag with a short description of the target, and a@summary tag with a more detailed one.
@@ -96,7 +97,7 @@ refer to the module it belongs with @memberOf this the `@memberOf module:<module
 never omit or change any code
 if the element is already documented, only restructure, correct, or add to the documentation. NEVER remove existing information
 
-if the file is `src/index.ts`: Generate a JSDoc comment block for a TypeScript module file using better-docs formatting:
+if the file is located at `./<base_path>/src/index.ts`: Generate a JSDoc comment block for a TypeScript module file using better-docs formatting:
 - Add @module with the name of the module
 - Add @description and @summary
 - Do NOT document individual exports
@@ -107,7 +108,9 @@ Respond with only the JSDoc block for the module file.
 never omit or change any code
 if the element is already documented, only restructure, correct, or add to the documentation. NEVER remove existing information
 
-double check that all files from step one have been processed
+triple check that all files from step one have been processed
+
+NO FILE CAN BE LEFT OUT (except `index.ts` not in the `./<base_path>/src` folder)
 
 respond upon completion without additional input
 ```
