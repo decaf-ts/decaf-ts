@@ -12,3 +12,4 @@ misc.xml
 *.iml
 aws.xml
 modules.xml
+/jsLibraryMappings.xml
