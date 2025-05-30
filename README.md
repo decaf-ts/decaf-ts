@@ -110,9 +110,6 @@ Several modules can be added to your project according to your needs, adding up 
   - [WebStorm](./tutorials/For%20Developers.md#webstorm)
 - [Considerations](./tutorials/For%20Developers.md#considerations)
 
-
-
-
 ### Social
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/decaf-ts/)
