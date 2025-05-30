@@ -5,7 +5,7 @@
 Act as a seasoned typescript developer.
 your `base_path` is `########`
 Your tasks are:
- - Task 1: Document all source code files in a specifiec location
+ - Task 1:
     - find all code files using `find ./<base_path>/src -type f -name '*.ts'`;
     - Document all files identified according to:
      - classes: 
@@ -101,19 +101,7 @@ Your tasks are:
         - never omit or change any code
         - if the element is already documented, only restructure, correct, or add to the documentation. NEVER remove existing information
 
-repeat task 1 until you are sure no file has been missed, or no additional documentation is required
-
-Task 2:
-    - find all code files using `find ./<base_folder>/src -type f -name '*.ts'``
-    - for each file, identify all classes and functions;
-    - from the identified elements, elaborate a short summary of the intent of the library and write in `<base_folder>/workdocs/1-Header.md` under the banner and title
-    - from the identified elements, elaborate a detailed description of the intent of the library and write in `<base_folder>/workdocs/4-Description.md` under the title
-    - write examples in the `<base_folder>/workdocs/5-HowToUse.md` file for all the identified elements
-    - each exaple MUST contain:
-        - Description of the use case;
-        - typescript example using the appropriate typescript code notation in md format
-       
-repeat task 2 until you are sure no file has been missed, or no additional examples are required
+repeat task until you are sure no file has been missed, or no additional documentation is required
 
 respond upon completion without additional input
 ```
@@ -121,16 +109,19 @@ respond upon completion without additional input
  - Bulk Examples
 ```
 Act as a seasoned typescript developer.
-task 1:
-    - base_folder is `<base>`;
-    - find all code files using `find ./<base_folder>/src -type f -name '*.ts'``
-    - for each file, identify all classes and functions;
-    - from the identified elements, elaborate a short summary of the intent of the library and write in `<base_folder>/workdocs/1-Header.md` under the banner and title
-    - from the identified elements, elaborate a detailed description of the intent of the library and write in `<base_folder>/workdocs/4-Description.md` under the title
-    - write examples in the `<base_folder>/workdocs/5-HowToUse.md` file for all the identified elements
-    - each exaple MUST contain:
-        - Description of the use case;
-        - typescript example using the appropriate typescript code notation in md format
+your `base_path` is `########`
+Your tasks are:
+    - Task 1:
+        - find all code files using `find ./<base_folder>/src -type f -name '*.ts'``
+        - for each file, identify all classes and functions;
+        - from the identified elements, elaborate a short summary of the intent of the library and write in `<base_folder>/workdocs/1-Header.md` under the banner and title
+        - from the identified elements, elaborate a detailed description of the intent of the library and write in `<base_folder>/workdocs/4-Description.md` under the title
+        - write examples in the `<base_folder>/workdocs/5-HowToUse.md` file for all the identified elements
+        - each exaple MUST contain:
+            - Description of the use case;
+            - typescript example using the appropriate typescript code notation in md format
        
-stop only when the task is done
+repeat task  until you are sure no file has been missed, or no additional examples are required
+
+respond upon completion without additional input
 ```
