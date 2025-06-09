@@ -52,3 +52,6 @@
 [submodule "for-angular"]
 	path = for-angular
 	url = https://github.com/decaf-ts/for-angular.git
+[submodule "for-angular-ionic"]
+	path = for-angular-ionic
+	url = https://github.com/decaf-ts/for-angular-ionic.git
