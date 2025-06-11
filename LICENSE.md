@@ -3,7 +3,7 @@
 Version 3, 19 November 2025
 
 Copyright (C) 2025 Tiago Venceslau
-<https://github.com/Tiago Venceslau>
+<https://github.com/TiagoVenceslau>
 
 Everyone is permitted to copy and distribute verbatim copies of this
 license document, but changing it is not allowed.
