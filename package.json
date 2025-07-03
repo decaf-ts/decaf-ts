@@ -8,7 +8,7 @@
     "do-install": "TOKEN=$(cat .token) npm install",
     "update-scripts": "node ./bin/update-scripts.cjs",
     "set-git-auth": "git config url.\"https://api:$(cat .token)@github.com/\".insteadOf \"https://github.com/\" && git config url.\"https://ssh:$(cat .token)@github.com/\".insteadOf \"ssh://git@github.com/\" && git config url.\"https://git:$(cat .token)@github.com/\".insteadOf \"git@github.com:\"",
-    "postinstall": "node ./bin/run-all.js npm run do-install",
+    "postinstall": "npm run run-all -- npm run do-install",
     "flash-forward": "npx npm-check-updates -u && npm run do-install",
     "reset": "rm -rf * && git checkout . && git pull && npm run do-install",
     "test": "jest --runInBand --detectOpenHandles",
