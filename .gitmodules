@@ -58,3 +58,6 @@
 [submodule "for-angular-ionic"]
 	path = for-angular-ionic
 	url = https://github.com/decaf-ts/for-angular-ionic.git
+[submodule "mcp-server"]
+	path = mcp-server
+	url = https://github.com/decaf-ts/mcp-server.git
