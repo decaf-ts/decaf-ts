@@ -1,0 +1,809 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "All Tests@cli",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\"",
+        "--passWithNoTests"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/cli"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@core",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/core"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@db-decorators",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/db-decorators"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@decorator-validation",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--testPathPattern=\"/tests\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/decorator-validation"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@for-angular",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\"",
+        "--passWithNoTests"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/for-angular"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@for-couchdb",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\"",
+        "--passWithNoTests"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/for-couchdb"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@for-http",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\"",
+        "--passWithNoTests"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/for-http"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@for-nano",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\"",
+        "--passWithNoTests"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/for-nano"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@for-pouch",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\"",
+        "--passWithNoTests"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/for-pouch"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@injectable-decorators",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/injectable-decorators"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@logging",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/logging"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@reflection",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/reflection"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@ui-decorators",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/ui-decorators"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "All Tests@utils",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--coverage",
+        "--testPathPattern=\"/tests/(unit|integration)\"",
+        "--passWithNoTests"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/utils"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "Bundling Tests",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--testPathPattern=\"/tests/bundling\"",
+        "--detectOpenHandles"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "CouchDB Deployment",
+      "type": "shell",
+      "command": "echo \"Running CouchDB Deployment (original type: docker-deploy)\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "Integration Tests",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--testPathPattern=\"/tests/integration\"",
+        "--detectOpenHandles"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "Unit Tests",
+      "type": "shell",
+      "command": "npx",
+      "args": [
+        "jest",
+        "--testPathPattern=\"/tests/unit\"",
+        "--detectOpenHandles"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$jest"
+      ]
+    },
+    {
+      "label": "angular@cli",
+      "type": "shell",
+      "command": "echo \"Running angular@cli (original type: ShConfigurationType)\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "build-all",
+      "type": "npm",
+      "script": "build-all",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@cli",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/cli/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@core",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/core/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@db-decorators",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/db-decorators/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@decorator-validation",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/decorator-validation/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@fabric",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/for-fabric/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@for-angular",
+      "type": "npm",
+      "script": "build:new",
+      "path": "${workspaceFolder}/for-angular/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@for-couchdb",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/for-couchdb/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@for-http",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/for-http/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@for-nano",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/for-nano/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@for-pouch",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/for-pouch/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@injectable-decorators",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/injectable-decorators/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@logging",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/logging/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build:prod",
+      "type": "npm",
+      "script": "build:prod",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@reflection",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/reflection/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@styles",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/styles/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@transactions",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/transactional-decorators/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@ui-decorators",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/ui-decorators/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "build@utils",
+      "type": "npm",
+      "script": "build",
+      "path": "${workspaceFolder}/utils/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "bundle",
+      "type": "npm",
+      "script": "bundle",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "cli@angular",
+      "type": "shell",
+      "command": "echo \"Running cli@angular (original type: NodeJSConfigurationType)\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "coverage",
+      "type": "npm",
+      "script": "coverage",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "coverage@reflection",
+      "type": "npm",
+      "script": "coverage",
+      "path": "${workspaceFolder}/reflection/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "docs",
+      "type": "npm",
+      "script": "docs",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "docs@db-decorators",
+      "type": "npm",
+      "script": "docs",
+      "path": "${workspaceFolder}/db-decorators/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "docs@decorator-validation",
+      "type": "npm",
+      "script": "docs",
+      "path": "${workspaceFolder}/decorator-validation/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "docs@logging",
+      "type": "npm",
+      "script": "docs",
+      "path": "${workspaceFolder}/logging/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "docs@reflection",
+      "type": "npm",
+      "script": "docs",
+      "path": "${workspaceFolder}/reflection/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "drawings",
+      "type": "npm",
+      "script": "drawings",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "flash-forward",
+      "type": "npm",
+      "script": "flash-forward",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "lint-fix",
+      "type": "npm",
+      "script": "lint-fix",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "npm-link",
+      "type": "npm",
+      "script": "npm-link",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "npm-unlink",
+      "type": "npm",
+      "script": "npm-unlink",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "playright@for-angular",
+      "type": "npm",
+      "script": "playwright",
+      "path": "${workspaceFolder}/for-angular/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "playright-ui@for-angular",
+      "type": "npm",
+      "script": "playwright-ui",
+      "path": "${workspaceFolder}/for-angular/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "reset",
+      "type": "npm",
+      "script": "reset",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "start@for-angular",
+      "type": "npm",
+      "script": "start",
+      "path": "${workspaceFolder}/for-angular/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "storybook@for-angular",
+      "type": "npm",
+      "script": "storybook",
+      "path": "${workspaceFolder}/for-angular/package.json",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "test:circular",
+      "type": "npm",
+      "script": "test:circular",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "uml",
+      "type": "npm",
+      "script": "uml",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "update-scripts",
+      "type": "npm",
+      "script": "update-scripts",
+      "path": "${workspaceFolder}",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    }
+  ]
+}
