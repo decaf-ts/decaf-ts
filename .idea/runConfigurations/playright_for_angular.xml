@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="build" type="js.build_tools.npm" nameIsGenerated="true">
-    <package-json value="$PROJECT_DIR$/package.json" />
+  <configuration default="false" name="playright@for-angular" type="js.build_tools.npm" folderName="ui">
+    <package-json value="$PROJECT_DIR$/for-angular/package.json" />
     <command value="run" />
     <scripts>
-      <script value="build" />
+      <script value="playwright" />
     </scripts>
     <node-interpreter value="project" />
     <envs />

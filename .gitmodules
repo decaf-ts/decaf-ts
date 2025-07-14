@@ -13,6 +13,9 @@
 [submodule "injectable-decorators"]
 	path = injectable-decorators
 	url = https://github.com/decaf-ts/injectable-decorators.git
+[submodule "as-zod"]
+	path = as-zod
+	url = http://github.com/decaf-ts/as-zod
 [submodule "db-decorators"]
 	path = db-decorators
 	url = https://github.com/decaf-ts/db-decorators.git
@@ -52,3 +55,6 @@
 [submodule "for-angular"]
 	path = for-angular
 	url = https://github.com/decaf-ts/for-angular.git
+[submodule "mcp-server"]
+	path = mcp-server
+	url = https://github.com/decaf-ts/mcp-server.git
