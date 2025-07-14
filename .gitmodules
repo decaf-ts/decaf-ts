@@ -58,3 +58,6 @@
 [submodule "mcp-server"]
 	path = mcp-server
 	url = https://github.com/decaf-ts/mcp-server.git
+[submodule "for-postgres"]
+	path = for-postgres
+	url = https://github.com/decaf-ts/for-postgres.git
