@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="build@for-postgres" type="js.build_tools.npm" folderName="build">
-    <package-json value="$PROJECT_DIR$/for-postgres/package.json" />
+  <configuration default="false" name="build@for-typeorm" type="js.build_tools.npm" folderName="build">
+    <package-json value="$PROJECT_DIR$/for-typeorm/package.json" />
     <command value="run" />
     <scripts>
       <script value="build" />
