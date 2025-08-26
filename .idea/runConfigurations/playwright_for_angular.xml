@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="playwright@for-angular" type="JavaScriptTestRunnerPlaywright">
+    <config value="$PROJECT_DIR$/for-angular/playwright.config.ts" />
+    <node-interpreter value="project" />
+    <playwright-package value="$PROJECT_DIR$/for-angular/node_modules/@playwright/test" />
+    <working-dir value="$PROJECT_DIR$/for-angular" />
+    <envs />
+    <scope-kind value="ALL" />
+    <method v="2" />
+  </configuration>
+</component>
