@@ -1,8 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="All Tests@for-postgres" type="JavaScriptTestRunnerJest" folderName="test">
+  <configuration default="false" name="All Tests@decoration" type="JavaScriptTestRunnerJest" folderName="test">
     <node-interpreter value="project" />
-    <jest-package value="$PROJECT_DIR$/for-postgres/node_modules/jest" />
-    <working-dir value="$PROJECT_DIR$/for-postgres" />
+    <jest-package value="$PROJECT_DIR$/decoration/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/decoration" />
     <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot; --passWithNoTests" />
     <envs />
     <scope-kind value="ALL" />

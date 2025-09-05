@@ -23,6 +23,7 @@
             <path value="file://$PROJECT_DIR$/styles/workdocs" />
             <path value="file://$PROJECT_DIR$/for-fabric/workdocs" />
             <path value="file://$PROJECT_DIR$/for-postgres/workdocs" />
+            <path value="file://$PROJECT_DIR$/decoration/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>
