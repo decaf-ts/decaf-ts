@@ -1,9 +1,10 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="All Tests@for-angular" type="JavaScriptTestRunnerJest" folderName="test">
+    <config-file value="$PROJECT_DIR$/for-angular/jest.config.ts" />
     <node-interpreter value="project" />
     <jest-package value="$PROJECT_DIR$/for-angular/node_modules/jest" />
     <working-dir value="$PROJECT_DIR$/for-angular" />
-    <jest-options value="--runInBand --passWithNoTests" />
+    <jest-options value="--testPathPattern=&quot;*.spec.ts&quot; --passWithNoTests" />
     <envs />
     <scope-kind value="ALL" />
     <method v="2" />

@@ -1,16 +1,18 @@
 const Sequencer = require("@jest/test-sequencer").default;
+const { Logging } = require("@decaf-ts/logging");
 const modules = require("../../bin/modules").reduce((acc, m, i) => {
   acc[m] = i;
   return acc;
 }, {});
 
 class DecafTestSequencer extends Sequencer {
+  log = Logging.for(DecafTestSequencer);
   /**
    * Sort test to determine order of execution
    * Sorting is applied after sharding
    */
   sort(tests) {
-    return tests
+    const sorted = tests
       .map((t) => ({
         test: t,
         path: t.path,
@@ -32,6 +34,9 @@ class DecafTestSequencer extends Sequencer {
         return numberA > numberB ? 1 : -1;
       })
       .map((t) => t.test);
+
+    this.log.info("Sorted tests: ", sorted);
+    return sorted;
   }
 }
 

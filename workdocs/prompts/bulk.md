@@ -126,6 +126,30 @@ repeat task  until you are sure no file has been missed, or no additional exampl
 respond upon completion without additional input
 ```
 
+ - Bulk Tests
+```
+Act as a seasoned typescript developer and tester.
+your `base_path` is `########`
+Your tasks are:
+    - Task 1:
+        - find all code files using `find ./<base_folder>/src -type f -name '*.ts'``
+        - for each file, create  (if not existing) a test file under ./<base_folder>/tests called `<file_name>.test.ts`
+        - for each file, identify all classes and functions;
+        - for all identified elements, create a test cases in the created test file to achieve 100% coverage.
+        - do not mock anything. Use the real obejcts and functionc
+       
+repeat task  until you are sure no file has been missed, or no additional tests are required
+        - from the identified elements, elaborate a detailed description of the intent of the library and write in `<base_folder>/workdocs/4-Description.md` under the title
+        - write examples in the `<base_folder>/workdocs/5-HowToUse.md` file for all the identified elements
+        - each exaple MUST contain:
+            - Description of the use case;
+            - typescript example using the appropriate typescript code notation in md format
+       
+repeat task  until you are sure no file has been missed, or no additional examples are required
+
+respond upon completion without additional input
+```
+
 
 ## Prompts to generate bulk actions
 
