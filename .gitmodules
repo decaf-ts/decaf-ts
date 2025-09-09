@@ -46,6 +46,9 @@
 [submodule "for-pouch"]
 	path = for-pouch
 	url = https://github.com/decaf-ts/for-pouch.git
+[submodule "for-typeorm"]
+	path = for-typeorm
+	url = https://github.com/decaf-ts/for-typeorm.git
 [submodule "for-fabric"]
 	path = for-fabric
 	url = https://github.com/decaf-ts/for-fabric
@@ -61,12 +64,6 @@
 [submodule "mcp-server"]
 	path = mcp-server
 	url = https://github.com/decaf-ts/mcp-server.git
-[submodule "for-postgres"]
-	path = for-postgres
-	url = https://github.com/decaf-ts/for-postgres.git
 [submodule "for-react-native"]
 	path = for-react-native
 	url = https://github.com/decaf-ts/for-react-native.git
-[submodule "for-typeorm"]
-	path = for-typeorm
-	url = https://github.com/decaf-ts/for-typeorm.git

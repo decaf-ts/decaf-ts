@@ -24,6 +24,7 @@
             <path value="file://$PROJECT_DIR$/for-fabric/workdocs" />
             <path value="file://$PROJECT_DIR$/for-postgres/workdocs" />
             <path value="file://$PROJECT_DIR$/decoration/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-typeorm/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>
