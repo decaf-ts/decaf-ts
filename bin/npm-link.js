@@ -27,15 +27,30 @@ if (operation === "link") {
         let linkName = name;
         let cwd = path.join(process.cwd(), l, `node_modules/${scope}`);
 
-        console.log(`${operation}ing ${d} as a dependency of ${l}`);
-        execSync(`rm -rf ${pathToRemove}`, {
-          cwd: path.join(process.cwd(), l),
-          env: process.env,
-        });
-        execSync(`ln -s ${linkRel}${linkPath}/lib ./lib`, {
-          cwd: path.join(cwd, linkName),
-          env: process.env,
-        });
+        let libExists;
+        try {
+          libExists = !!fs.statSync(
+            path.join(cwd, linkName, `${linkRel}${linkPath}`),
+          );
+        } catch (e) {
+          libExists = false;
+        }
+
+        if (libExists) {
+          console.log(`${operation}ing ${d} as a dependency of ${l}`);
+          execSync(`rm -rf ${pathToRemove}`, {
+            cwd: path.join(process.cwd(), l),
+            env: process.env,
+          });
+          execSync(`ln -s ${linkRel}${linkPath}/lib ./lib`, {
+            cwd: path.join(cwd, linkName),
+            env: process.env,
+          });
+        } else {
+          console.log(
+            `Skipping ${d} as it does not exist in the master repository`,
+          );
+        }
       } catch (e) {
         console.log(`Failed to link ${d} as a dependency of ${l}: ${e}`);
         process.exit(1);
