@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="copy-storage@for-fabric" type="js.build_tools.npm" folderName="run">
+    <package-json value="$PROJECT_DIR$/for-fabric/package.json" />
+    <command value="run" />
+    <scripts>
+      <script value="copy-storage" />
+    </scripts>
+    <node-interpreter value="project" />
+    <envs />
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="Fabric Deployment" run_configuration_type="docker-deploy" />
+    </method>
+  </configuration>
+</component>
