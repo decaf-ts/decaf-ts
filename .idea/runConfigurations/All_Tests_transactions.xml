@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="All Tests@transactions" type="JavaScriptTestRunnerJest" folderName="test">
+    <config-file value="$PROJECT_DIR$/transactional-decorators/workdocs/reports/jest.coverage.config.ts" />
+    <node-interpreter value="project" />
+    <jest-package value="$PROJECT_DIR$/transactional-decorators/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/transactional-decorators" />
+    <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot; --passWithNoTests" />
+    <envs />
+    <scope-kind value="ALL" />
+    <method v="2" />
+  </configuration>
+</component>
