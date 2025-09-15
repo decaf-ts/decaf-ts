@@ -27,6 +27,9 @@
             <path value="file://$PROJECT_DIR$/for-typeorm/workdocs" />
             <path value="file://$PROJECT_DIR$/for-nest/workdocs" />
             <path value="file://$PROJECT_DIR$/as-zod/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-angular/resources" />
+            <path value="file://$PROJECT_DIR$/for-react-native/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-react-native/assets" />
           </resourceRoots>
         </entryData>
       </entry>

@@ -19,8 +19,10 @@ if (operation === "link") {
       ...Object.keys(pkg.peerDependencies || {}),
     ].filter((d) => d.startsWith(scope));
     dependencies.forEach((d) => {
+      const innerCodePath = d.endsWith("styles") ? "dist" : "lib"
+
       try {
-        let pathToRemove = `node_modules/${d}/lib`;
+        let pathToRemove = `node_modules/${d}/${innerCodePath}`;
         let linkRel = `../../../../`;
         let name = d.split("/")[1];
         let linkPath = name;
@@ -42,7 +44,7 @@ if (operation === "link") {
             cwd: path.join(process.cwd(), l),
             env: process.env,
           });
-          execSync(`ln -s ${linkRel}${linkPath}/lib ./lib`, {
+          execSync(`ln -s ${linkRel}${linkPath}/${innerCodePath} ./${innerCodePath}`, {
             cwd: path.join(cwd, linkName),
             env: process.env,
           });
