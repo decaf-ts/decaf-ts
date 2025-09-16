@@ -40,6 +40,7 @@
     "build:banner": "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -sOutputFile=workdocs/resources/banner.png workdocs/illustrator/banner.ai",
     "build:cover": "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -sOutputFile=workdocs/resources/cover.png workdocs/illustrator/cover.ai",
     "build:icon": "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -sOutputFile=workdocs/resources/icon.png workdocs/illustrator/icon.ai",
+    "increase:fs:watches": "sudo sysctl -n -w fs.inotify.max_user_watches=1048576 && sudo sysctl -n -w fs.inotify.max_user_instances=512",
     "docs": "npx rimraf ./docs && mkdir docs && node ./bin/build-scripts.cjs --docs",
     "compile-spec": "rimraf workdocs/confluence/modules/* && git submodule foreach 'cp -R ./workdocs/confluence ../workdocs/confluence/modules/$sm_path'",
     "publish-docs": "npm run compile-spec && sleep 2s && docker run -it --rm --user 1001:1001 -v \"$(pwd)/workdocs/confluence:/content\" -e ATLASSIAN_API_TOKEN=$(cat .confluence-token) ghcr.io/markdown-confluence/publish:latest"

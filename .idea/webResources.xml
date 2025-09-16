@@ -30,6 +30,7 @@
             <path value="file://$PROJECT_DIR$/for-angular/resources" />
             <path value="file://$PROJECT_DIR$/for-react-native/workdocs" />
             <path value="file://$PROJECT_DIR$/for-react-native/assets" />
+            <path value="file://$PROJECT_DIR$/mcp-server/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>
