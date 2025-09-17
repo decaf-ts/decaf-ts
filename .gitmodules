@@ -67,3 +67,6 @@
 [submodule "for-react-native"]
 	path = for-react-native
 	url = https://github.com/decaf-ts/for-react-native.git
+[submodule "decaf-demo"]
+	path = decaf-demo
+	url = https://github.com/decaf-ts/demo.git
