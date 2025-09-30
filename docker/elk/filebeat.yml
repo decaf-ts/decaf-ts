@@ -1,0 +1,90 @@
+logging:
+  verbose: true
+  level: debug
+  to_files: true
+  files:
+    path: /var/log/filebeat
+    name: filebeat
+    keepfiles: 7
+    permissions: 0640
+
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+filebeat.modules:
+  - module: elasticsearch
+    server:
+      enabled: true
+      var.paths:
+        - /var/log/elasticsearch/*_server.json
+    gc:
+      enabled: true
+      var.paths:
+        - /var/log/elasticsearch/gc.log.[0-9]*
+        - /var/log/elasticsearch/gc.log
+    audit:
+      enabled: true
+      var.paths:
+        - /var/log/elasticsearch/*_audit.json
+    slowlog:
+      enabled: true
+      var.paths:
+        - /var/log/elasticsearch/*_index_search_slowlog.json
+        - /var/log/elasticsearch/*_index_indexing_slowlog.json
+    deprecation:
+      var.paths:
+        - /var/log/elasticsearch/*_deprecation.json
+
+  - module: system
+    syslog:
+      enabled: true
+      var.use_journald: true
+      #var.paths: [ "/var/log/syslog*" ]
+    auth:
+      enabled: true
+      var.use_journald: true
+      #var.paths: [ "/var/log/auth.log*" ]
+
+filebeat.inputs:
+  - type: filestream
+    id: log-ingest
+    paths:
+      - ingest_data/*.log
+
+  - type: filestream
+    id: container-logs
+    prospector.scanner.symlinks: true
+    parsers:
+      - container:
+          stream: stdout
+          format: docker
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+
+processors:
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+
+setup.kibana:
+  host: ${KIBANA_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+  ssl:
+    enabled: true
+    certificate_authorities: ${CA_CERT}
+
+setup.dashboards.enabled: true
+
+output.elasticsearch:
+  hosts: ${ELASTIC_HOSTS}
+  username: ${ELASTIC_USER}
+  password: ${ELASTIC_PASSWORD}
+  ssl:
+    enabled: true
+    certificate_authorities: ${CA_CERT}
