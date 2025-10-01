@@ -1,0 +1,21 @@
+services:
+  apache:
+    image: httpd:latest
+    container_name: apache
+    labels:
+      co.elastic.metrics/module: apache
+      co.elastic.logs/processors.0.dissect.field: "message"
+      co.elastic.logs/processors.0.dissect.tokenizer: "%{clientip} - - [%{timestamp}] \"%{method} %{url} HTTP/%{http_version}\" %{status} %{bytes}"
+      co.elastic.logs/processors.0.dissect.target_prefix: "dissect"
+      co.elastic.logs/processors.0.dissect.ignore_failure: true
+      co.elastic.logs/processors.0.dissect.overwrite_keys: true
+      co.elastic.logs/processors.0.dissect.trim_values: "all"
+    ports:
+      - '8080:80'
+    networks:
+      - elk-network
+    restart: unless-stopped
+
+networks:
+  elk-network:
+    driver: bridge
