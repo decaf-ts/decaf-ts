@@ -23,3 +23,5 @@
 /.confluence-token
 /node_modules
 !.gitkeep
+.env
+/docker/auth/volumes/keycloak-data
