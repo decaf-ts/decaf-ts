@@ -11,4 +11,6 @@ task 5 - repeat tasks 3 and 4 until coverage is equal or above <coverage> with a
 task 6 - update the coverage config in `<base-path>/workdocs/reports` to reflect the new coverage percentage (round down to the nearest integer).
 NOTES:
  - Avoid mocking at all costs! Use real instances and dependencies.
+ - the coverage report (after running the coverage command) can be found in `<base_path>/workdocs/reports/coverage`.
  - If a bug in the code is found, propose a fix to the user. if the user accepts it, apply the fix and continue with the tasks.
+ - Always run the test command with env variables USE_WATCHMAN=false WATCHMAN_DISABLE=1 JEST_DISABLE_WATCHMAN=1 and the flag --watchman=false. If that still fails also add the flag --runInBand
