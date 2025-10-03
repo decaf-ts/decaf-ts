@@ -9,7 +9,8 @@ libs.forEach(l => {
     try {
         execSync(command, {
             cwd: path.join(process.cwd(), l),
-            env: process.env
+            env: process.env,
+            stdio: "inherit"
         })
     } catch (e){
         process.exit(1)
