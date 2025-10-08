@@ -1,7 +1,7 @@
 {
   "name": "@decaf-ts/decaf-ts",
   "version": "0.0.3",
-  "description": "Workspace for decaf-ts (is almost a) framework",
+  "description": "Development workspace for decaf-ts (is almost a) framework",
   "scripts": {
     "init": "git submodule update --init --remote --merge --recursive",
     "sync-branches": "BRANCH=\"$(git rev-parse --abbrev-ref HEAD)\" git submodule foreach '([[ -n \"$(git branch --list $BRANCH)\" ]] || [[ -n \"$(git ls-remote --heads origin $BRANCH)\" ]]) && git checkout $BRANCH || git checkout master'",
@@ -36,7 +36,6 @@
     "release": "./bin/tag-release.sh",
     "bundle": "node ./bin/bundle.js",
     "clean-publish": "npx clean-publish",
-    "sync-codex": "./bin/sync-codex.sh",
     "drawings": "for FILE in workdocs/drawings/*.drawio; do echo \"converting $FILE to image...\" && docker run --rm -v $(pwd):/data rlespinasse/drawio-export --format png $FILE; done && cp -rf workdocs/drawings/export/* workdocs/resources/",
     "uml": "cd workdocs/uml && for FILE in ./*.puml; do docker run --rm -v $(pwd):/work -w /work miy4/plantuml -DPLANTUML_LIMIT_SIZE=8192 -tpng $FILE; done && cd ../.. && cp -fr workdocs/uml/*.png workdocs/resources/",
     "build:banner": "gs -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -sOutputFile=workdocs/resources/banner.png workdocs/illustrator/banner.ai",
@@ -45,7 +44,16 @@
     "increase:fs:watches": "sudo sysctl -n -w fs.inotify.max_user_watches=1048576 && sudo sysctl -n -w fs.inotify.max_user_instances=512",
     "docs": "npx rimraf ./docs && mkdir docs && node ./bin/build-scripts.cjs --docs",
     "compile-spec": "rimraf workdocs/confluence/modules/* && git submodule foreach 'cp -R ./workdocs/confluence ../workdocs/confluence/modules/$sm_path'",
-    "publish-docs": "npm run compile-spec && sleep 2s && docker run -it --rm --user 1001:1001 -v \"$(pwd)/workdocs/confluence:/content\" -e ATLASSIAN_API_TOKEN=$(cat .confluence-token) ghcr.io/markdown-confluence/publish:latest"
+    "publish-docs": "npm run compile-spec && sleep 2s && docker run -it --rm --user 1001:1001 -v \"$(pwd)/workdocs/confluence:/content\" -e ATLASSIAN_API_TOKEN=$(cat .confluence-token) ghcr.io/markdown-confluence/publish:latest",
+    "repo:init": "codex exec \"$(cat ./.codex/prompts/repo-setup.md)\nbase_path is `./`, initialize the repository\"",
+    "repo:setup": "codex exec \"$(cat ./.codex/prompts/repo-setup.md)\nbase_path is ./\"",
+    "repo:doc": "codex exec \"$(cat ./.codex/prompts/doc.md) $(cat ./.codex/prompts/bulk-docs.md)\nbase_path is ./\"",
+    "repo:tests": "codex exec \"$(cat ./.codex/prompts/bulk-tests.md)\nbase_path is ./ and coverage is 95%\" -s workspace-write",
+    "repo:readme": "codex exec \"$(cat ./.codex/prompts/update-readme.md)\nbase_path is ./\"",
+    "repo:pr": "npm run repo:doc && npm run repo:tests && npm run repo:readme",
+    "codex": "codex -s workspace-write",
+    "codex-run": "codex -s workspace-write exec",
+    "sync-codex": "./bin/sync-codex.sh"
   },
   "repository": {
     "type": "git",
@@ -76,7 +84,7 @@
     "dynamic",
     "automatic"
   ],
-  "author": "Tiago Venceslau",
+  "author": "Tiago Venceslau and Contributors",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/decaf-ts/decaf-ts/issues"
