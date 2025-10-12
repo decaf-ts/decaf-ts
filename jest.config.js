@@ -37,4 +37,5 @@ module.exports = {
     "!**/tests/**/*.test.{js,jsx,ts,tsx}",
   ],
   reporters: ["default"],
+  watchman: false,
 };
