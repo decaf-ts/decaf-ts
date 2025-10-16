@@ -1,6 +1,30 @@
+[submodule "decoration"]
+	path = decoration
+	url = https://github.com/decaf-ts/decoration.git
+[submodule "logging"]
+	path = logging
+	url = https://github.com/decaf-ts/logging.git
+[submodule "utils"]
+	path = utils
+	url = https://github.com/decaf-ts/utils
+[submodule "reflection"]
+	path = reflection
+	url = https://github.com/decaf-ts/reflection.git
+[submodule "decorator-validation"]
+	path = decorator-validation
+	url = https://github.com/decaf-ts/decorator-validation.git
+[submodule "injectable-decorators"]
+	path = injectable-decorators
+	url = https://github.com/decaf-ts/injectable-decorators.git
+[submodule "as-zod"]
+	path = as-zod
+	url = https://github.com/decaf-ts/as-zod
 [submodule "db-decorators"]
 	path = db-decorators
 	url = https://github.com/decaf-ts/db-decorators.git
+[submodule "transactional-decorators"]
+	path = transactional-decorators
+	url = https://github.com/decaf-ts/transactional-decorators.git
 [submodule "core"]
 	path = core
 	url = https://github.com/decaf-ts/core.git
