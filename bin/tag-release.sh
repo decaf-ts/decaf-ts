@@ -45,7 +45,7 @@ function ask(){
 
 if [[ $# -ne 0 ]];then
   TAG="$1"
-  if [[ -z "$TAG" ]];then
+  if [[ -n "$TAG" ]];then
     shift
   fi
 
@@ -73,13 +73,19 @@ npm run run-all -- "sleep 5s & npm run update-dependencies --if-present && npm r
 
 if [[ $(git status --porcelain) ]]; then
   git add .
-  git commit -m "$TAG $MESSAGE - after release preparation"
+  git commit -m "$TAG - $MESSAGE - after release preparation"
 fi
 
 npm version "$TAG" -m "$MESSAGE"
 
-git push --follow-tags
+GIT_USER=$(git config user.name)
 
-npm run bundles
+REMOTE_URL=$(git remote get-url origin)
+
+if [[ "$(cat .token)" ]]; then
+  git push -u "https://${GIT_USER}:$(cat .token)@${REMOTE_URL#https://}" --follow-tags
+else
+  git push --follow-tags
+fi
 
 
