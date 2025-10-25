@@ -73,6 +73,18 @@ The following npm scripts are available for development:
 - `publish-docs` - publishes the content of `./workdocs/confluence` to confluence according to the config at `./workdocs/confluence/.markdown-confluence.json`.
   Uses [markdown-confluence](https://markdown-confluence.com/introduction.html). Check their documentation for configuration details;
 
+## Coding Principles
+
+- group similar functionality in folders (analog to namespaces but without any namespace declaration)
+- one class per file;
+- one interface per file (unless interface is just used as a type);
+- group types as other interfaces in a types.ts file per folder;
+- group constants or enums in a constants.ts file per folder;
+- group decorators in a decorators.ts file per folder;
+- always import from the specific file, never from a folder or index file (exceptions for dependencies on other packages)
+
+(exception to these may be necessary for specific reasons, eg: Circular dependencies)
+
 ## Linting
 
 This repo comes with eslint + prettier preconfigured to the default standards.
