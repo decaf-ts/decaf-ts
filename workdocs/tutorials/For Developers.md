@@ -81,7 +81,14 @@ The following npm scripts are available for development:
 - group types as other interfaces in a types.ts file per folder;
 - group constants or enums in a constants.ts file per folder;
 - group decorators in a decorators.ts file per folder;
-- always import from the specific file, never from a folder or index file (exceptions for dependencies on other packages)
+- always import from the specific file, never from a folder or index file (exceptions for dependencies on other packages);
+- prefer the usage of established design patters where applicable:
+  - Singleton (can be an anti-pattern. use with care);
+  - factory;
+  - observer;
+  - strategy;
+  - builder;
+  - etc;
 
 (exception to these may be necessary for specific reasons, eg: Circular dependencies)
 
