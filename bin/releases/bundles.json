@@ -1,8 +1,20 @@
 {
-  "dist-lite": [
+  "dist-lite": {
+    "tags": [],
+    "licence": "MIT",
+    "dependencies": [
+      "@decaf-ts/db-decorators",
+      "@decaf-ts/decorator-validation",
+      "@decaf-ts/injectable-decorators",
+      "@decaf-ts/decoration",
+      "@decaf-ts/reflection"
+    ]
+  }
+}[
     "@decaf-ts/db-decorators",
     "@decaf-ts/decorator-validation",
     "@decaf-ts/injectable-decorators",
+    "@decaf-ts/decoration",
     "@decaf-ts/reflection"
   ],
   "dist-base": [
