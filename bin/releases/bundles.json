@@ -1,42 +1,187 @@
 {
   "dist-lite": {
-    "tags": [],
-    "licence": "MIT",
+    "keywords": [
+      "decorators",
+      "typescript",
+      "decaf",
+      "annotations",
+      "reflection",
+      "metadata",
+      "runtime",
+      "validation",
+      "model-validation",
+      "repository"
+    ],
+    "license": "MIT",
+    "devDependencies": [
+      "@decaf-ts/utils"
+    ],
     "dependencies": [
       "@decaf-ts/db-decorators",
       "@decaf-ts/decorator-validation",
-      "@decaf-ts/injectable-decorators",
       "@decaf-ts/decoration",
       "@decaf-ts/reflection"
     ]
+  },
+  "dist-base": {
+    "keywords": [
+      "decaf",
+      "typescript",
+      "decorators",
+      "database",
+      "persistence",
+      "logging",
+      "transactions",
+      "repository",
+      "injectable",
+      "observability"
+    ],
+    "license": "MPL-2.0",
+    "dependencies": [
+      "@decaf-ts/dist-lite",
+      "@decaf-ts/injectable-decorators",
+      "@decaf-ts/transactional-decorators",
+      "@decaf-ts/logging",
+      "@decaf-ts/core"
+    ]
+  },
+  "dist-couchdb": {
+    "keywords": [
+      "decaf",
+      "typescript",
+      "couchdb",
+      "database",
+      "replication",
+      "nosql",
+      "persistence",
+      "docker",
+      "adapter",
+      "nano"
+    ],
+    "license": "MPL-2.0",
+    "dependencies": [
+      "@decaf-ts/dist-base",
+      "@decaf-ts/for-couchdb",
+      "@decaf-ts/for-nano"
+    ]
+  },
+  "dist-pouchdb": {
+    "keywords": [
+      "decaf",
+      "typescript",
+      "pouchdb",
+      "couchdb",
+      "sync",
+      "offline",
+      "replication",
+      "database",
+      "adapter",
+      "nosql"
+    ],
+    "license": "MPL-2.0",
+    "dependencies": [
+      "@decaf-ts/dist-base",
+      "@decaf-ts/for-couchdb",
+      "@decaf-ts/for-pouchdb"
+    ]
+  },
+  "dist-typeorm": {
+    "keywords": [
+      "decaf",
+      "typescript",
+      "typeorm",
+      "database",
+      "postgres",
+      "orm",
+      "repository",
+      "migrations",
+      "entities",
+      "sql"
+    ],
+    "license": "MPL-2.0",
+    "dependencies": [
+      "@decaf-ts/dist-base",
+      "@decaf-ts/for-typeorm"
+    ]
+  },
+  "dist-nestjs": {
+    "keywords": [
+      "decaf",
+      "typescript",
+      "nestjs",
+      "framework",
+      "server",
+      "modular",
+      "api",
+      "decorators",
+      "backend",
+      "modules"
+    ],
+    "license": "MPL-2.0",
+    "dependencies": [
+      "@decaf-ts/dist-base",
+      "@decaf-ts/for-nestjs"
+    ]
+  },
+  "dist-hlf-fabric": {
+    "keywords": [
+      "decaf",
+      "typescript",
+      "fabric",
+      "hyperledger",
+      "blockchain",
+      "contracts",
+      "network",
+      "grpc",
+      "ledger",
+      "chaincode"
+    ],
+    "license": "MPL-2.0",
+    "dependencies": [
+      "@decaf-ts/dist-base",
+      "@decaf-ts/for-fabric"
+    ],
+    "devDependencies": [
+      "@decaf-ts/fabric-weaver"
+    ]
+  },
+  "dist-angular": {
+    "keywords": [
+      "decaf",
+      "typescript",
+      "angular",
+      "frontend",
+      "ui",
+      "http",
+      "api",
+      "components",
+      "forms",
+      "rest"
+    ],
+    "license": "MPL-2.0 OR AGPL-3.0",
+    "dependencies": [
+      "@decaf-ts/dist-base",
+      "@decaf-ts/for-angular",
+      "@decaf-ts/for-http"
+    ]
+  },
+  "dist-react-native": {
+    "keywords": [
+      "decaf",
+      "typescript",
+      "react-native",
+      "mobile",
+      "pouchdb",
+      "offline",
+      "ui",
+      "components",
+      "native",
+      "sync"
+    ],
+    "license": "MPL-2.0 OR AGPL-3.0",
+    "dependencies": [
+      "@decaf-ts/dist-pouchdb",
+      "@decaf-ts/for-react-native"
+    ]
   }
-}[
-    "@decaf-ts/db-decorators",
-    "@decaf-ts/decorator-validation",
-    "@decaf-ts/injectable-decorators",
-    "@decaf-ts/decoration",
-    "@decaf-ts/reflection"
-  ],
-  "dist-base": [
-    "@decaf-ts/dist-lite",
-    "@decaf-ts/transactional-decorators",
-    "@decaf-ts/decorator-validation",
-    "@decaf-ts/injectable-decorators",
-    "@decaf-ts/reflection"
-  ],
-  "dist-nano": [
-    "@decaf-ts/dist-base",
-    "@decaf-ts/for-couchdb",
-    "@decaf-ts/for-nano"
-  ],
-  "dist-pouch": [
-    "@decaf-ts/dist-base",
-    "@decaf-ts/for-couchdb",
-    "@decaf-ts/for-pouch"
-  ],
-  "dist-angular": [
-    "@decaf-ts/dist-base",
-    "@decaf-ts/for-angular",
-    "@decaf-ts/for-http"
-  ]
 }
