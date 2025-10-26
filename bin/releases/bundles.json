@@ -120,7 +120,7 @@
     "license": "MPL-2.0",
     "dependencies": [
       "@decaf-ts/dist-base",
-      "@decaf-ts/for-nestjs"
+      "@decaf-ts/for-nest"
     ]
   },
   "dist-hlf-fabric": {

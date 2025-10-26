@@ -21,21 +21,13 @@
     "dist"
   ],
   "keywords": [
-    "validation",
-    "crud",
-    "decorators",
-    "decaf",
-    "decaf-ts",
-    "typescript",
-    "ts"
   ],
-  "author": "Tiago Venceslau",
+  "author": "Tiago Venceslau and Contributors",
   "license": "LGPL",
   "bugs": {
     "url": "https://github.com/decaf-ts/decaf-ts/issues"
   },
   "homepage": "https://github.com/decaf-ts/decaf-ts#readme",
   "dependencies": {
-    "reflect-metadata": "^0.2.1"
   }
 }
