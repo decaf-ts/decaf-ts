@@ -1,6 +1,6 @@
 {
   "name": "@decaf-ts/decaf-ts",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Development workspace for decaf-ts (is almost a) framework",
   "scripts": {
     "init": "git submodule update --init --remote --merge --recursive",
