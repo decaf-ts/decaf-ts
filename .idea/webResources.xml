@@ -34,6 +34,7 @@
             <path value="file://$PROJECT_DIR$/demo/workdocs" />
             <path value="file://$PROJECT_DIR$/web-page/workdocs" />
             <path value="file://$PROJECT_DIR$/for-react-native/.codex" />
+            <path value="file://$PROJECT_DIR$/for-typeorm/.codex" />
           </resourceRoots>
         </entryData>
       </entry>
