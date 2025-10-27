@@ -1,3 +1,75 @@
+[submodule "decoration"]
+	path = decoration
+	url = https://github.com/decaf-ts/decoration.git
+[submodule "logging"]
+	path = logging
+	url = https://github.com/decaf-ts/logging.git
+[submodule "utils"]
+	path = utils
+	url = https://github.com/decaf-ts/utils
+[submodule "reflection"]
+	path = reflection
+	url = https://github.com/decaf-ts/reflection.git
+[submodule "decorator-validation"]
+	path = decorator-validation
+	url = https://github.com/decaf-ts/decorator-validation.git
+[submodule "injectable-decorators"]
+	path = injectable-decorators
+	url = https://github.com/decaf-ts/injectable-decorators.git
+[submodule "as-zod"]
+	path = as-zod
+	url = https://github.com/decaf-ts/as-zod
+[submodule "db-decorators"]
+	path = db-decorators
+	url = https://github.com/decaf-ts/db-decorators.git
+[submodule "transactional-decorators"]
+	path = transactional-decorators
+	url = https://github.com/decaf-ts/transactional-decorators.git
+[submodule "core"]
+	path = core
+	url = https://github.com/decaf-ts/core.git
+[submodule "for-http"]
+	path = for-http
+	url = https://github.com/decaf-ts/for-http.git
+[submodule "ui-decorators"]
+	path = ui-decorators
+	url = https://github.com/decaf-ts/ui-decorators.git
+[submodule "cli"]
+	path = cli
+	url = https://github.com/decaf-ts/cli.git
+[submodule "for-couchdb"]
+	path = for-couchdb
+	url = https://github.com/decaf-ts/for-couchdb.git
+[submodule "for-nano"]
+	path = for-nano
+	url = https://github.com/decaf-ts/for-nano.git
+[submodule "for-pouch"]
+	path = for-pouch
+	url = https://github.com/decaf-ts/for-pouch.git
+[submodule "for-typeorm"]
+	path = for-typeorm
+	url = https://github.com/decaf-ts/for-typeorm.git
+[submodule "for-fabric"]
+	path = for-fabric
+	url = https://github.com/decaf-ts/for-fabric
+[submodule "for-nest"]
+	path = for-nest
+	url = https://github.com/decaf-ts/for-nest
+[submodule "styles"]
+	path = styles
+	url = https://github.com/decaf-ts/styles
+[submodule "for-angular"]
+	path = for-angular
+	url = https://github.com/decaf-ts/for-angular.git
 [submodule "for-react-native"]
 	path = for-react-native
 	url = https://github.com/decaf-ts/for-react-native.git
+[submodule "demo"]
+	path = demo
+	url = https://github.com/decaf-ts/demo.git
+[submodule "web-page"]
+	path = web-page
+	url = https://github.com/decaf-ts/wep-page.git
+[submodule "mcp-server"]
+	path = mcp-server
+	url = https://github.com/decaf-ts/mcp-server.git
