@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="All Tests@fmcp" type="JavaScriptTestRunnerJest" folderName="test">
+  <configuration default="false" name="All Tests@mcp" type="JavaScriptTestRunnerJest" folderName="test">
     <node-interpreter value="project" />
     <jest-package value="$PROJECT_DIR$/mcp-server/node_modules/jest" />
     <working-dir value="$PROJECT_DIR$/mcp-server" />
