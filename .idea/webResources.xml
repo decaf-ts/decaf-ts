@@ -35,6 +35,10 @@
             <path value="file://$PROJECT_DIR$/web-page/workdocs" />
             <path value="file://$PROJECT_DIR$/for-react-native/.codex" />
             <path value="file://$PROJECT_DIR$/for-typeorm/.codex" />
+            <path value="file://$PROJECT_DIR$/.codex" />
+            <path value="file://$PROJECT_DIR$/mcp-server/.specify" />
+            <path value="file://$PROJECT_DIR$/mcp-server/.codex" />
+            <path value="file://$PROJECT_DIR$/mcp-server/specs" />
           </resourceRoots>
         </entryData>
       </entry>
