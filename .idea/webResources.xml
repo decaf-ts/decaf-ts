@@ -33,6 +33,7 @@
             <path value="file://$PROJECT_DIR$/mcp-server/workdocs" />
             <path value="file://$PROJECT_DIR$/demo/workdocs" />
             <path value="file://$PROJECT_DIR$/web-page/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-react-native/.codex" />
           </resourceRoots>
         </entryData>
       </entry>
