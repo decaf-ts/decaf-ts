@@ -12,6 +12,7 @@ const scope = outerPkg["name"].split("/")[0];
 
 if (operation === "link") {
   libs.forEach((l) => {
+
     const pkg = require(path.join(process.cwd(), l, "package.json"));
     const dependencies = [
       ...Object.keys(pkg.dependencies || {}),
@@ -20,6 +21,9 @@ if (operation === "link") {
     ].filter((d) => d.startsWith(scope));
     dependencies.forEach((d) => {
       const innerCodePath = d.endsWith("styles") ? "dist" : "lib"
+
+      if (["@decaf-ts/utils", "@decaf-ts/logging"].includes(d))
+        return; // skip these  since they cross reference each other causing issues (are are usually not needed in a link)
 
       try {
         let pathToRemove = `node_modules/${d}/${innerCodePath}`;
