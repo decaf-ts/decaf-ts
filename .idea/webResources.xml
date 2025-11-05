@@ -39,6 +39,7 @@
             <path value="file://$PROJECT_DIR$/mcp-server/.specify" />
             <path value="file://$PROJECT_DIR$/mcp-server/.codex" />
             <path value="file://$PROJECT_DIR$/mcp-server/specs" />
+            <path value="file://$PROJECT_DIR$/utils/.codex" />
           </resourceRoots>
         </entryData>
       </entry>
