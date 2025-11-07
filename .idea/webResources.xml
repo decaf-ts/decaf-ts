@@ -40,6 +40,8 @@
             <path value="file://$PROJECT_DIR$/mcp-server/.codex" />
             <path value="file://$PROJECT_DIR$/mcp-server/specs" />
             <path value="file://$PROJECT_DIR$/utils/.codex" />
+            <path value="file://$PROJECT_DIR$/transactional-decorators/.codex" />
+            <path value="file://$PROJECT_DIR$/transactional-decorators/docs" />
           </resourceRoots>
         </entryData>
       </entry>
