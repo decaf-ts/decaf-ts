@@ -42,6 +42,7 @@
             <path value="file://$PROJECT_DIR$/utils/.codex" />
             <path value="file://$PROJECT_DIR$/transactional-decorators/.codex" />
             <path value="file://$PROJECT_DIR$/transactional-decorators/docs" />
+            <path value="file://$PROJECT_DIR$/ui-decorators/.codex" />
           </resourceRoots>
         </entryData>
       </entry>
