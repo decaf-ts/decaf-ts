@@ -22,7 +22,7 @@ class DecafTestSequencer extends Sequencer {
         const regexp = new RegExp("decaf\-ts\/([\\w-]+)\/tests", "g");
         let m = regexp.exec(testA.path);
         if (!m)
-          throw new Error("Not part of the decaf-ts suite: " + testA.path + "");
+          return -1000
         const module1 = m[1];
         regexp.lastIndex = 0;
         m = regexp.exec(testB.path);
