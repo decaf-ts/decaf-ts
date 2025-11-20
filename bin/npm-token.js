@@ -5,12 +5,12 @@ const path = require("path");
 libs.forEach(l => {
     try {
         console.log(`linking .token to ${l}`)
-        execSync(`rimraf .token && ln -s ../.token .token`, {
+        execSync(`npx rimraf .token && ln -s ../.token .token`, {
             cwd: path.join(process.cwd(), l),
             env: process.env
         })
         console.log(`linking .npmtoken to ${l}`)
-        execSync(`rimraf .npmtoken && ln -s ../.npmtoken .npmtoken`, {
+        execSync(`npx rimraf .npmtoken && ln -s ../.npmtoken .npmtoken`, {
             cwd: path.join(process.cwd(), l),
             env: process.env
         })
