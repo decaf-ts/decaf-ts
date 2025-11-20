@@ -64,3 +64,9 @@
 [submodule "mcp-server"]
 	path = mcp-server
 	url = https://github.com/decaf-ts/mcp-server.git
+[submodule "for-react"]
+	path = for-react
+	url = https://github.com/decaf-ts/for-react.git
+[submodule "for-nextjs"]
+	path = for-nextjs
+	url = https://github.com/decaf-ts/for-nextjs.git
