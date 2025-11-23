@@ -7,6 +7,7 @@
     "sync-branches": "BRANCH=\"$(git rev-parse --abbrev-ref HEAD)\" git submodule foreach '([[ -n \"$(git branch --list $BRANCH)\" ]] || [[ -n \"$(git ls-remote --heads origin $BRANCH)\" ]]) && git checkout $BRANCH || git checkout master'",
     "on-first-run": "npm run init && npm run sync-branches",
     "do-install": "NPM_TOKEN=$(cat .npmtoken) npm install",
+    "update-dependencies": "PREFIX=\"decaf-ts\"; npm ls | grep \"$PREFIX\" | awk -F/ '{print $NF}' | sed 's/@.*//' | xargs -I package npm update @\"$PREFIX\"/package",
     "update-scripts": "node ./bin/update-scripts.cjs",
     "set-git-auth": "git config url.\"https://api:$(cat .token)@github.com/\".insteadOf \"https://github.com/\" && git config url.\"https://ssh:$(cat .token)@github.com/\".insteadOf \"ssh://git@github.com/\" && git config url.\"https://git:$(cat .token)@github.com/\".insteadOf \"git@github.com:\"",
     "postinstall": "npm run run-all -- npm run do-install",
@@ -98,6 +99,7 @@
   "homepage": "https://github.com/decaf-ts/decaf-ts#readme",
   "devDependencies": {
     "@decaf-ts/logging": "latest",
+    "@decaf-ts/mcp-server": "latest",
     "@decaf-ts/utils": "latest",
     "ts-jest": "^29.4.5"
   }
