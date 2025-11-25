@@ -7,9 +7,6 @@
 [submodule "decoration"]
 	path = decoration
 	url = https://github.com/decaf-ts/decoration.git
-[submodule "reflection"]
-	path = reflection
-	url = https://github.com/decaf-ts/reflection.git
 [submodule "decorator-validation"]
 	path = decorator-validation
 	url = https://github.com/decaf-ts/decorator-validation.git
