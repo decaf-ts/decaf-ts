@@ -67,6 +67,3 @@
 [submodule "web-page"]
 	path = web-page
 	url = https://github.com/decaf-ts/wep-page.git
-[submodule "mcp-server"]
-	path = mcp-server
-	url = https://github.com/decaf-ts/mcp-server.git
