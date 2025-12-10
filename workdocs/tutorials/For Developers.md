@@ -2,8 +2,6 @@
 
 #### if you use GitHub
 
-create a new project using this one as a template.
-
 clone it `git clone <project>` and navigate to the root folder `cd <project>`
 
 add a `.token` file containing your access token to the git repository (allows for git opts to work seamlessly).
