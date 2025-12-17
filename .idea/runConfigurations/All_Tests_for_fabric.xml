@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="All Tests@for-fabric" type="JavaScriptTestRunnerJest" folderName="test">
     <node-interpreter value="project" />
-    <jest-package value="$PROJECT_DIR$/for-typeorm/node_modules/jest" />
-    <working-dir value="$PROJECT_DIR$/for-typeorm" />
-    <jest-options value="--testPathPattern=&quot;/tests/(unit)&quot; --passWithNoTests --runInBand" />
+    <jest-package value="$PROJECT_DIR$/for-fabric/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/for-fabric" />
+    <jest-options value="--no-cache --testPathPattern=&quot;/tests/(unit)&quot; --passWithNoTests --runInBand" />
     <envs />
     <scope-kind value="ALL" />
     <method v="2" />
