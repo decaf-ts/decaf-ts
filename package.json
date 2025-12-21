@@ -99,7 +99,6 @@
   "homepage": "https://github.com/decaf-ts/decaf-ts#readme",
   "devDependencies": {
     "@decaf-ts/logging": "latest",
-    "@decaf-ts/mcp-server": "latest",
     "@decaf-ts/utils": "latest",
     "ts-jest": "^29.4.5"
   }
