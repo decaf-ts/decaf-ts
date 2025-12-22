@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="SmartContract" type="ChromiumRemoteDebugType" factoryName="Chromium Remote" host="172.23.0.17" port="9229" restartOnDisconnect="true">
+  <configuration default="false" name="SmartContract" type="ChromiumRemoteDebugType" factoryName="Chromium Remote" host="172.23.0.16" port="9229" restartOnDisconnect="true">
     <mapping url="http://0.0.0.0:9229:9229" local-file="$PROJECT_DIR$/for-fabric/docker/infrastructure/chaincode/GlobalContract" />
     <method v="2" />
   </configuration>
