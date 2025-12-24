@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="contract via decaf cli" type="NodeJSConfigurationType" application-parameters="fabric compile-contract --debug --name GlobalContract --input ./src/contract --output ./docker/infrastructure/chaincode" path-to-js-file="./node_modules/@decaf-ts/cli/lib/bin/cli.cjs" working-dir="$PROJECT_DIR$/for-fabric">
+    <EXTENSION ID="com.intellij.javascript.debugger.execution.StartBrowserRunConfigurationExtension">
+      <browser with-js-debugger="true" />
+    </EXTENSION>
+    <method v="2" />
+  </configuration>
+</component>
