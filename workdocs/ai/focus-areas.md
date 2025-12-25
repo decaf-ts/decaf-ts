@@ -1,0 +1,11 @@
+focus on:
+- how to set the initial config;
+- the impersonation mechanism. explain the performance gain of a single logger and the proxy mechanism;
+- the filters and how to use them to filter passwords or PII or any other sensitive information. explain how they act (on RAW and on JSON mode);
+- the transports and how they work;
+- the Pino and Winston implementation, and how to use the native pino and winston feature through the loggingConfig and Logger API;
+- Explain the Environment Class, how to use it, (all public methods) how to extend it (via accumulate), how to define its time and default shape;
+- the LoggedClass and how to use it in classes;
+- The stopwatch class, and how to use it;
+- all the decorators and how to use them (over examples for advanced usage by extending @log());
+- the text, time, utils and web utils methods and how to use them
