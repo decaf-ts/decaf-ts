@@ -3,7 +3,7 @@
     <node-interpreter value="project" />
     <jest-package value="$PROJECT_DIR$/db-decorators/node_modules/jest" />
     <working-dir value="$PROJECT_DIR$/db-decorators" />
-    <jest-options value="--coverage --testPathPattern=&quot;/tests/(unit|integration)&quot;" />
+    <jest-options value="--no-cache --testPathPattern=&quot;/tests/(unit|integration)&quot;" />
     <envs />
     <scope-kind value="ALL" />
     <method v="2" />
