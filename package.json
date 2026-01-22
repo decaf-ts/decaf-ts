@@ -101,6 +101,7 @@
   "devDependencies": {
     "@decaf-ts/logging": "latest",
     "@decaf-ts/utils": "latest",
+    "@decaf-ts/mcp-server": "latest",
     "ts-jest": "^29.4.5"
   }
 }
