@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "decaf-mcp": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "cd \"$PROJECT_DIR\" && set -a && source ./.env && set +a && exec /home/tvenceslau/.nvm/versions/node/v24.10.0/bin/node ./node_modules/@decaf-ts/mcp-server/dist/mcp-server.cjs"
+      ]
+    }
+  }
+}
