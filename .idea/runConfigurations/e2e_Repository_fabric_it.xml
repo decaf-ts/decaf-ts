@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="e2e Repository@fabric-it" type="JavaScriptTestRunnerJest">
+    <node-interpreter value="project" />
+    <jest-package value="$PROJECT_DIR$/for-fabric/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/for-fabric" />
+    <jest-options value="--no-cache --bail=1" />
+    <envs />
+    <scope-kind value="SUITE" />
+    <test-file value="$PROJECT_DIR$/for-fabric/tests/e2e/repository.crud.e2e.test.ts" />
+    <test-names>
+      <test-name value="e2e Repository test" />
+    </test-names>
+    <method v="2" />
+  </configuration>
+</component>
