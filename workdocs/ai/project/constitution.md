@@ -27,6 +27,11 @@ This document outlines the structure, conventions, and architecture of the proje
 -   `./for-angular` eg `@decaf-ts/for-angular`: concrete Angular implementation of the Rendering engine.
 -   `./mcp-server` eg `@decaf-ts/mcp-server`: mcp-server for decaf coding.
 
+## 00.5. Keys
+
+-   **Specification Key:** `DECAF`
+-   **Task Key:** `TASK`
+
 ## 0. Development Workflow - NON NEGOTIABLE
 
 After every CODE (not documentation) change, you **must** run the following commands to ensure code quality and prevent regressions:
@@ -46,13 +51,14 @@ when link is on, if you do a change in a dependency, building that dependency ma
 
 ## 1. Core Philosophy
 
-The project aims to [Insert Project Goal Here].
+The project aims to unify Decaf as a decorator-first TypeScript platform where every layer—metadata, validation, repositories, adapters, and UI/infra helpers—speaks the same language. Models decorated via `decoration` and `decorator-validation` stay self-describing and validated; `db-decorators` and `core` orchestrate repository workflows (prepare→action→revert, observers, hooks) while adapters for CouchDB, Nano, Pouch, TypeORM, HTTP, and Fabric plug into real backends without breaking the surface contract. Auxiliary modules (logging, CLI, utils, transaction/DI decorators, crypto, as-zod, ui-decorators) provide the operational tooling, automation, and rendering layers so teams can build consistent CLI, backend, and UI experiences with minimal glue code.
 
 ### 1.1. CORE DESIGN INVARIANTS
 
 These rules are **non-negotiable**.
 
-1.  [Insert Hard Business Logic Rule 1]
+1.  Every public API must preserve declarative metadata—decorators, models, repositories, and adapters share consistent metadata keys so adapters can operate without ad-hoc wiring.
+2.  Persistence flows must follow the prepare→action→revert sequence with observable hooks so validation, logging, and error translation happen predictably across all adapters.
 
 ## 2. Core Decaf Architectural Patterns
 
