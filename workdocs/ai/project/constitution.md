@@ -29,7 +29,7 @@ This document outlines the structure, conventions, and architecture of the proje
 
 ## 0. Development Workflow - NON NEGOTIABLE
 
-After every code change, you **must** run the following commands to ensure code quality and prevent regressions:
+After every CODE (not documentation) change, you **must** run the following commands to ensure code quality and prevent regressions:
 
 1.  **Lint:** `npm run lint`
 2.  **Build:** `npm run build`
@@ -56,7 +56,43 @@ These rules are **non-negotiable**.
 
 ## 2. Core Decaf Architectural Patterns
 
-(Follow `@decaf-ts/core` patterns for Services, Repositories, Models, and Builders as detailed in the framework documentation.)
+### Service and Repository Pattern
+*   **Services:** All business logic MUST be encapsulated in services. Every service class MUST be decorated with `@service()` from `@decaf-ts/core`.
+*   **Persistence Services:** For every major data model, create a corresponding `<ModelName>Service` (e.g., `AccountService`). These services should extend a base `ModelService` which provides generic CRUD operations. All logic wrapping the repository's api should be handle dby these services.
+*   **Repositories:** Data access is handled by repositories. A repository for a model can be injected into a service using the `@repository(<ModelName>)` decorator. Custom repository classes are only needed for complex, model-specific queries.  they can have their settings overriden via proxing (to change dbs, users, etc) via .override();
+*   **Adapter:** adapters are abstractions over specific persistence layers providing a stable api for all. they can have their settings overriden via proxing (to change dbs, users, etc) via .for();
+*   **Context:** for full traceability, scalability, all services/repositories for every method receive a Context via `...args: MaybeContextArgs<any>): ...` or `...args: ContextualArgs<any>): ...`  (these types come from `@decaf-ts/core`).
+
+### Model Pattern
+*   **Model:** Base class for all classes that need to be persisted or simply validated via decoration; classes that need to be persisted/serialized must be @model() decorated as well as have @table() @column(), relationship decorators and others from '@decaf-ts/core' decoration (as well as any specific adapter decoration)
+*   **Validator:** custom decoration for models for specific purposes can be created using the existing patterns in @decaf-ts/decorator-validation, @decaf-ts/db-decorators and @decaf-ts/core' Validators MUST be decorated with @validator()
+
+### Cross-Relationship Guardrail
+When two models reference each other (e.g., `Character` → `Account` and `Account` → `Character`), break the implicit circular dependency by keeping exactly one side marked as `populate: true`/default and the opposite side as the weak reference with `populate: false` and the property type ` <pk_type> | <Class>`. Always document which side lives without `populate`, and never attempt to resolve both sides simultaneously during class initialization. This prevents the decaf decorator pipeline from recursing and aligns with the existing practice of treating the weak side as the non-owning relationship.
+
+### Builder Pattern
+*   When requested, for classes with many attributes relevant to the business logic, a **Builder** class MUST be provided to facilitate instantiation and complex variations. This is especially critical developer experience and expansibility.
+*   **Builder Naming:** The builder for a class `MyClass` should be named `MyClassBuilder`.
+*   **Core Structure:**
+    *   Builders MUST extend `Model` but are **NOT** decorated with `@model()`. They are transient and not persisted.
+    *   The constructor MUST call `Model.fromModel(this, arg)`. The `arg` is of type `ModelArg<BuilderName>`.
+    *   All properties of the builder that correspond to the target class's properties MUST be decorated with `@decaf-ts/decorator-validation` decorators (e.g., `@string()`, `@number()`, `@prop()`). No `@relation()` or other generated decorators are allowed.
+    *   It MUST have fluent `set<PropertyName>(value)` methods for each property, which return `this`.
+    *   It MUST have a `build(...args: MaybeContextualArgs)` method.
+*   **Build Method Logic:**
+    1.  The `build` method MUST first check for validation errors by calling `this.hasErrors()`.
+    2.  If errors exist, it MUST throw a `ValidationError` containing the list of errors.
+    3.  If validation passes, it instantiates and returns the target class, populating it with the builder's properties.
+*   **NO HARDCODED VALUES:** Builders should not contain hardcoded values (e.g., real data) in their default state unless defined by the user or required for the business logic (eg a default).
+
+## 3. Testing Philosophy
+*   **Unit Tests:** All functionality MUST have corresponding unit tests. Avoid mocking unless file or network IO.
+*   **Integration Tests:** Scenarios involving external dependencies MUST be covered.
+*   **Test Coverage:** New features or bug fixes must be accompanied by tests.
+
+### Testing Guidelines
+Jest is configured via `jest.config.js` with `ts-jest` transforms. Place tests in `tests/**` using `*.test.ts` (or `.setup.ts` for scaffolding). Maintain fast unit coverage before adding integration cases. Run `npm run coverage` before merges to validate reported output, and update fixtures under `tests/` instead of mocking shared contract changes.
+Even in unit tests, avoid mocking whenever possible.
 
 ## 3. Testing Philosophy
 *   **Unit Tests:** All functionality MUST have corresponding unit tests.
