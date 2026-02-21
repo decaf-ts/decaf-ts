@@ -1,0 +1,4 @@
+[mcp_servers.decaf-mcp]
+command = "bash"
+args = ["-lc", "set -a; source ./.env; set +a; node ./node_modules/@decaf-ts/mcp-server/dist/mcp-server.cjs"]
+cwd = "/home/tvenceslau/local-workspace/decaf-ts"

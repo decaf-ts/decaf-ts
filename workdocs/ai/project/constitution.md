@@ -36,11 +36,15 @@ This document outlines the structure, conventions, and architecture of the proje
 
 After every CODE (not documentation) change, you **must** run the following commands to ensure code quality and prevent regressions:
 
-1.  **Lint:** `npm run lint`
-2.  **Build:** `npm run build`
-3.  **Test:** `npm run test` (Use targeted tests for specific changes).
+1.  **Lint:** `npm run lint` - in appropriate module root
+2.  **Build:** `npm run build` - in appropriate module root
+3.  **Test:** `npm run test` - in appropriate module root (Use targeted tests for specific changes).
 
-(These must be run in the appropriate module root)
+(These must be run in the appropriate module root);
+
+After the completion of every task/spec, before returning to the user, all plan/task/specification files MUST be updated according to the changes/test results.
+
+Before responding to the user, you must also review and update every other relevant piece of documentation (README, guides, specs, plans, changelogs, etc.) so they accurately reflect the implementation that was just delivered—this is a non-negotiable requirement.
 
 #### multi-module changes
 

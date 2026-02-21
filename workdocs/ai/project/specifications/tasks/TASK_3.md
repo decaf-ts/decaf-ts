@@ -3,7 +3,7 @@
 **ID:** TASK-3
 **Specification:** [Link to Specification](../DECAF_2.md)
 **Priority:** Medium
-**Status:** Completed
+**Status:** In Progress — implementation pending.
 
 ## 1. Description
 Add the `legacyMspCount` configuration to `FabricClientFlags`/`DefaultFabricClientFlags` and adjust `buildLegacyPeerConfigs` so it randomly chooses up to `legacyMspCount` unique peers from each `mspMap` list before deduplicating them.
@@ -37,4 +37,4 @@ Add the `legacyMspCount` configuration to `FabricClientFlags`/`DefaultFabricClie
 
 ## 6. Execution Log
 *   [Date] - Task created.
-*   2026-02-20 - Implemented configurable legacy peer selection with legacyMspCount support and accompanying tests.
+*   2026-02-21 - Reopened: implementation/tests outstanding.

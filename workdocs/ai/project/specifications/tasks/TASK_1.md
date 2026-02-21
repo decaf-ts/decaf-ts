@@ -3,26 +3,28 @@
 **ID:** TASK-1
 **Specification:** [Link to Specification](../DECAF_1.md)
 **Priority:** High
-**Status:** Pending
+**Status:** In Progress — worker orchestration exists but lacks automated coverage and documentation updates.
 
 ## 1. Description
-Adapt the existing `TaskEngine` so it can run inside a dedicated worker (Node `worker_threads` or browser `Worker`). The worker version must reuse the same models and hooks, serialize/deserialize TaskContext info as needed, and emit `TaskEventModel` updates back to the main thread through the existing observable bus.
+Adapt the existing `TaskEngine` so it remains the single orchestrator that leases tasks from the repository while optionally dispatching handler execution to worker threads. The host engine keeps all scheduling/state/event responsibilities; workers act only as execution sandboxes that receive serialized task payloads and stream progress/completion events back to the engine for publication via the existing bus.
 
 ## 2. Objectives
-*   [ ] Wrap the existing task loop so worker threads can claim tasks, execute handlers, and report back without duplicating business logic.
-*   [ ] Ensure `TaskEventBus` observables in the main thread continue receiving logs/progress/status from worker threads via message channels.
-*   [ ] Keep serialization/deserialization boundaries minimal; share only IDs and status payloads across the worker barrier.
+*   [ ] Update the engine loop so only the main thread claims tasks and posts execution jobs to workers when configured.
+*   [ ] Ensure worker threads stream logs/progress/status back through message channels that the engine consumes and re-emits via `TaskEventBus`.
+*   [ ] Keep serialization boundaries minimal: send handler identifiers + inputs to workers, and ship progress payloads/errors back to the engine for consistent persistence.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
-*   Create `WorkerTaskEngine` (or similar) that instantiates a `TaskEngine` inside the worker and exposes ports for sending `TaskEventModel` updates and receiving control messages (`start`, `stop`, `claim`).
-*   Implement message handlers that mirror `TaskEventBus.emit` and funnel messages through the existing observable infrastructure (maybe via a proxy `Observable` that forwards worker notifications).
-*   Add helper utilities to serialize `TaskModel` snapshots and TaskContext metadata before posting to the main thread, recreating contexts as needed in the worker using the adapter provided in the configuration.
+*   Collapse the worker orchestration into `TaskEngine` itself: the main thread always claims tasks, persists state/events, and forwards handler execution to workers only when a pool is configured.
+*   Replace `WorkerTaskService` with a lightweight worker harness that receives serialized `TaskInvocation` payloads, executes handlers, and streams `TaskEventModel` data back through the single host engine.
+*   Extend `TaskEngineConfig` with a `workerPool` descriptor (size/mode/modules) and move the former `WorkerTaskService` spawn/shutdown logic directly into the engine.
+*   Introduce a `TaskWorkerHost` helper that multiplexes messages, reconstructs contexts for each running task, and resolves completion/error into the existing bus/repo flows.
 
 **Technical Details:**
-*   Use Node's `Worker` (or fallback to `Worker` API globally) with structured cloning; limit messages to strings/serializable payloads (task IDs, statuses, log arrays).
-*   Keep adapter interactions inside the worker; pass configuration (adapter options, worker id, concurrency) when booting it so it can instantiate its own `TaskEngine`.
-*   Within the worker, rehydrate contexts by creating a `TaskContext` with the shared adapter and reusing `TaskFlags` for logging/progress.
+*   The host engine keeps a queue of leased tasks; for each available worker it posts the minimal payload: task id, handler signature, serialized context/input/output expectations.
+*   Workers use the new harness script to `require` handlers via `TaskHandlerRegistry`, execute them, and emit log/progress/completion messages as structured JSON; they never instantiate their own engine instance.
+*   Message protocol includes: `ready`, `claim`, `progress`, `completed`, `failed`, mirroring the lifecycle so the host can call the same private methods currently used for in-process execution (e.g., `_execute`, `_handleError`).
+*   Graceful shutdown remains governed by the engine’s `gracefulShutdownMsTimeout`; stop/start commands are broadcast to workers from the engine when `stop()` is invoked.
 
 ## 4. Verification Plan
 **Automated Tests:**
@@ -38,4 +40,5 @@ Adapt the existing `TaskEngine` so it can run inside a dedicated worker (Node `w
 *   **Clarification:** Determine how to pass fragment-friendly contexts (e.g., logger references) into the worker without transferring functions.
 
 ## 6. Execution Log
-*   [Date] - Task created.
+*   [2026-02-20] - Implemented single-host TaskEngine with worker dispatch, removed WorkerTaskService, updated worker harness, and added worker pool tests.
+*   [2026-02-21] - Reopened task to add worker pool regression tests, update docs, and align with constitution requirements.

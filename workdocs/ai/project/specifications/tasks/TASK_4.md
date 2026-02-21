@@ -3,7 +3,7 @@
 **ID:** TASK-4
 **Specification:** [Link to Specification](../DECAF_2.md)
 **Priority:** Medium
-**Status:** Completed
+**Status:** In Progress — tests still need to be written once implementation exists.
 
 ## 1. Description
 Add tests covering the new `legacyMspCount` flag, ensuring the legacy peer selection path honors the requested count and still deduplicates the final peer list.
@@ -34,4 +34,4 @@ Add tests covering the new `legacyMspCount` flag, ensuring the legacy peer selec
 
 ## 6. Execution Log
 *   [Date] - Task created.
-*   2026-02-20 - Added deterministic tests validating legacy peer selection honors legacyMspCount and dedup logic.
+*   2026-02-21 - Reopened: tests pending implementation.

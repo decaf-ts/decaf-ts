@@ -1,15 +1,15 @@
 # DECAF-1: Worker Task System
 
-**Status:** Planned
+**Status:** In Progress — worker execution exists in core but lacks automated test coverage and documentation updates.
 **Priority:** High
 **Owner:** decaf-dev
 
 ## 1. Overview
-Introduce a worker-thread capable TaskEngine/TaskService pair that reuses the existing TaskModel/TaskEvent/TaskTracker objects and observables while running task execution inside one or more Node (or browser) workers. This will provide isolation for expensive jobs, enable more predictable concurrency, and keep the task lifecycle contracts (observables, trackers, event bus) intact for consumers.
+Introduce worker-thread support for the existing TaskEngine so it can remain the single source of truth for leasing, tracking, and emitting task events while delegating heavy handler execution to a pool of workers (Node `worker_threads` or browser `Worker`). The TaskEngine running on the main thread MUST remain the only component claiming tasks and broadcasting TaskEventBus updates; workers simply execute assigned jobs and stream progress/log events back to the host engine.
 
 ## 2. Goals
-*   [ ] Create a worker-aware TaskEngine implementation that can live inside a worker thread, mirror all state updates in the root datastore, and push progress/log/status events back to the main thread via TaskEventBus/TaskTracker observables.
-*   [ ] Extend TaskService with configuration knobs to boot a pool of worker TaskEngines, manage their lifecycle/shutdown, and forward service hooks/observable wiring to message listeners so repositories and trackers see the same events regardless of whether the engine runs in-process or in a worker.
+*   [x] Extend the existing TaskEngine so it can spin up worker threads when configured, remain the sole component that leases tasks from the repository, and delegate only the handler execution payload to workers (implementation landed; tests missing).
+*   [ ] Extend TaskService with configuration knobs to boot a worker pool, wire the host TaskEngine to those workers, and ensure TaskEventBus/TaskTracker consumers still receive events from the single engine instance regardless of whether handlers run locally or remotely (pending validation + docs).
 
 ## 3. User Stories / Requirements
 *   **US-1:** As an operator, I want the TaskService to dispatch work to dedicated worker threads so CPU-heavy jobs do not block the main event loop.
@@ -18,19 +18,24 @@ Introduce a worker-thread capable TaskEngine/TaskService pair that reuses the ex
 *   **Req-2:** The TaskService configuration must allow specifying worker count, adapter overrides, and graceful shutdown timeouts that apply to both worker and in-process engines.
 
 ## 4. Architecture & Design
-- Introduce `WorkerTaskEngine` (name tentative) that wraps the existing `TaskEngine` logic inside a worker-friendly shim; the shim will listen for task assignments from the main thread, execute them through the shared engine logic, and post event/observable updates via message ports.
-- Extend `TaskService` to include a new config section (`workerPool?: { size: number; mode?: 'node' | 'browser'; }`) and a manager that instantiates worker threads, maintains their message channels, and routes `TaskEventModel`, logs, and progress back through the existing `TaskEventBus`. Observables will listen to a proxy that re-emits worker messages.
-- Keep a fallback path for synchronous engines when worker threads are unavailable (e.g., browsers without Worker support).
+- Keep a single TaskEngine instance on the main thread. It continues to pull tasks, manage leases, record TaskEvents, and emit through TaskEventBus. When `workerPool.size > 0`, the engine serializes the handler payload and posts it to an available worker.
+- Workers are lightweight executors: they receive a task descriptor, run the handler, and stream log/progress/completion events back to the host TaskEngine. The engine forwards those events to TaskTracker/TaskEventBus consumers, keeping event ordering/causality centralized.
+- TaskService gains a `workerPool?: { size: number; mode?: 'node' | 'browser'; }` block responsible for launching worker threads, piping messages, and shutting the pool down. When worker support is disabled or not available, handlers continue to run inline within the TaskEngine.
 
 ## 5. Tasks Breakdown
-| ID | Task Name | Priority | Status | Dependencies |
-|:---|:----------|:---------|:--------|:-------------|
-| TASK-1 | Worker-aware Task Engine | High | Pending | - |
-| TASK-2 | Worker Task Service & Pool | High | Pending | TASK-1 |
+| ID     | Task Name                  | Priority | Status  | Dependencies |
+|:-------|:---------------------------|:---------|:--------|:-------------|
+| TASK-1 | Worker-aware Task Engine   | High     | In Progress | -            |
+| TASK-2 | Worker Task Service & Pool | High     | In Progress | TASK-1       |
 
 ## 6. Open Questions / Risks
 *   How will structured cloning limitations affect the data we pass between threads (e.g., TaskContext, Adapter)? Consider serializing only IDs and reconstructing context via the adapter.
 *   Are there environments (browsers) where we must fall back to in-process execution? Document detection/resolution early.
 
 ## 7. Results & Artifacts
-*   Placeholder for new worker engine/service implementations, message-channel adapters, and any tests/examples added under `core/src/tasks/`
+*   TaskEngine static context factory + worker orchestration entry points (`core/src/tasks/TaskEngine.ts`, `core/src/tasks/workers/workerThread.ts`).
+*   Pending: worker-specific integration tests and documentation updates describing configuration knobs.
+
+## 8. Current Status Notes
+*   Worker execution path compiles and is exercised manually, but there are no dedicated Jest suites covering workerPool sizing, concurrency, or failure handling.
+*   Documentation (plan/spec/task files, README snippets) must be updated once coverage lands to keep the constitution’s non-negotiable requirement satisfied.

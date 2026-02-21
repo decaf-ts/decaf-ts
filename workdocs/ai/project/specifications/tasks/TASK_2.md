@@ -3,26 +3,27 @@
 **ID:** TASK-2
 **Specification:** [Link to Specification](../DECAF_1.md)
 **Priority:** High
-**Status:** Pending
+**Status:** In Progress — configuration surface exists but lacks automated coverage/documentation.
 
 ## 1. Description
-Extend `TaskService` with a configurable worker pool so the service can boot multiple worker-thread `TaskEngine` instances, monitor their health, and expose the same CRUD/tracking APIs while the underlying work runs out-of-process.
+Extend `TaskService` with a configurable worker pool so the service can boot worker-thread executors, keep a single TaskEngine instance in the main thread, and expose the same CRUD/tracking APIs while the heavy handler work runs out-of-process.
 
 ## 2. Objectives
 *   [ ] Add configuration options for enabling a worker pool (`workerPool: { size?: number; mode?: "node" | "browser"; }`) and pass them through during service initialization.
-*   [ ] Implement a `WorkerTaskService` manager that launches/terminates workers, listens for their event/log progress messages, and replays them via the existing `TaskEventBus`/`TaskTracker` observables.
-*   [ ] Keep all service hooks (create, push, start, stop) working by routing pre/post listeners to worker threads through message commands and ensuring trackers can resolve statuses emitted from those threads.
+*   [ ] Implement a `WorkerPoolManager` that launches/terminates workers, listens for their event/log progress messages, and replays them via the host TaskEngine’s `TaskEventBus`/`TaskTracker`.
+*   [ ] Keep all service hooks (create, push, start, stop) working by routing only the handler execution to workers while the TaskEngine continues to orchestrate leasing, persistence, and status transitions.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
-*   Update `ClientBasedService` or `TaskService` initialization to detect worker configuration, create worker threads via a shared helper, and keep references to their message channels.
-*   Introduce an observable proxy that unpacks worker messages into `TaskEventModel` updates and calls the same bus observers as the in-process engine would.
-*   Provide methods to broadcast control commands (`start`, `stop`, `heartbeat`, `gracefulShutdown`) and handle acknowledgements so the service can gracefully terminate the pool.
+*   Keep `TaskService` as the only service surface; it now wires the single `TaskEngine` plus optional worker pool by forwarding the `workerPool` configuration down to the engine.
+*   Delete the `WorkerTaskService` export and update imports/tests so consumers rely solely on `TaskService`.
+*   Provide a simple `TaskWorkerPoolOptions` shape that TaskService injects into the engine config, ensuring all worker lifecycle, messaging, and shutdown logic lives in the engine—not the service.
+*   Update service initialization/shutdown hooks to start and stop the engine (and thus the pool) without duplicating worker orchestration logic.
 
 **Technical Details:**
-*   Use Node's `worker_threads` module (or `Worker` global) to boot the same code path as the standalone worker engine.
-*   Worker threads must send `TaskProgressPayload`/`TaskEventModel` messages serialized to JSON; the service will deserialize and pass them to `TaskEventBus.emit` so trackers behave normally.
-*   Add lifecycle tracking (start/stop) per worker so the service knows when to respawn or wait during shutdown.
+*   The service constructor continues to accept the TaskEngine config; `initialize` now asserts that any `workerPool` config also includes a `workerAdapter` descriptor so workers know how to instantiate persistence.
+*   Remove cross-service worker event bus plumbing; TaskService simply consumes the engine’s `TaskEventBus` as before while the engine reports worker-emitted events internally.
+*   Extend the TaskService tests to verify the no-worker and worker-enabled modes share the same API surface and that the repository interactions remain unchanged.
 
 ## 4. Verification Plan
 **Automated Tests:**
@@ -38,4 +39,5 @@ Extend `TaskService` with a configurable worker pool so the service can boot mul
 *   **Clarification:** Determine if browser builds will reuse the same message protocol or require a different helper library for browsers without `worker_threads`.
 
 ## 6. Execution Log
-*   [Date] - Task created.
+*   [2026-02-20] - Simplified TaskService initialization to drive the unified TaskEngine worker pool and removed WorkerTaskService surface.
+*   [2026-02-21] - Reopened to add worker pool service tests, configuration docs, and align with updated constitution requirements.
