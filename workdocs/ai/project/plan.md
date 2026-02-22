@@ -10,8 +10,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - **Status:** In Progress — worker execution exists but lacks dedicated automated coverage, documentation refresh, and configuration validation.
 - **Link:** [Specification Details](./specifications/DECAF_1.md)
 - **Tasks:**
-  - [ ] [TASK-1](./tasks/TASK_1.md): Worker-aware Task Engine (re-opened: add worker-pool regression tests, ensure context helpers are documented).
-  - [ ] [TASK-2](./tasks/TASK_2.md): Worker Task Service & Pool (re-opened: add configuration coverage + docs reflecting current behaviour).
+  - [ ] [TASK-1](./specifications/tasks/TASK_1.md): Worker-aware Task Engine (re-opened: add worker-pool regression tests, ensure context helpers are documented).
+  - [ ] [TASK-2](./specifications/tasks/TASK_2.md): Worker Task Service & Pool (re-opened: add configuration coverage + docs reflecting current behaviour).
 
 ---
 
@@ -21,8 +21,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - **Status:** In Progress — gateway override/mirror behaviour remains unimplemented; specifications must be brought up to date with current code.
 - **Link:** [Specification Details](./specifications/DECAF_2.md)
 - **Tasks:**
-  - [ ] [TASK-3](./tasks/TASK_3.md): Honor `legacyMspCount` when compiling legacy peer list (pending full adapter changes + verification).
-  - [ ] [TASK-4](./tasks/TASK_4.md): Add tests validating legacy peer selection count/variance (needs refreshed coverage once implementation lands).
+  - [ ] [TASK-3](./specifications/tasks/TASK_3.md): Honor `legacyMspCount` when compiling legacy peer list (pending full adapter changes + verification).
+  - [ ] [TASK-4](./specifications/tasks/TASK_4.md): Add tests validating legacy peer selection count/variance (needs refreshed coverage once implementation lands).
 
 ---
 
@@ -36,6 +36,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-6](./specifications/tasks/TASK_6.md): Add automated tests, documentation, and tooling coverage for the filesystem adapter.
   - [ ] [TASK-25](./specifications/tasks/TASK_25.md): Build the `FsDispatch` watch synchronizer so adapter instances keep their caches fresh across processes.
   - [ ] [TASK-26](./specifications/tasks/TASK_26.md): Implement filesystem-backed locking so multiple processes coordinating on the same root stay consistent.
+
+---
 
 ## DECAF-4 — Builder Decorator Coverage
 - **Priority:** High
@@ -59,6 +61,58 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-22](./specifications/tasks/TASK_22.md): Analyze `for-http` module for builder overrides.
   - [ ] [TASK-23](./specifications/tasks/TASK_23.md): Analyze `for-nest` module for builder overrides.
   - [x] [TASK-24](./specifications/tasks/TASK_24.md): Analyze `for-fabric` module for builder overrides.
+
+---
+
+## DECAF-5 — FabricClientAdapter Object Instantiation
+- **Priority:** High
+- **Goal:** Ensure FabricClientAdapter's repository layer consistently returns properly instantiated model objects across all query operations, not just JSON objects.
+- **Status:** Draft — audit and fix needed for statement() and query methods in FabricClientRepository.
+- **Link:** [Specification Details](./specifications/DECAF_5.md)
+- **Tasks:**
+  - [ ] [TASK-27](./specifications/tasks/TASK_27.md): Audit FabricClientRepository query methods.
+  - [ ] [TASK-28](./specifications/tasks/TASK_28.md): Fix statement() instantiation logic.
+  - [ ] [TASK-29](./specifications/tasks/TASK_29.md): Add instantiation tests for all queries.
+  - [ ] [TASK-30](./specifications/tasks/TASK_30.md): Document object instantiation behavior.
+
+---
+
+## DECAF-6 — TypeORM Multi-Database Support Refactoring
+- **Priority:** High
+- **Goal:** Refactor TypeORM adapter to support all TypeORM database drivers (PostgreSQL, MySQL, SQLite, SQL Server, etc.) instead of PostgreSQL-specific implementation.
+- **Status:** Draft — multi-driver support and unified query building needed.
+- **Link:** [Specification Details](./specifications/DECAF_6.md)
+- **Tasks:**
+  - [ ] [TASK-31](./specifications/tasks/TASK_31.md): Add TypeORMDriver enum and driver detection.
+  - [ ] [TASK-32](./specifications/tasks/TASK_32.md): Refactor static methods for multi-driver support.
+  - [ ] [TASK-33](./specifications/tasks/TASK_33.md): Add TypeORMEventMode enum and dispatch modes.
+  - [ ] [TASK-34](./specifications/tasks/TASK_34.md): Implement database triggers for each driver.
+  - [ ] [TASK-35](./specifications/tasks/TASK_35.md): Implement event listener for multi-instance support.
+  - [ ] [TASK-36](./specifications/tasks/TASK_36.md): Refactor TypeORMStatement to use TypeORM query API.
+  - [ ] [TASK-37](./specifications/tasks/TASK_37.md): Update repository methods to use unified query building.
+  - [ ] [TASK-38](./specifications/tasks/TASK_38.md): Add tests for each database driver.
+  - [ ] [TASK-39](./specifications/tasks/TASK_39.md): Document driver differences and configuration.
+
+---
+
+## DECAF-7 — Transaction Decorator Refactoring with Lock Context
+- **Priority:** High
+- **Goal:** Refactor @transactional decorator to use Decoration API, ensuring Context always has a lock property and implementing proxy-based acquire/release with reference counting.
+- **Status:** Draft — need to implement TransactionLockProxy, abstract adapter methods, and update decorator.
+- **Link:** [Specification Details](./specifications/DECAF_7.md)
+- **Tasks:**
+  - [ ] [TASK-66](./specifications/tasks/TASK_66.md): Refactor @transactional decorator using Decoration API.
+  - [ ] [TASK-67](./specifications/tasks/TASK_67.md): Implement enhanced Lock and MultiLock classes.
+  - [ ] [TASK-68](./specifications/tasks/TASK_68.md): Add abstract methods to Adapter base class.
+  - [ ] [TASK-69](./specifications/tasks/TASK_69.md): Implement transaction methods in RamAdapter.
+  - [ ] [TASK-70](./specifications/tasks/TASK_70.md): Update Context with getTransactionLock method.
+  - [ ] [TASK-71](./specifications/tasks/TASK_71.md): Inject transactionLock into Context on first acquire.
+  - [ ] [TASK-72](./specifications/tasks/TASK_72.md): Create transactional handler for method wrapping.
+  - [ ] [TASK-73](./specifications/tasks/TASK_73.md): Add unit tests for Lock class and MultiLock.
+  - [ ] [TASK-74](./specifications/tasks/TASK_74.md): Add unit tests for TransactionLockProxy.
+  - [ ] [TASK-75](./specifications/tasks/TASK_75.md): Add unit tests for @transactional decorator.
+  - [ ] [TASK-76](./specifications/tasks/TASK_76.md): Add integration tests with RamAdapter.
+  - [ ] [TASK-77](./specifications/tasks/TASK_77.md): Document transaction decorator usage and lock lifecycle.
 
 ---
 
