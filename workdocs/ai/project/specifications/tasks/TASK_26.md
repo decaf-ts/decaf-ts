@@ -3,15 +3,15 @@
 **ID:** TASK-26  
 **Specification:** [DECAF-3: Filesystem Adapter](../DECAF_3.md)  
 **Priority:** High  
-**Status:** Pending — locking currently relies on in-process multlock; must be replaced by filesystem-based locking that every adapter can share.
+**Status:** Completed — filesystem lock classes and adapter integration exist, and unit coverage proves contention/blocking plus cleanup.
 
 ## 1. Description
 Replace the existing `MultiLock`/in-memory locking used by `FilesystemAdapter` with a `FilesystemLock` that uses marker files so any number of adapter instances (and processes) coordinating on the same root respect each other.
 
 ## 2. Objectives
-*   [ ] Implement a `FilesystemLock` (and an optional `FilesystemMultiLock` helper) under `core/src/fs/locks` that acquires/releases locks by creating/deleting lockfiles on disk.
-*   [ ] Ensure `FilesystemAdapter` uses the filesystem lock before mutating table or index files, and releases it even when errors occur.
-*   [ ] Update tests to assert lock contention works across adapters (e.g., one adapter cannot start a conflicting write while another holds the lock).
+*   [x] Implement a `FilesystemLock` (and an optional `FilesystemMultiLock` helper) under `core/src/fs/locks` that acquires/releases locks by creating/deleting lockfiles on disk.
+*   [x] Ensure `FilesystemAdapter` uses the filesystem lock before mutating table or index files, and releases it even when errors occur.
+*   [x] Update tests to assert lock contention works across adapters (e.g., one adapter cannot start a conflicting write while another holds the lock).
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -33,3 +33,4 @@ Replace the existing `MultiLock`/in-memory locking used by `FilesystemAdapter` w
 
 ## 6. Execution Log
 *   [2026-02-21] - Lock requirements captured; implementation pending.
+*   [2026-02-22] - FilesystemLock/MultiLock added, adapter defaults to them, and new unit tests verify cross-name contention plus cleanup on errors.

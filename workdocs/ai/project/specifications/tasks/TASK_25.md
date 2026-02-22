@@ -3,15 +3,15 @@
 **ID:** TASK-25  
 **Specification:** [DECAF-3: Filesystem Adapter](../DECAF_3.md)  
 **Priority:** High  
-**Status:** In Progress — watcher scaffolding exists but the full dispatch/watcher integration and throttled refresh logic are still missing.
+**Status:** Completed — FsDispatch now starts the adapter watchers and throttled refresh queue, and a regression test proves two adapters share a root without staleness.
 
 ## 1. Description
 Implement the `FsDispatch` subclass of the shared `Dispatch` infrastructure so every `FilesystemAdapter` instance subscribes to `fs.watch`/`fs.watchFile` events and refreshes its in-memory tables and indexes whenever another process mutates the same root.
 
 ## 2. Objectives
-*   [ ] Add `FsDispatch` in `core/src/fs/FsDispatch.ts`, reuse the existing `Dispatch` interface so repositories using the filesystem adapter keep the same lifecycle hooks.
-*   [ ] Install file watchers on every table/record/index folder during hydration and emit events to the hosting adapter when inserts/updates/deletes fire.
-*   [ ] Debounce rapid watcher callbacks per table so simultaneous events (e.g., bulk deletes) only cause a single reload.
+*   [x] Add `FsDispatch` in `core/src/fs/FsDispatch.ts`, reuse the existing `Dispatch` interface so repositories using the filesystem adapter keep the same lifecycle hooks.
+*   [x] Install file watchers on every table/record/index folder during hydration and emit events to the hosting adapter when inserts/updates/deletes fire.
+*   [x] Debounce rapid watcher callbacks per table so simultaneous events (e.g., bulk deletes) only cause a single reload.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -34,3 +34,4 @@ Implement the `FsDispatch` subclass of the shared `Dispatch` infrastructure so e
 
 ## 6. Execution Log
 *   [2026-02-21] - Watcher helpers sketched in `FilesystemAdapter`, plan updated to include `FsDispatch` and watcher requirements.
+*   [2026-02-22] - FsDispatch now hydrates adapters, refresh queue debounces reloads, and `tests/unit/filesystem-adapter.test.ts` validates two adapters sharing a root stay in sync.

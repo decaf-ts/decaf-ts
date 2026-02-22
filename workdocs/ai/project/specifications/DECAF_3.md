@@ -1,6 +1,6 @@
 # DECAF-3: Filesystem Adapter
 
-**Status:** In Progress — core filesystem adapter shipped, but the FsDispatch watch syncer and cross-process lock coordination remain in flight.  
+**Status:** Completed — FsDispatch now hydrates watchers and debounced refreshes, and filesystem locking ensures multi-process consistency with regression coverage.  
 **Priority:** High  
 **Owner:** decaf-dev
 
@@ -12,8 +12,8 @@ Introduce a new persistence path under `core/src/fs` that mirrors the public API
 *   [x] Persist adapter state under `core/src/fs`, using the hierarchy `{db}/{table}/{recordId}.json` plus `{db}/{table}/indexes/{indexName}.json`.
 *   [x] Maintain full feature parity with `RamAdapter` hooks (observers, populate, bulk operations, prepared statements, etc.).
 *   [x] Provide configuration knobs for the root directory, fs promises shim, and optional JSON formatting.
-*   [ ] Build `FsDispatch` so multiple adapter instances watch the underlying directories/files and refresh their in-memory cache whenever any process mutates storage.
-*   [ ] Replace the in-process locking layer with a filesystem-backed `FilesystemLock` so every adapter/process sharing a root respects the same mutual exclusions.
+*   [x] Build `FsDispatch` so multiple adapter instances watch the underlying directories/files and refresh their in-memory cache whenever any process mutates storage.
+*   [x] Replace the in-process locking layer with a filesystem-backed `FilesystemLock` so every adapter/process sharing a root respects the same mutual exclusions.
 
 ## 3. User Stories / Requirements
 *   **US-1:** As an operator, I want an on-disk drop-in replacement for `RamAdapter` so I can reboot processes without losing state.
@@ -53,8 +53,8 @@ Introduce a new persistence path under `core/src/fs` that mirrors the public API
 |:-------|:-----------------------------------|:---------|:-----------|:-------------|
 | TASK-5 | FilesystemAdapter implementation   | High     | Completed  | -            |
 | TASK-6 | FilesystemAdapter tests & tooling  | High     | Completed  | TASK-5       |
-| TASK-25 | FsDispatch watch synchronization   | High     | In Progress | TASK-5       |
-| TASK-26 | Filesystem locking & multi-process consistency | High | Pending | TASK-25 |
+| TASK-25 | FsDispatch watch synchronization   | High     | Completed   | TASK-5       |
+| TASK-26 | Filesystem locking & multi-process consistency | High | In Progress | TASK-25 |
 
 ## 6. Open Questions / Risks
 *   How should large bulk deletes be handled to avoid expensive recursive directory scans?

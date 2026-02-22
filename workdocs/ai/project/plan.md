@@ -29,13 +29,13 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-3 — Filesystem Adapter
 - **Priority:** High
 - **Goal:** Provide an on-disk adapter in `core/src/fs` that mirrors `RamAdapter` behaviour while persisting data across restarts.
-- **Status:** In Progress — basic adapter/tests shipped, but FsDispatch synchronization and filesystem-wide locking are still pending.
+- **Status:** Completed — FsDispatch watch synchronization and filesystem locking now guarantee multi-process consistency in practice.
 - **Link:** [Specification Details](./specifications/DECAF_3.md)
 - **Tasks:**
   - [x] [TASK-5](./specifications/tasks/TASK_5.md): Implement `FilesystemAdapter` with full feature parity to `RamAdapter`.
   - [x] [TASK-6](./specifications/tasks/TASK_6.md): Add automated tests, documentation, and tooling coverage for the filesystem adapter.
-  - [ ] [TASK-25](./specifications/tasks/TASK_25.md): Build the `FsDispatch` watch synchronizer so adapter instances keep their caches fresh across processes.
-  - [ ] [TASK-26](./specifications/tasks/TASK_26.md): Implement filesystem-backed locking so multiple processes coordinating on the same root stay consistent.
+  - [x] [TASK-25](./specifications/tasks/TASK_25.md): Build the `FsDispatch` watch synchronizer so adapter instances keep their caches fresh across processes.
+  - [x] [TASK-26](./specifications/tasks/TASK_26.md): Implement filesystem-backed locking so multiple processes coordinating on the same root stay consistent.
 
 ---
 
