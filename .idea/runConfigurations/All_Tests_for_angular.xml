@@ -4,7 +4,7 @@
     <node-interpreter value="project" />
     <jest-package value="$PROJECT_DIR$/for-angular/node_modules/jest" />
     <working-dir value="$PROJECT_DIR$/for-angular" />
-    <jest-options value="--testPathPattern=&quot;*.spec.ts&quot; --passWithNoTests" />
+    <jest-options value="--testPathPatterns=&quot;*.spec.ts&quot; --passWithNoTests" />
     <envs />
     <scope-kind value="ALL" />
     <method v="2" />

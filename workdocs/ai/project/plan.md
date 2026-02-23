@@ -7,11 +7,12 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-1 — Worker Task System
 - **Priority:** High
 - **Goal:** Build worker-thread aware TaskEngine and TaskService that keep the current observable/message contracts while executing jobs off the main thread.
-- **Status:** In Progress — worker execution exists but lacks dedicated automated coverage, documentation refresh, and configuration validation.
+- **Status:** Completed — worker execution with FsAdapter coordination implemented and tested; 8 integration tests passing.
 - **Link:** [Specification Details](./specifications/DECAF_1.md)
 - **Tasks:**
-  - [ ] [TASK-1](./specifications/tasks/TASK_1.md): Worker-aware Task Engine (re-opened: add worker-pool regression tests, ensure context helpers are documented).
-  - [ ] [TASK-2](./specifications/tasks/TASK_2.md): Worker Task Service & Pool (re-opened: add configuration coverage + docs reflecting current behaviour).
+  - [x] [TASK-1](./specifications/tasks/TASK_1.md): Worker-aware Task Engine (worker-pool regression tests added; context helpers documented).
+  - [x] [TASK-2](./specifications/tasks/TASK_2.md): Worker Task Service & Pool (configuration coverage added; docs updated).
+  - [x] [TASK-FS](./specifications/tasks/TASK_FS.md): FsAdapter Worker Coordination (filesystem persistence coordination validated).
 
 ---
 
