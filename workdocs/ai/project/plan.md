@@ -99,21 +99,21 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-7 — Transaction Decorator Refactoring with Lock Context
 - **Priority:** High
 - **Goal:** Refactor @transactional decorator to use Decoration API, ensuring Context always has a lock property and implementing proxy-based acquire/release with reference counting.
-- **Status:** Draft — need to implement TransactionLockProxy, abstract adapter methods, and update decorator.
+- **Status:** COMPLETED — Transaction lock mechanism implemented with decorator override, ContextLock with AdapterTransaction wrapper, proper begin/commit/rollback via adapter methods.
 - **Link:** [Specification Details](./specifications/DECAF_7.md)
 - **Tasks:**
-  - [ ] [TASK-66](./specifications/tasks/TASK_66.md): Refactor @transactional decorator using Decoration API.
-  - [ ] [TASK-67](./specifications/tasks/TASK_67.md): Implement enhanced Lock and MultiLock classes.
-  - [ ] [TASK-68](./specifications/tasks/TASK_68.md): Add abstract methods to Adapter base class.
-  - [ ] [TASK-69](./specifications/tasks/TASK_69.md): Implement transaction methods in RamAdapter.
-  - [ ] [TASK-70](./specifications/tasks/TASK_70.md): Update Context with getTransactionLock method.
-  - [ ] [TASK-71](./specifications/tasks/TASK_71.md): Inject transactionLock into Context on first acquire.
-  - [ ] [TASK-72](./specifications/tasks/TASK_72.md): Create transactional handler for method wrapping.
-  - [ ] [TASK-73](./specifications/tasks/TASK_73.md): Add unit tests for Lock class and MultiLock.
-  - [ ] [TASK-74](./specifications/tasks/TASK_74.md): Add unit tests for TransactionLockProxy.
-  - [ ] [TASK-75](./specifications/tasks/TASK_75.md): Add unit tests for @transactional decorator.
-  - [ ] [TASK-76](./specifications/tasks/TASK_76.md): Add integration tests with RamAdapter.
-  - [ ] [TASK-77](./specifications/tasks/TASK_77.md): Document transaction decorator usage and lock lifecycle.
+  - [x] [TASK-66](./specifications/tasks/TASK_66.md): Refactor @transactional decorator using Decoration API.
+  - [x] [TASK-67](./specifications/tasks/TASK_67.md): Implement enhanced Lock and MultiLock classes.
+  - [x] [TASK-68](./specifications/tasks/TASK_68.md): Add abstract methods to Adapter base class.
+  - [x] [TASK-69](./specifications/tasks/TASK_69.md): Implement transaction methods in RamAdapter.
+  - [x] [TASK-70](./specifications/tasks/TASK_70.md): Update Context with getTransactionLock method.
+  - [x] [TASK-71](./specifications/tasks/TASK_71.md): Inject transactionLock into Context on first acquire.
+  - [x] [TASK-72](./specifications/tasks/TASK_72.md): Create transactional handler for method wrapping.
+  - [x] [TASK-73](./specifications/tasks/TASK_73.md): Add unit tests for Lock class and MultiLock.
+  - [x] [TASK-74](./specifications/tasks/TASK_74.md): Add unit tests for TransactionLockProxy.
+  - [x] [TASK-75](./specifications/tasks/TASK_75.md): Add unit tests for @transactional decorator.
+  - [x] [TASK-76](./specifications/tasks/TASK_76.md): Add integration tests with RamAdapter.
+  - [x] [TASK-77](./specifications/tasks/TASK_77.md): Document transaction decorator usage and lock lifecycle.
 
 ---
 
