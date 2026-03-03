@@ -2,7 +2,7 @@
 
 **Specification:** [SPECIFICATION-2](../SPECIFICATION_2.md)  
 **Priority:** High  
-**Status:** Pending  
+**Status:** Completed — `issue-read`, `issue-update`, and `issue-delete` tools (plus the updated schema) are wired into the Jira registry with Zod validation.
 **Estimated Time:** 6-8 hours
 
 ## Objective
@@ -242,18 +242,18 @@ export const JiraIssueTransition = { name, inputSchema, runTool };
 ```
 
 ## Deliverables
-- [ ] `src/modules/jira/schemas/update-issue-input.ts`
-- [ ] `src/modules/jira/tools/issue-read.ts`
-- [ ] `src/modules/jira/tools/issue-update.ts`
-- [ ] `src/modules/jira/tools/issue-delete.ts`
-- [ ] Updated `src/modules/jira/register-utils.ts` (new file)
-- [ ] Updated `src/modules/jira/index.ts`
+- [x] `src/modules/jira/schemas/update-issue-input.ts`
+- [x] `src/modules/jira/tools/issue-read.ts`
+- [x] `src/modules/jira/tools/issue-update.ts`
+- [x] `src/modules/jira/tools/issue-delete.ts`
+- [x] Updated `src/modules/jira/register-utils.ts` (new file)
+- [x] Updated `src/modules/jira/index.ts`
 
 ## Tests Required
-- [ ] `tests/unit/jira/issue.read.spec.ts`
-- [ ] `tests/unit/jira/issue.update.spec.ts`
-- [ ] `tests/unit/jira/issue.delete.spec.ts`
-- [ ] All tests pass
+- [x] `tests/unit/jira/issue.read.spec.ts` (covering read payload validation and error normalization)
+- [x] `tests/unit/jira/issue.update.spec.ts` (covering update payloads and response paths)
+- [x] `tests/unit/jira/issue.delete.spec.ts` (covering delete scenarios and error handling)
+- [x] All tests pass via `npm run test:unit`
 
 ## Notes
 - Follow the same pattern as `issue-create` for consistency

@@ -2,7 +2,7 @@
 
 **Specification:** [SPECIFICATION-2](../SPECIFICATION_2.md)  
 **Priority:** High  
-**Status:** Pending  
+**Status:** Completed — link-create tool and schema delivered; optional list/delete helpers remain unneeded.
 **Estimated Time:** 2-3 hours
 
 ## Objective
@@ -133,19 +133,14 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [ ] `tests/unit/jira/link.create.spec.ts`
-  - Test creating "Blocks" link
-  - Test creating "Relates to" link
-  - Test creating "Duplicates" link
-  - Test creating link with comment
-  - Test creating link without comment
-- [ ] `tests/unit/jira/link.list.spec.ts` (optional)
-- [ ] `tests/unit/jira/link.delete.spec.ts` (optional)
-- [ ] All tests pass
+- [x] `tests/unit/jira/link.create.spec.ts` (covers multiple relationships and comment payloads)
+- [ ] `tests/unit/jira/link.list.spec.ts` (optional – not implemented)
+- [ ] `tests/unit/jira/link.delete.spec.ts` (optional – not implemented)
+- [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
-- [ ] `src/modules/jira/schemas/create-link-input.ts`
-- [ ] `src/modules/jira/tools/link-create.ts`
-- [ ] Optional: list and delete link tools
-- [ ] Test files for all tools
-- [ ] All tests pass
+- [x] `src/modules/jira/schemas/create-link-input.ts`
+- [x] `src/modules/jira/tools/link-create.ts`
+- [ ] Optional: link.list/link.delete tools (not implemented)
+- [x] `tests/unit/jira/link.create.spec.ts`
+- [x] All tests pass

@@ -2,7 +2,7 @@
 
 **Specification:** [SPECIFICATION-2](../SPECIFICATION_2.md)  
 **Priority:** High  
-**Status:** Pending  
+**Status:** Completed — attachment schema plus add/list/delete tools exist and are covered by dedicated tests.
 **Estimated Time:** 2-3 hours
 
 ## Objective
@@ -125,19 +125,15 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [ ] `tests/unit/jira/attach.spec.ts`
-  - Test attaching a file
-  - Test attaching with mimeType
-  - Test attaching with comment
-  - Test handling non-existent file
-  - Test handling large files
-- [ ] `tests/unit/jira/attachment.list.spec.ts`
-- [ ] `tests/unit/jira/attachment.delete.spec.ts`
-- [ ] All tests pass
+- [x] `tests/unit/jira/attach.spec.ts` (covers mime types, comments, missing files, and large payloads)
+- [x] `tests/unit/jira/attachment.list.spec.ts`
+- [x] `tests/unit/jira/attachment.delete.spec.ts`
+- [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
-- [ ] `src/modules/jira/schemas/attach-issue-input.ts`
-- [ ] `src/modules/jira/tools/attach.ts`
-- [ ] Optional: attachment-list and attachment-delete tools
-- [ ] Test files for all tools
-- [ ] All tests pass
+- [x] `src/modules/jira/schemas/attach-issue-input.ts`
+- [x] `src/modules/jira/tools/attach.ts`
+- [x] `src/modules/jira/tools/attachment-list.ts`
+- [x] `src/modules/jira/tools/attachment-delete.ts`
+- [x] `tests/unit/jira/attach.spec.ts`, `tests/unit/jira/attachment.list.spec.ts`, and `tests/unit/jira/attachment.delete.spec.ts`
+- [x] All tests pass

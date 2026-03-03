@@ -1,6 +1,6 @@
 # DECAF-4: Builder for Decorator Validation Models
 
-**Status:** In Progress — module-specific builder overrides exist for many decorators, but outstanding module analyses/overrides remain pending.  
+**Status:** In Progress — interface augmentation implemented for db-decorators only; other modules (core, ui-decorators, crypto, for-nest) remain to be analyzed and implemented.
 **Priority:** High  
 **Owner:** decaf-dev
 
@@ -32,7 +32,7 @@ Enable every module in the workspace to expose the decorators it defines through
 | TASK-7 | Implement Builder Extensions for New Decorators | High | Completed | - |
 | TASK-8 | Document Decorator Coverage Changes | Medium | Completed | TASK-7 |
 | TASK-9 | Analyze 'decorator-validation' Module for Builder Overrides | High | Completed | - |
-| TASK-10| Analyze 'db-decorators' Module for Builder Overrides | High | Pending | TASK-9 |
+| TASK-10| Analyze 'db-decorators' Module for Builder Overrides | High | In Progress | TASK-9 |
 | TASK-11| Analyze 'transcational-decorators' Module for Builder Overrides | High | Completed | - |
 | TASK-13| Analyze 'core' Module for Builder Overrides | High | Pending | TASK-11 |
 | TASK-14| Analyze 'ui-decorators' Module for Builder Overrides | High | Pending | TASK-13 |
@@ -46,13 +46,21 @@ Enable every module in the workspace to expose the decorators it defines through
 | TASK-23| Analyze 'for-nest' Module for Builder Overrides | High | Pending | TASK-21 |
 | TASK-24| Analyze 'for-fabric' Module for Builder Overrides | High | Completed | - |
 
-## 6. Open Questions / Risks
-*   How will builder augmentation be bundled for modules consumed via ESM vs. CommonJS? Ensure both loader models execute the override.
-*   Are there any decorators defined outside these modules (e.g., in `decorator-validation/src/validation/decorators.ts`) that still need builder coverage even though no additional override exists?
-*   What is the order of applying overrides if multiple modules extend the same builder property simultaneously?
+## 6. Completed Work
+*   **db-decorators TASK-10:** Interface augmentation file created (`ModelBuilderExtensions.ts`) with methods for: `generated()`, `hash()`, `composedFromKeys()`, `composed()`, `version()`, `transient()`. Module builds, tests pass. **Note:** Actual implementation on ModelBuilder class requires changes to decorator-validation's ModelBuilder class directly, not just db-decorators.
 
-## 7. Results & Artifacts
-*   Module-specific builder overrides under each module’s `src/overrides` folder (existing for completed analyses, pending for the modules still waiting on implementation).
+## 7. In Progress
+*   **db-decorators:** Pending implementation of actual builder methods (requires modifying decorator-validation code)
+*   **core:** Pending analysis
+*   **ui-decorators:** Pending analysis
+*   **crypto:** Pending analysis  
+*   **for-nest:** Pending analysis
+
+## 8. Results & Artifacts
+*   ✅ `db-decorators/src/overrides/ModelBuilderExtensions.ts`: Interface augmentation for ModelBuilder with all applicable decorators (generated, hash, composedFromKeys, composed, version, transient).
+*   ✅ Module builds successfully with `npm run build`.
+*   ✅ All unit tests pass (20 test suites, 113 tests).
+*   ⚠️ Actual builder method implementation requires modifying decorator-validation's ModelBuilder class directly (not just db-decorators).
+*   Module-specific builder overrides under each module's `src/overrides` folder (existing for completed analyses, pending for the modules still waiting on implementation).
 *   Tests within each module verifying builder helpers emit the same metadata as the decorator syntax.
 *   Updated documentation referencing builder coverage (see TASK-8) plus the new spec/plan entries.
-***EOF

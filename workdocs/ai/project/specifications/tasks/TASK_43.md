@@ -2,7 +2,7 @@
 
 **Specification:** [SPECIFICATION-2](../SPECIFICATION_2.md)  
 **Priority:** High  
-**Status:** Pending  
+**Status:** Completed — add/list comment tools plus schemas ship with comprehensive tests; optional update/delete tools are not required today.
 **Estimated Time:** 3-4 hours
 
 ## Objective
@@ -178,24 +178,18 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [ ] `tests/unit/jira/comment.add.spec.ts`
-  - Test adding comment without visibility
-  - Test adding comment with role visibility
-  - Test adding comment with group visibility
-  - Test comment with special characters
-- [ ] `tests/unit/jira/comment.list.spec.ts`
-  - Test listing comments (paginated)
-  - Test listing with expand
-  - Test ordering
-- [ ] `tests/unit/jira/comment.update.spec.ts` (optional)
-- [ ] `tests/unit/jira/comment.delete.spec.ts` (optional)
-- [ ] All tests pass
+- [x] `tests/unit/jira/comment.add.spec.ts` (covers visibility variations and special characters)
+- [x] `tests/unit/jira/comment.list.spec.ts` (covers pagination, ordering, expand)
+- [ ] `tests/unit/jira/comment.update.spec.ts` (optional – not implemented)
+- [ ] `tests/unit/jira/comment.delete.spec.ts` (optional – not implemented)
+- [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
-- [ ] `src/modules/jira/schemas/add-comment-input.ts`
-- [ ] `src/modules/jira/schemas/list-comments-input.ts`
-- [ ] `src/modules/jira/tools/comment-add.ts`
-- [ ] `src/modules/jira/tools/comment-list.ts`
-- [ ] Optional: update and delete comment tools
-- [ ] Test files for all tools
+- [x] `src/modules/jira/schemas/add-comment-input.ts`
+- [x] `src/modules/jira/schemas/list-comments-input.ts`
+- [x] `src/modules/jira/tools/comment-add.ts`
+- [x] `src/modules/jira/tools/comment-list.ts`
+- [ ] Optional: comment.update/comment.delete tools (left unimplemented by design)
+- [x] `tests/unit/jira/comment.add.spec.ts` and `tests/unit/jira/comment.list.spec.ts`
+- [x] All tests pass
 - [ ] All tests pass

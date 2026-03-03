@@ -2,7 +2,7 @@
 
 **Specification:** [SPECIFICATION-2](../SPECIFICATION_2.md)  
 **Priority:** High  
-**Status:** Pending  
+**Status:** Completed — assignment/unassignment tools plus schema exist and share the same normalization layer.
 **Estimated Time:** 2-3 hours
 
 ## Objective
@@ -89,17 +89,12 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [ ] `tests/unit/jira/assign.spec.ts`
-  - Test assignment with accountId
-  - Test assignment with username string
-  - Test assignment with accountType object
-  - Test unassignment
-  - Test permission errors
-- [ ] All tests pass
+- [x] `tests/unit/jira/assign.spec.ts` (covers accountId/username/accountType assignment plus unassignment and permission failures)
+- [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
-- [ ] `src/modules/jira/schemas/assign-issue-input.ts`
-- [ ] `src/modules/jira/tools/assign.ts`
-- [ ] `src/modules/jira/tools/unassign.ts`
-- [ ] Test files for both tools
-- [ ] All tests pass
+- [x] `src/modules/jira/schemas/assign-issue-input.ts`
+- [x] `src/modules/jira/tools/assign.ts`
+- [x] `src/modules/jira/tools/unassign.ts`
+- [x] `tests/unit/jira/assign.spec.ts` exercising both tools
+- [x] All tests pass

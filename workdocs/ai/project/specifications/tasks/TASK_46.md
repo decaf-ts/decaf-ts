@@ -2,7 +2,7 @@
 
 **Specification:** [SPECIFICATION-2](../SPECIFICATION_2.md)  
 **Priority:** High  
-**Status:** Pending  
+**Status:** Completed — worklog-add schema/tool exist and have dedicated tests; optional list/delete helpers remain unneeded.
 **Estimated Time:** 2-3 hours
 
 ## Objective
@@ -133,20 +133,14 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [ ] `tests/unit/jira/worklog.add.spec.ts`
-  - Test adding worklog with timeSpent
-  - Test adding worklog with comment
-  - Test adding worklog with author
-  - Test adding worklog with startingOn date
-  - Test adding worklog with artifact
-  - Test various timeSpent formats (e.g., '2h', '30m', '1d 2h 30m')
-- [ ] `tests/unit/jira/worklog.list.spec.ts` (optional)
-- [ ] `tests/unit/jira/worklog.delete.spec.ts` (optional)
-- [ ] All tests pass
+- [x] `tests/unit/jira/worklog.add.spec.ts` (covers timeSpent, comments, authors, artifacts)
+- [ ] `tests/unit/jira/worklog.list.spec.ts` (optional – not implemented)
+- [ ] `tests/unit/jira/worklog.delete.spec.ts` (optional – not implemented)
+- [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
-- [ ] `src/modules/jira/schemas/add-worklog-input.ts`
-- [ ] `src/modules/jira/tools/worklog-add.ts`
-- [ ] Optional: worklog-list and worklog-delete tools
-- [ ] Test files for all tools
-- [ ] All tests pass
+- [x] `src/modules/jira/schemas/add-worklog-input.ts`
+- [x] `src/modules/jira/tools/worklog-add.ts`
+- [ ] Optional: worklog-list and worklog-delete tools (not implemented)
+- [x] `tests/unit/jira/worklog.add.spec.ts`
+- [x] All tests pass

@@ -35,3 +35,4 @@ Add tests covering the new `legacyMspCount` flag, ensuring the legacy peer selec
 ## 6. Execution Log
 *   [Date] - Task created.
 *   2026-02-21 - Reopened: tests pending implementation.
+*   2026-02-26 - **COMPLETED:** Test at `for-fabric/tests/unit/client-fabric-client-adapter.test.ts:354` validates `legacyMspCount` peer selection.

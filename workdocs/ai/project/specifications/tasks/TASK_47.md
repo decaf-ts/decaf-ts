@@ -2,7 +2,7 @@
 
 **Specification:** [SPECIFICATION-2](../SPECIFICATION_2.md)  
 **Priority:** High  
-**Status:** Pending  
+**Status:** Completed — all Jira schema exports are centralized and up-to-date.
 **Estimated Time:** 2-3 hours
 
 ## Objective
@@ -50,7 +50,7 @@ export * from './add-worklog-input';
 ```
 
 ## Deliverables
-- [ ] All schema files created
-- [ ] Types exported via index
-- [ ] Schema updates completed
-- [ ] All schemas validated
+- [x] All schema files created
+- [x] Types exported via `src/modules/jira/schemas/types/index.ts`
+- [x] Schema updates completed
+- [x] All schemas validated (covered by unit tests)

@@ -38,3 +38,4 @@ Add the `legacyMspCount` configuration to `FabricClientFlags`/`DefaultFabricClie
 ## 6. Execution Log
 *   [Date] - Task created.
 *   2026-02-21 - Reopened: implementation/tests outstanding.
+*   2026-02-26 - **COMPLETED:** `legacyMspCount` flag implemented in `resolveLegacyMspCount()` and used by `buildLegacyPeerConfigs()`. Tests verify random selection with deduplication.
