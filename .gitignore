@@ -25,3 +25,6 @@
 !.gitkeep
 .env
 /docker/auth/volumes/keycloak-data
+.codex
+.claude
+.ai

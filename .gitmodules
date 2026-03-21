@@ -25,6 +25,9 @@
 [submodule "core"]
 	path = core
 	url = https://github.com/decaf-ts/core.git
+[submodule "crypto"]
+	path = crypto
+	url = https://github.com/decaf-ts/crypto.git
 [submodule "for-http"]
 	path = for-http
 	url = https://github.com/decaf-ts/for-http.git
