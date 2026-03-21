@@ -101,7 +101,10 @@
   "homepage": "https://github.com/decaf-ts/decaf-ts#readme",
   "devDependencies": {
     "@decaf-ts/logging": "latest",
-    "@decaf-ts/mcp-server": "latest",
+    "@decaf-ts/cli": "latest",
     "@decaf-ts/utils": "latest"
+  },
+  "optionalDependencies": {
+    "@decaf-ts/mcp-server": "latest"
   }
 }
