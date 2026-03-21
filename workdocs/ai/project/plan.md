@@ -43,25 +43,25 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-4 — Builder Decorator Coverage
 - **Priority:** High
 - **Goal:** Ensure every module root exposes its model-relevant decorators via the shared `ModelBuilder`/`AttributeBuilder` overrides so models can be defined completely at runtime.
-- **Status:** In Progress — interface augmentation implemented for db-decorators only; actual builder method implementation requires changes to decorator-validation; remaining modules (core, ui-decorators, crypto, for-nest) pending.
+- **Status:** Completed — decorators from db-decorators, ui-decorators, crypto, and for-nest now expose the same behavior through the builder helper APIs.
 - **Link:** [Specification Details](./specifications/DECAF_4.md)
 - **Tasks:**
   - [x] [TASK-7](./specifications/tasks/TASK_7.md): Implement Builder Extensions for New Decorators.
   - [x] [TASK-8](./specifications/tasks/TASK_8.md): Document Decorator Coverage Changes.
   - [x] [TASK-9](./specifications/tasks/TASK_9.md): Analyze `decorator-validation` module for builder overrides.
-  - [ ] [TASK-10](./specifications/tasks/TASK_10.md): Analyze `db-decorators` module for builder overrides (interface augmentation created; actual implementation pending).
+  - [x] [TASK-10](./specifications/tasks/TASK_10.md): Analyze `db-decorators` module for builder overrides (builder helpers implemented and tested).
   - [x] [TASK-11](./specifications/tasks/TASK_11.md): Analyze `transcational-decorators` module for builder overrides.
-  - [ ] [TASK-13](./specifications/tasks/TASK_13.md): Analyze `core` module for builder overrides.
-  - [ ] [TASK-14](./specifications/tasks/TASK_14.md): Analyze `ui-decorators` module for builder overrides.
-  - [ ] [TASK-15](./specifications/tasks/TASK_15.md): Analyze `crypto` module for builder overrides.
+  - [x] [TASK-13](./specifications/tasks/TASK_13.md): Analyze `core` module for builder overrides (interface augmentation created in ModelBuilder.ts; override index.ts updated; module builds and tests pass).
+  - [x] [TASK-14](./specifications/tasks/TASK_14.md): Analyze `ui-decorators` module for builder overrides.
+  - [x] [TASK-15](./specifications/tasks/TASK_15.md): Analyze `crypto` module for builder overrides.
   - [x] [TASK-16](./specifications/tasks/TASK_16.md): Analyze `cli` module for builder overrides.
   - [x] [TASK-18](./specifications/tasks/TASK_18.md): Analyze `for-couchdb` module for builder overrides.
   - [x] [TASK-19](./specifications/tasks/TASK_19.md): Analyze `for-nano` module for builder overrides.
   - [x] [TASK-20](./specifications/tasks/TASK_20.md): Analyze `for-pouch` module for builder overrides.
   - [x] [TASK-21](./specifications/tasks/TASK_21.md): Analyze `for-typeorm` module for builder overrides.
   - [x] [TASK-22](./specifications/tasks/TASK_22.md): Analyze `for-http` module for builder overrides.
-  - [ ] [TASK-23](./specifications/tasks/TASK_23.md): Analyze `for-nest` module for builder overrides.
-  - [x] [TASK-24](./specifications/tasks/TASK_24.md): Analyze `for-fabric` module for builder overrides.
+  - [x] [TASK-23](./specifications/tasks/TASK_23.md): Analyze `for-nest` module for builder overrides.
+  - [x] [TASK-24](./specifications/tasks/TASK_24.md): Analyze `for-fabric` module for builder overrides (analysis completed; no applicable decorators found).
 
 ---
 
@@ -117,6 +117,52 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-8 — Universal E2E Test Coverage
+- **Priority:** High
+- **Goal:** Implement comprehensive end-to-end tests for every module that test against src, lib, and dist builds without mocking anything. Use a unified configuration system that proxies imports to allow switching between build stages.
+- **Status:** Proposed — E2E infrastructure template created following decoration module pattern.
+- **Link:** [Specification Details](./specifications/DECAF_8.md)
+- **Tasks:**
+  - [ ] [TASK-80](./specifications/tasks/TASK_80.md): Create generic E2E test infrastructure template (e2e.config.ts and e2e.test.ts)
+  - [ ] [TASK-81](./specifications/tasks/TASK_81.md): Add E2E tests to core module
+  - [ ] [TASK-82](./specifications/tasks/TASK_82.md): Add E2E tests to utils module
+  - [ ] [TASK-83](./specifications/tasks/TASK_83.md): Add E2E tests to logging module
+  - [ ] [TASK-84](./specifications/tasks/TASK_84.md): Add E2E tests to crypto module
+  - [ ] [TASK-85](./specifications/tasks/TASK_85.md): Add E2E tests to styles module
+  - [ ] [TASK-86](./specifications/tasks/TASK_86.md): Add E2E tests to ui-decorators module
+  - [ ] [TASK-87](./specifications/tasks/TASK_87.md): Add E2E tests to transactional-decorators module
+  - [ ] [TASK-88](./specifications/tasks/TASK_88.md): Add E2E tests to db-decorators module
+  - [ ] [TASK-89](./specifications/tasks/TASK_89.md): Add E2E tests to decorator-validation module
+  - [ ] [TASK-90](./specifications/tasks/TASK_90.md): Add E2E tests to cli module
+  - [ ] [TASK-91](./specifications/tasks/TASK_91.md): Add E2E tests to for-http module
+  - [ ] [TASK-92](./specifications/tasks/TASK_92.md): Add E2E tests to for-nano module
+  - [ ] [TASK-93](./specifications/tasks/TASK_93.md): Add E2E tests to for-pouch module
+  - [ ] [TASK-94](./specifications/tasks/TASK_94.md): Add E2E tests to for-couchdb module
+  - [ ] [TASK-95](./specifications/tasks/TASK_95.md): Add E2E tests to for-typeorm module
+  - [ ] [TASK-96](./specifications/tasks/TASK_96.md): Add E2E tests to for-fabric module
+  - [ ] [TASK-97](./specifications/tasks/TASK_97.md): Add E2E tests to for-nest module
+  - [ ] [TASK-98](./specifications/tasks/TASK_98.md): Add E2E tests to for-angular module
+  - [ ] [TASK-99](./specifications/tasks/TASK_99.md): Add E2E tests to for-react module
+  - [ ] [TASK-100](./specifications/tasks/TASK_100.md): Add E2E tests to for-nextjs module
+  - [ ] [TASK-101](./specifications/tasks/TASK_101.md): Add E2E tests to for-react-native module
+  - [ ] [TASK-102](./specifications/tasks/TASK_102.md): Add E2E tests to injectable-decorators module
+  - [ ] [TASK-103](./specifications/tasks/TASK_103.md): Add E2E tests to as-zod module
+  - [ ] [TASK-104](./specifications/tasks/TASK_104.md): Add E2E tests to mcp-server module
+
+---
+
+## DECAF-9 — MiniLogger LogParameter Engine
+- **Priority:** High
+- **Goal:** Replace `MiniLogger#createLog` with a pluggable `LogParameter` engine that honors a declarative `logPattern` while keeping the hot path lightweight.
+- **Status:** Completed — MiniLogger now renders through the parameter registry/pattern parser, and optional segments plus extensible descriptors are documented and tested.
+- **Link:** [Specification Details](./specifications/DECAF_9.md)
+- **Tasks:**
+  - [x] DECAF-9-1: Define descriptor + registry contracts and default parameters.
+  - [x] DECAF-9-2: Refactor MiniLogger to render via the parameter engine/pattern cache.
+  - [x] DECAF-9-3: Document `logPattern` usage and add regression tests for parameter registration.
+
+---
+
 ## SPECIFICATION-2 — Jira MCP Toolset
 - **Priority:** High
 - **Goal:** Implement the Jira MCP toolset (issue CRUD, workflow transitions, assignments, comments, links, attachments, and worklogs) with proper registration and Zod validation.
@@ -134,14 +180,16 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ## Summary
 
-**All specs completed:**
+**Specs:**
 - DECAF-1: ✅ Worker Task System
-- DECAF-2: ✅ Fabric Legacy Peer Selection  
+- DECAF-2: ✅ Fabric Legacy Peer Selection
 - DECAF-3: ✅ Filesystem Adapter
-- DECAF-4: ⏳ Builder Decorator Coverage (interface augmentation created for db-decorators only; actual implementation pending - requires decorator-validation changes)
+- DECAF-4: ✅ Builder Decorator Coverage (builder helpers now cover db-decorators, ui-decorators, crypto, and for-nest with matching metadata tests)
 - DECAF-5: ✅ FabricClientAdapter Object Instantiation (audit - no changes needed)
 - DECAF-6: ✅ TypeORM Multi-Database Support (plus 'maria' alias fix)
 - DECAF-7: ✅ Transaction Decorator Refactoring
+- DECAF-8: ⏳ Universal E2E Test Coverage (infrastructure template created following decoration module pattern)
+- DECAF-9: ✅ MiniLogger LogParameter Engine (parameter registry/pattern parser implemented with documentation and regression tests)
 - SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully

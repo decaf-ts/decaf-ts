@@ -3,7 +3,7 @@
 **ID:** TASK-24
 **Specification:** [DECAF-4: Builder for Decorator Validation Models](../../DECAF_4.md)
 **Priority:** High
-**Status:** Completed
+**Status:** Pending - needs re-review
 
 ## 1. Description
 This task involves inspecting the `for-fabric` module root to identify any decorator options applicable to Models that require extending the core builder's capabilities through a module-specific override.
@@ -34,3 +34,4 @@ This task involves inspecting the `for-fabric` module root to identify any decor
 
 ## 6. Execution Log
 *   [Friday, February 20, 2026] - Analyzed `for-fabric` module. Confirmed no decorators are applicable to the `ModelBuilder` or `AttributeBuilder`. Task marked as completed.
+*   [Thursday, March 05, 2026] - Task re-opened for re-review as part of DECAF-4 builder decorator coverage audit.

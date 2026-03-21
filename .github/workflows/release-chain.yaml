@@ -1,0 +1,63 @@
+name: Release Chain
+
+on:
+  workflow_dispatch:
+    inputs:
+      meta_repo_url:
+        description: Repository URL containing the .gitsubmodule/.gitmodules file
+        required: true
+        type: string
+      branch:
+        description: Branch to update downstream repositories on
+        required: true
+        default: main
+        type: string
+      current_repo:
+        description: Repository slug that triggered the workflow (owner/name)
+        required: false
+        type: string
+      submodule_file:
+        description: Optional override for the submodule filename
+        required: false
+        default: .gitsubmodule
+        type: string
+      target_branch:
+        description: Base branch to open downstream PRs against
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  propagate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install workspace dependencies
+        run: npm install --ignore-scripts
+
+      - name: Run release chain
+        env:
+          RELEASE_CHAIN_TOKEN: ${{ secrets.RELEASE_CHAIN_TOKEN != '' && secrets.RELEASE_CHAIN_TOKEN || secrets.GITHUB_TOKEN }}
+          RELEASE_CHAIN_CURRENT: ${{ inputs.current_repo != '' && inputs.current_repo || github.repository }}
+        run: |
+          CURRENT_REPO="$RELEASE_CHAIN_CURRENT"
+          SUBMODULE_FILE="${{ inputs.submodule_file }}"
+          TARGET_BRANCH="${{ inputs.target_branch }}"
+          ARGS=(./utils/lib/bin/release-chain.cjs --meta "${{ inputs.meta_repo_url }}" --branch "${{ inputs.branch }}")
+          if [ -n "$CURRENT_REPO" ]; then
+            ARGS+=(--current "$CURRENT_REPO")
+          fi
+          if [ -n "$SUBMODULE_FILE" ]; then
+            ARGS+=(--submodule-file "$SUBMODULE_FILE")
+          fi
+          if [ -n "$TARGET_BRANCH" ]; then
+            ARGS+=(--target-base "$TARGET_BRANCH")
+          fi
+          node "${ARGS[@]}"

@@ -11,6 +11,7 @@
     "update-scripts": "node ./bin/update-scripts.cjs",
     "set-git-auth": "git config url.\"https://api:$(cat .token)@github.com/\".insteadOf \"https://github.com/\" && git config url.\"https://ssh:$(cat .token)@github.com/\".insteadOf \"ssh://git@github.com/\" && git config url.\"https://git:$(cat .token)@github.com/\".insteadOf \"git@github.com:\"",
     "postinstall": "npm run run-all -- npm run do-install",
+    "postpublish": "node ./utils/lib/bin/release-chain-dispatch.cjs --workflow release-chain.yaml",
     "flash-forward": "npx npm-check-updates -u && npm run do-install",
     "reset": "rm -rf * && git checkout . && git pull && npm run init && npm run sync-branches && npm run do-install",
     "test": "jest --runInBand --detectOpenHandles",
@@ -101,7 +102,6 @@
   "devDependencies": {
     "@decaf-ts/logging": "latest",
     "@decaf-ts/mcp-server": "latest",
-    "@decaf-ts/utils": "latest",
-    "ts-jest": "^29.4.5"
+    "@decaf-ts/utils": "latest"
   }
 }

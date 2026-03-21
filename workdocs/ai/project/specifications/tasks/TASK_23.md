@@ -3,31 +3,30 @@
 **ID:** TASK-23
 **Specification:** [DECAF-4: Builder for Decorator Validation Models](../../DECAF_4.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed — Auth builder helper attached and tested.
 
 ## 1. Description
 This task involves inspecting the `for-nest` module root to identify decorator options applicable to Models and to plan for extending the core builder's capabilities through a module-specific override. This ensures that dynamically built models can integrate with NestJS authentication and authorization features.
 
 ## 2. Objectives
-*   [ ] Inspect `for-nest` module for relevant decorators.
-*   [ ] Detail which decorators need to be included in the builder override.
-*   [ ] Specify the placement of the override.
+*   [x] Inspect `for-nest` module for relevant decorators.
+*   [x] Detail which decorators need to be included in the builder override.
+*   [x] Specify the placement of the override.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
-*   Create a builder extension file (e.g., `for-nest/src/overrides/ModelBuilderExtensions.ts`) to add fluent methods to `ModelBuilder`.
-*   **For `ModelBuilder` (Class Decorators):** Add a method for `Auth`. This will allow dynamically built models to be marked for authentication and authorization within a NestJS context.
-*   Ensure the extension file is properly exported/imported within the `for-nest` module so the augmentation takes effect.
+*   Added `for-nest/src/overrides/ModelBuilderExtensions.ts` and exported it through `overrides/index.ts` so the prototype patch is loaded when the module exports `./overrides`.
+*   The helper simply calls `this.decorateClass(Auth(model))`, relying on the new `decorateClass()` hook to queue the decorator for execution during `build()`.
+*   Created `for-nest/tests/unit/model-builder.extensions.test.ts` that builds a class via the helper and inspects the Nest metadata key written by `@Auth`.
 
 **Technical Details:**
-*   **Decorators identified:**
-    *   `Auth(model: string | Constructor)`: Class/Method decorator, applies authentication and authorization metadata.
-*   **Applicability to Models:** Confirmed via its direct relation to defining authentication/authorization for a Model resource.
-*   **Override Placement:** `for-nest/src/overrides/ModelBuilderExtensions.ts`.
+*   The override reuses the `Auth` decorator defined in `decaf-model/decorators/decorators.ts`; no extra metadata plumbing is required because `SetMetadata(AUTH_META_KEY, resource)` is executed when `build()` runs.
+*   The helper returns `this` for chaining, keeping the builder fluent while merely storing the decorator for later application.
+*   Because Nest stores metadata via `Reflect.defineMetadata`, the test uses `Reflect.getMetadata(AUTH_META_KEY, Dynamic)` to ensure the helper writes the expected string.
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   Create new unit tests within `for-nest/tests/unit/` to verify that the new builder method correctly applies the `Auth` decorator and that models decorated via the builder function as expected within the NestJS authentication/authorization system.
+*   `for-nest/tests/unit/model-builder.extensions.test.ts` now builds a class via `builder.Auth(...)` and asserts the `AUTH_META_KEY` metadata the decorator writes.
 
 **Manual Verification:**
 *   N/A
@@ -37,3 +36,4 @@ This task involves inspecting the `for-nest` module root to identify decorator o
 
 ## 6. Execution Log
 *   [Friday, February 20, 2026] - Analyzed `for-nest` module and detailed decorators for builder extension.
+*   [Thursday, March 05, 2026] - Added the `Auth` builder helper, exported it via the overrides entry, and validated the Nest metadata with a new unit test.
