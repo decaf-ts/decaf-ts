@@ -178,6 +178,42 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-46](./specifications/tasks/TASK_46.md): Worklog Management Tool
   - [x] [TASK-47](./specifications/tasks/TASK_47.md): Update Zod Schemas for All Operations
 
+---
+
+## DECAF-10 — DecafModelControllerBuilder & BlockOperations coverage
+- **Priority:** High
+- **Goal:** Build a builder-driven NestJS controller generator that respects `@BlockOperations`, covers prepared statements/query keys, and preserves every static helper and `sqaggre` annotation currently emitted for each model.
+- **Status:** In Progress — builder and block guard implemented; validation/tests underway.
+- **Link:** [Specification Details](./specifications/DECAF_10.md)
+- **Tasks:**
+  - [x] [TASK-105](./specifications/tasks/TASK_105.md): Analyze the existing controller pipeline, metadata, and current `BlockOperations` usage so we know what the builder must reproduce.
+  - [x] [TASK-106](./specifications/tasks/TASK_106.md): Implement `DecafModelControllerBuilder` with helpers for CRUD, statements, bulk helpers, and `addComplexQueries`.
+  - [x] [TASK-107](./specifications/tasks/TASK_107.md): Extend `BlockOperations` so it can also block prepared statements (`PreparedStatementKeys`) and repository query keys before builder registration.
+  - [x] [TASK-108](./specifications/tasks/TASK_108.md): Add tests ensuring the builder respects blocked operations (including the new bulk-all descriptor), preserves static helpers, and keeps `sqaggre` metadata intact; documentation updates remain pending.
+
+---
+
+## DECAF-10 — DecafModelControllerBuilder & BlockOperations coverage
+- **Priority:** High
+- **Goal:** Build a builder-driven NestJS controller generator that respects `@BlockOperations`, covers prepared statements/query keys, and preserves every static helper and `sqaggre` annotation currently emitted for each model.
+- **Status:** In Progress — builder and block guard implemented; validation/tests underway.
+- **Link:** [Specification Details](./specifications/DECAF_10.md)
+- **Tasks:**
+  - [x] [TASK-105](./specifications/tasks/TASK_105.md): Analyze the existing controller pipeline, metadata, and current `BlockOperations` usage so we know what the builder must reproduce.
+  - [x] [TASK-106](./specifications/tasks/TASK_106.md): Implement `DecafModelControllerBuilder` with helpers for CRUD, statements, bulk helpers, and `addComplexQueries`.
+  - [x] [TASK-107](./specifications/tasks/TASK_107.md): Extend `BlockOperations` so it can also block prepared statements (`PreparedStatementKeys`) and repository query keys before builder registration.
+  - [ ] [TASK-108](./specifications/tasks/TASK_108.md): Add tests/docs verifying the builder respects blocked operations, keeps static helpers, and keeps `sqaggre` metadata intact.
+
+---
+
+## DECAF-11 — Property-Scoped Persistent Sequences
+- **Priority:** High
+- **Goal:** Introduce `@sequence(...)` in `core` so persistent sequences can be attached to arbitrary model properties while keeping `@pk(...)` backwards compatible and extending the contract through CouchDB, Nano, and Fabric.
+- **Status:** Planned — specification and implementation task created; code changes not started.
+- **Link:** [Specification Details](./specifications/DECAF_11.md)
+- **Tasks:**
+  - [ ] [TASK-109](./specifications/tasks/TASK_109.md): Implement property-scoped `@sequence(...)` across core, CouchDB, Nano, and Fabric.
+
 ## Summary
 
 **Specs:**
@@ -190,6 +226,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-7: ✅ Transaction Decorator Refactoring
 - DECAF-8: ⏳ Universal E2E Test Coverage (infrastructure template created following decoration module pattern)
 - DECAF-9: ✅ MiniLogger LogParameter Engine (parameter registry/pattern parser implemented with documentation and regression tests)
+- DECAF-10: ⏳ DecafModelControllerBuilder & BlockOperations coverage (builder/block work implemented; remaining validation/docs tracked in TASK-108)
+- DECAF-11: ⏳ Property-Scoped Persistent Sequences (spec/task created; implementation pending)
 - SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully
