@@ -209,10 +209,46 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-11 — Property-Scoped Persistent Sequences
 - **Priority:** High
 - **Goal:** Introduce `@sequence(...)` in `core` so persistent sequences can be attached to arbitrary model properties while keeping `@pk(...)` backwards compatible and extending the contract through CouchDB, Nano, and Fabric.
-- **Status:** Planned — specification and implementation task created; code changes not started.
+- **Status:** COMPLETED — property-scoped `@sequence(...)` implemented across core/CouchDB/Nano/Fabric with verification coverage.
 - **Link:** [Specification Details](./specifications/DECAF_11.md)
 - **Tasks:**
-  - [ ] [TASK-109](./specifications/tasks/TASK_109.md): Implement property-scoped `@sequence(...)` across core, CouchDB, Nano, and Fabric.
+  - [x] [TASK-109](./specifications/tasks/TASK_109.md): Implement property-scoped `@sequence(...)` across core, CouchDB, Nano, and Fabric.
+
+---
+
+## DECAF-12 — TaskEngine Runtime Orchestration Controls
+- **Priority:** High
+- **Goal:** Extend `core` TaskEngine with runtime composite-step insertion, dependency-gated execution, lock-based mutual exclusion, and `TaskHandler.catch(...)` failure hooks.
+- **Status:** COMPLETED — runtime step insertion, dependency/lock gating, and handler catch hooks implemented and verified in `core`.
+- **Link:** [Specification Details](./specifications/DECAF_12.md)
+- **Tasks:**
+  - [x] [TASK-110](./specifications/tasks/TASK_110.md): Implement TaskEngine dynamic steps, dependencies, locks, and handler catch.
+
+---
+
+## DECAF-13 — for-http HttpAdapter Simple REST Helpers
+- **Priority:** High
+- **Goal:** Add simple `get/post/put/delete` methods to `for-http` `HttpAdapter` and introduce a `for-http` typed request-options contract aligned with Axios semantics (including `timeout`, `headers`, `transformResponse`, `validateStatus`, `includeCredentials`, and selected extras).
+- **Status:** COMPLETED — simple helper methods and typed options implemented, tested, and documented in `for-http`.
+- **Link:** [Specification Details](./specifications/DECAF_13.md)
+- **Tasks:**
+  - [x] [TASK-111](./specifications/tasks/TASK_111.md): Implement HttpAdapter simple methods and typed request options.
+
+---
+
+## DECAF-14 — Cross-Adapter Migration Engine Hardening
+- **Priority:** High
+- **Goal:** Harden migration internals across `core`, `for-nano`, `for-typeorm`, `for-fabric`, and `for-nest`, including npm-semver ordering, handler-based global version persistence, flavour-aware task orchestration, repository-driven property add/delete migrations (Nano/Fabric), TypeORM data+table-schema migrations in migration mode, stop-on-first-failure multi-adapter execution, and headless CLI coverage with `dry-run` analog context propagation via `repository.override(...)`.
+- **Status:** Proposed — specification/tasks updated with clarified implementation constraints; implementation pending.
+- **Link:** [Specification Details](./specifications/DECAF_14.md)
+- **Tasks:**
+  - [ ] [TASK-112](./specifications/tasks/TASK_112.md): Core migration contract hardening (`@migration`, semver sort, `retrieveLastVersion`, flavour metadata).
+  - [ ] [TASK-113](./specifications/tasks/TASK_113.md): Core PersistenceService migration orchestration with multi-adapter handlers.
+  - [ ] [TASK-114](./specifications/tasks/TASK_114.md): for-nano migration integration tests with model property additions.
+  - [ ] [TASK-115](./specifications/tasks/TASK_115.md): for-typeorm migration integration tests in production-like migration mode.
+  - [ ] [TASK-116](./specifications/tasks/TASK_116.md): for-fabric unit migration coverage hardening.
+  - [ ] [TASK-117](./specifications/tasks/TASK_117.md): for-nest multi-adapter (Nano + TypeORM) migration integration boot.
+  - [ ] [TASK-118](./specifications/tasks/TASK_118.md): for-nest CLI migration command (headless boot, no route exposure).
 
 ## Summary
 
@@ -227,7 +263,10 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-8: ⏳ Universal E2E Test Coverage (infrastructure template created following decoration module pattern)
 - DECAF-9: ✅ MiniLogger LogParameter Engine (parameter registry/pattern parser implemented with documentation and regression tests)
 - DECAF-10: ⏳ DecafModelControllerBuilder & BlockOperations coverage (builder/block work implemented; remaining validation/docs tracked in TASK-108)
-- DECAF-11: ⏳ Property-Scoped Persistent Sequences (spec/task created; implementation pending)
+- DECAF-11: ✅ Property-Scoped Persistent Sequences (property-scoped sequence support implemented and verified)
+- DECAF-12: ✅ TaskEngine Runtime Orchestration Controls (runtime composite insertion, dependencies, locks, and handler catch completed with core verification)
+- DECAF-13: ✅ for-http HttpAdapter Simple REST Helpers (simple helpers and typed options implemented with tests/docs updates)
+- DECAF-14: ⏳ Cross-Adapter Migration Engine Hardening (specification and tasks created; implementation pending)
 - SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully

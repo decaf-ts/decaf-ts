@@ -3,15 +3,15 @@
 **ID:** TASK-109
 **Specification:** [Link to Specification](../DECAF_11.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Implement the new `@sequence(...)` decorator and the supporting metadata/runtime behavior so persistent sequences can be attached to arbitrary model properties, while preserving the current `@pk(...)` contract for existing users.
 
 ## 2. Objectives
-*   [ ] Add `@sequence(...)` to `core` with the same options currently accepted by `@pk(...)`.
-*   [ ] Make `Model.pk(class, ...)` and related helpers resolve property-specific sequence metadata when requested, while preserving the current PK default.
-*   [ ] Propagate the sequence contract through `for-couchdb`, `for-nano`, and `for-fabric`, with Fabric unit coverage for private/shared/mirror behavior.
+*   [x] Add `@sequence(...)` to `core` with the same options currently accepted by `@pk(...)`.
+*   [x] Make `Model.pk(class, ...)` and related helpers resolve property-specific sequence metadata when requested, while preserving the current PK default.
+*   [x] Propagate the sequence contract through `for-couchdb`, `for-nano`, and `for-fabric`, with Fabric unit coverage for private/shared/mirror behavior.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -27,17 +27,17 @@ Implement the new `@sequence(...)` decorator and the supporting metadata/runtime
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] `core`: unit/integration coverage for `@sequence(...)`, property lookup, and backwards-compatible `@pk(...)` behavior.
-*   [ ] `for-couchdb`: tests covering persistence and retrieval of property-scoped sequence behavior.
-*   [ ] `for-nano`: tests covering adapter-level sequence behavior on top of CouchDB support.
-*   [ ] `for-fabric`: unit tests covering shared/private/mirror compatibility for sequence-backed properties.
+*   [x] `core`: unit/integration coverage for `@sequence(...)`, property lookup, and backwards-compatible `@pk(...)` behavior.
+*   [x] `for-couchdb`: tests covering persistence and retrieval of property-scoped sequence behavior.
+*   [x] `for-nano`: tests covering adapter-level sequence behavior on top of CouchDB support.
+*   [x] `for-fabric`: unit tests covering shared/private/mirror compatibility for sequence-backed properties.
 
 **Manual Verification:**
 *   Inspect sequence naming and metadata resolution for both PK and non-PK properties on representative models.
 
 ## 5. Blockers & Clarifications
-*   Confirm the final overload or argument shape expected for `Model.pk(class, ...)` before implementation begins.
-*   Confirm whether any non-PK `@sequence(...)` property should auto-populate on create by default when `generated: true`, or only when explicitly used by model construction flows.
+*   None.
 
 ## 6. Execution Log
 *   [2026-04-07] Task created from DECAF-11. Implementation intentionally deferred until follow-up.
+*   [2026-04-23] Implementation and testing completed; task marked as done and documentation synchronized.

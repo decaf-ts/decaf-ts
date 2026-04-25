@@ -1,6 +1,6 @@
 # DECAF-11 — Property-Scoped Persistent Sequences
 
-- **Status:** Planned
+- **Status:** Completed
 - **Priority:** High
 - **Goal:** Introduce a new `@sequence(...)` decorator in `core` that preserves persistent sequence metadata per model property, keeps `@pk()` backwards compatible, and propagates the contract through `for-couchdb`, `for-nano`, and `for-fabric`.
 
@@ -12,9 +12,9 @@ Add a first-class `@sequence(...)` decorator to the `core` module so any model p
 This work also requires extending `Model.pk(class, ...)` and the related metadata lookup paths so callers can request sequence data for a specific property when it exists, while still defaulting to the `@pk` property for legacy behavior. Once the core contract exists, the same sequence semantics must be honored by the CouchDB, Nano, and Fabric adapters, with Fabric additionally respecting the existing private/shared/mirror data constraints.
 
 ## 2. Goals
-*   [ ] Define and expose `@sequence(...)` in `core` with the same option surface as `@pk`.
-*   [ ] Preserve backwards compatibility so existing `@pk()` models and sequence consumers keep working unchanged unless they opt into property-scoped lookup.
-*   [ ] Extend adapter behavior so non-primary-key sequences can be created, resolved, and advanced consistently in `for-couchdb`, `for-nano`, `for-pouch`, `for-typeorm`, and `for-fabric` (with Fabric respecting private/shared/mirror semantics).
+*   [x] Define and expose `@sequence(...)` in `core` with the same option surface as `@pk`.
+*   [x] Preserve backwards compatibility so existing `@pk()` models and sequence consumers keep working unchanged unless they opt into property-scoped lookup.
+*   [x] Extend adapter behavior so non-primary-key sequences can be created, resolved, and advanced consistently in `for-couchdb`, `for-nano`, `for-pouch`, `for-typeorm`, and `for-fabric` (with Fabric respecting private/shared/mirror semantics).
 
 ## 3. User Stories / Requirements
 *   **US-1:** As a model author, I want to decorate a non-primary-key property with `@sequence(...)` so the property receives persistent incremental values just like a generated primary key.
@@ -41,12 +41,10 @@ Key design points:
 ## 5. Tasks Breakdown
 | ID | Task Name | Priority | Status | Dependencies |
 |:---|:----------|:---------|:--------|:-------------|
-| TASK-109 | [Implement property-scoped `@sequence(...)` across core, CouchDB, Nano, and Fabric](./tasks/TASK_109.md) | High | Pending | - |
+| TASK-109 | [Implement property-scoped `@sequence(...)` across core, CouchDB, Nano, and Fabric](./tasks/TASK_109.md) | High | Completed | - |
 
 ## 6. Open Questions / Risks
-*   What is the exact existing `Model.pk(class, ...)` overload behavior that must be preserved while adding property-aware lookup?
-*   Which current create/update hooks assume only the PK may be sequence-generated, and do any of them need a more general generated-property pass?
-*   How should Fabric store or derive sequence names for mirrored/private data so cross-scope collisions cannot occur?
+*   No open blockers. Follow-up improvements, if any, should be tracked as new tasks.
 
 ## 7. Results & Artifacts
 *   New `@sequence(...)` decorator in `core`.
