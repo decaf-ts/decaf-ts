@@ -3,18 +3,18 @@
 **ID:** TASK-112
 **Specification:** [Link to Specification](../DECAF_14.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Harden `core` migration foundations by upgrading `@migration` metadata and migration sorting so execution is deterministic under semver rules. Keep and adapt existing `MigrationService` sorting/orchestration logic (used when not in task mode), adopt npm-standard semver comparison, add configurable async persistence-version handlers (`retrieveLastVersion`, `setCurrentVersion`), and extend metadata to optionally target adapter flavour.
 
 ## 2. Objectives
-*   [ ] Extend `@migration` metadata contract to support explicit version metadata and optional flavour targeting.
-*   [ ] Implement deterministic semver sorting using standard npm semver semantics.
-*   [ ] Introduce async `retrieveLastVersion` and `setCurrentVersion` handler contracts in `MigrationService` config.
-*   [ ] Preserve backward compatibility for existing migration declarations where feasible.
-*   [ ] Throw explicit error on unresolved flavour-based sorting conflicts in non-task mode.
-*   [ ] Ensure metadata remains compatible with existing migration dependency mechanism.
+*   [x] Extend `@migration` metadata contract to support explicit version metadata and optional flavour targeting.
+*   [x] Implement deterministic semver sorting using standard npm semver semantics.
+*   [x] Introduce async `retrieveLastVersion` and `setCurrentVersion` handler contracts in `MigrationService` config.
+*   [x] Preserve backward compatibility for existing migration declarations where feasible.
+*   [x] Throw explicit error on unresolved flavour-based sorting conflicts in non-task mode.
+*   [x] Ensure metadata remains compatible with existing migration dependency mechanism.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -34,11 +34,11 @@ Harden `core` migration foundations by upgrading `@migration` metadata and migra
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit Test: `core/tests/unit/migration.semver-order.test.ts`
-*   [ ] Unit Test: `core/tests/unit/migration.retrieve-last-version.test.ts`
-*   [ ] Unit Test: `core/tests/unit/migration.set-current-version.test.ts`
-*   [ ] Unit Test: `core/tests/unit/migration.flavour-selection.test.ts`
-*   [ ] Unit Test: `core/tests/unit/migration.flavour-conflict.error.test.ts`
+*   [x] Unit Test: `core/tests/unit/migration.semver-order.test.ts`
+*   [x] Unit Test: `core/tests/unit/migration.retrieve-last-version.test.ts`
+*   [x] Unit Test: `core/tests/unit/migration.set-current-version.test.ts`
+*   [x] Unit Test: `core/tests/unit/migration.flavour-selection.test.ts`
+*   [x] Unit Test: `core/tests/unit/migration.flavour-conflict.error.test.ts`
 
 **Manual Verification:**
 *   Confirm mixed migration declarations (decorator + task metadata) produce deterministic ordered plan.
@@ -48,3 +48,9 @@ Harden `core` migration foundations by upgrading `@migration` metadata and migra
 
 ## 6. Execution Log
 *   [2026-04-25] - Task created.
+*   [2026-04-25] - Implemented in `core` (`MigrationService`, decorators/types, semver ordering, flavour conflict checks, handler contracts) with unit/integration coverage passing.
+*   [2026-04-25] - Refactored semver handling into injectable `MigrationVersioning` strategy; removed explicit `version` metadata from `@migration` and enabled string-precedence version hints evaluated against `reference`.
+*   [2026-04-25] - Added explicit dual-strategy migration tests in `core` validating default legacy ordering and injected semver ordering.
+*   [2026-04-25] - Removed semver-specific heuristics from `core/src/migrations/decorators.ts`; decorator argument parsing is now strategy-agnostic and delegates version interpretation to `MigrationVersioning` implementations.
+*   [2026-04-25] - Renamed `LegacyMigrationVersioning` to `StandardMigrationVersioning` and updated migration exports/imports accordingly.
+*   [2026-04-25] - Kept `SemverMigrationVersioning` as a standalone opt-in strategy file: removed from migration index re-exports, avoided runtime imports in production code, and exposed direct package subpath export (`@decaf-ts/core/migrations/SemverMigrationVersioning`) for explicit consumer usage.

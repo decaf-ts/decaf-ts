@@ -239,20 +239,27 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-14 — Cross-Adapter Migration Engine Hardening
 - **Priority:** High
 - **Goal:** Harden migration internals across `core`, `for-nano`, `for-typeorm`, `for-fabric`, and `for-nest`, including npm-semver ordering, handler-based global version persistence, flavour-aware task orchestration, repository-driven property add/delete migrations (Nano/Fabric), TypeORM data+table-schema migrations in migration mode, stop-on-first-failure multi-adapter execution, and headless CLI coverage with `dry-run` analog context propagation via `repository.override(...)`.
-- **Status:** Proposed — specification/tasks updated with clarified implementation constraints; implementation pending.
+- **Status:** In Progress — `core`, `for-nano`, `for-typeorm`, and `for-fabric` are validated green; `for-nest` currently has no migration integration test files in `tests/`, so DECAF-14 remains open until that live Nano+TypeORM migration coverage is restored and passing.
 - **Link:** [Specification Details](./specifications/DECAF_14.md)
 - **Tasks:**
-  - [ ] [TASK-112](./specifications/tasks/TASK_112.md): Core migration contract hardening (`@migration`, semver sort, `retrieveLastVersion`, flavour metadata).
-  - [ ] [TASK-113](./specifications/tasks/TASK_113.md): Core PersistenceService migration orchestration with multi-adapter handlers.
-  - [ ] [TASK-114](./specifications/tasks/TASK_114.md): for-nano migration integration tests with model property additions.
-  - [ ] [TASK-115](./specifications/tasks/TASK_115.md): for-typeorm migration integration tests in production-like migration mode.
-  - [ ] [TASK-116](./specifications/tasks/TASK_116.md): for-fabric unit migration coverage hardening.
-  - [ ] [TASK-117](./specifications/tasks/TASK_117.md): for-nest multi-adapter (Nano + TypeORM) migration integration boot.
-  - [ ] [TASK-118](./specifications/tasks/TASK_118.md): for-nest CLI migration command (headless boot, no route exposure).
+  - [x] [TASK-112](./specifications/tasks/TASK_112.md): Core migration contract hardening (`@migration`, semver sort, `retrieveLastVersion`, flavour metadata).
+  - [x] [TASK-113](./specifications/tasks/TASK_113.md): Core PersistenceService migration orchestration with multi-adapter handlers.
+  - [x] [TASK-114](./specifications/tasks/TASK_114.md): for-nano migration integration tests with model property additions (live CouchDB flows validated).
+  - [x] [TASK-115](./specifications/tasks/TASK_115.md): for-typeorm migration integration tests in production-like migration mode (live Postgres + Nano ordering constraints being enforced).
+  - [x] [TASK-116](./specifications/tasks/TASK_116.md): for-fabric unit migration coverage hardening.
+  - [ ] [TASK-117](./specifications/tasks/TASK_117.md): for-nest multi-adapter (Nano + TypeORM) migration integration boot (missing active migration integration test files under `for-nest/tests` in current tree).
+  - [x] [TASK-118](./specifications/tasks/TASK_118.md): for-nest CLI migration command (headless boot, no route exposure).
+- **Notes:** Core and adapter migration integration suites must hit live adapter instances without mocking or in-memory shortcuts, perform required schema changes (adding required columns/properties and backfilling existing records with default values), restrict `for-nano` coverage to RamAdapter + NanoAdapter (no dependency on `for-typeorm`), drive `for-typeorm` migrations through NanoAdapter plus TypeORMAdapter, and bring `for-nest` verification up to the same live flows. The for-nest task migration harness now filters `DECAF_ADAPTER_ID` results by flavour/database so that the Ram-based TaskEngine adapter remains separate from the migrated Nano/TypeORM adapters during the full suite run.
+- Added Fabric-specific migration guidance: the contract now exposes a `migrate` transaction, the client ships paired `@migration` classes that call the contract, and the documentation surfaces how TaskService/TaskEngine configs plus `@migration` metadata control precedence, retries, and per-version version tracking for `core`, `for-nano`, `for-typeorm`, `for-nest`, `for-http`, and `for-fabric`.
+
+## Documentation
+
+- **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
+- **Coverage:** Includes detailed CLI/Ta​skEngine configuration descriptions, `@migration` argument semantics, flavour/handler guidance, version gating behavior, and lifecycle recipes for every relevant module.
 
 ## Summary
 
-**Specs:**
+- **Specs:**
 - DECAF-1: ✅ Worker Task System
 - DECAF-2: ✅ Fabric Legacy Peer Selection
 - DECAF-3: ✅ Filesystem Adapter
@@ -266,7 +273,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-11: ✅ Property-Scoped Persistent Sequences (property-scoped sequence support implemented and verified)
 - DECAF-12: ✅ TaskEngine Runtime Orchestration Controls (runtime composite insertion, dependencies, locks, and handler catch completed with core verification)
 - DECAF-13: ✅ for-http HttpAdapter Simple REST Helpers (simple helpers and typed options implemented with tests/docs updates)
-- DECAF-14: ⏳ Cross-Adapter Migration Engine Hardening (specification and tasks created; implementation pending)
+- DECAF-14: ⏳ Cross-Adapter Migration Engine Hardening (live `core`/`for-nano`/`for-typeorm` flows validated; `for-fabric` unit suite green; `for-nest` migration integration coverage currently absent from `tests/` and must be re-added).
 - SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully
