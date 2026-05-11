@@ -252,6 +252,22 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - **Notes:** Core and adapter migration integration suites must hit live adapter instances without mocking or in-memory shortcuts, perform required schema changes (adding required columns/properties and backfilling existing records with default values), restrict `for-nano` coverage to RamAdapter + NanoAdapter (no dependency on `for-typeorm`), drive `for-typeorm` migrations through NanoAdapter plus TypeORMAdapter, and bring `for-nest` verification up to the same live flows. The for-nest task migration harness now filters `DECAF_ADAPTER_ID` results by flavour/database so that the Ram-based TaskEngine adapter remains separate from the migrated Nano/TypeORM adapters during the full suite run.
 - Added Fabric-specific migration guidance: the contract now exposes a `migrate` transaction, the client ships paired `@migration` classes that call the contract, and the documentation surfaces how TaskService/TaskEngine configs plus `@migration` metadata control precedence, retries, and per-version version tracking for `core`, `for-nano`, `for-typeorm`, `for-nest`, `for-http`, and `for-fabric`.
 
+---
+
+## DECAF-15 — Webhook Signature Verification Middleware
+- **Priority:** Critical (Security)
+- **Goal:** Implement a robust signature verification middleware for the decaf-ts webhook system that validates HMAC-SHA256 signatures on incoming webhook requests, protecting against unauthorized webhook deliveries
+- **Status:** Draft — specification created, tasks pending
+- **Link:** [Specification Details](./specifications/DECAF_15.md)
+- **Tasks:**
+  - [ ] [TASK-119](./specifications/tasks/TASK_119.md): Create WebhookSignatureMiddleware class
+  - [ ] [TASK-120](./specifications/tasks/TASK_120.md): Implement signature extraction and lookup logic
+  - [ ] [TASK-121](./specifications/tasks/TASK_121.md): Add timing-safe comparison with logging
+  - [ ] [TASK-122](./specifications/tasks/TASK_122.md): Create unit tests for middleware
+  - [ ] [TASK-123](./specifications/tasks/TASK_123.md): Create integration tests
+  - [ ] [TASK-124](./specifications/tasks/TASK_124.md): Add to index exports and documentation
+  - [ ] [TASK-125](./specifications/tasks/TASK_125.md): Update webhook spec with middleware section
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -274,6 +290,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-12: ✅ TaskEngine Runtime Orchestration Controls (runtime composite insertion, dependencies, locks, and handler catch completed with core verification)
 - DECAF-13: ✅ for-http HttpAdapter Simple REST Helpers (simple helpers and typed options implemented with tests/docs updates)
 - DECAF-14: ⏳ Cross-Adapter Migration Engine Hardening (live `core`/`for-nano`/`for-typeorm` flows validated; `for-fabric` unit suite green; `for-nest` migration integration coverage currently absent from `tests/` and must be re-added).
+- DECAF-15: 📝 Webhook Signature Verification Middleware (specification created; tasks pending).
 - SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully
