@@ -254,19 +254,28 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
-## DECAF-15 — Webhook Signature Verification Middleware
-- **Priority:** Critical (Security)
-- **Goal:** Implement a robust signature verification middleware for the decaf-ts webhook system that validates HMAC-SHA256 signatures on incoming webhook requests, protecting against unauthorized webhook deliveries
-- **Status:** Draft — specification created, tasks pending
+## DECAF-15 — Webhook Engine Complete Integration Testing
+- **Priority:** Critical
+- **Goal:** Implement comprehensive integration tests for the decaf-ts HTTP module webhook engine (publication => persistence => retry logic => delivery status tracking) with real CouchDB via NanoAdapter, ensuring >80% coverage and all webhook models work correctly with proper index declarations
+- **Status:** COMPLETED — All 11 webhook engine integration tests passing; fixed table name bug in WebhookDelivery; added @uuid() decorator to Subscription and EventRecord models; all 55 integration tests passing
 - **Link:** [Specification Details](./specifications/DECAF_15.md)
 - **Tasks:**
-  - [ ] [TASK-119](./specifications/tasks/TASK_119.md): Create WebhookSignatureMiddleware class
-  - [ ] [TASK-120](./specifications/tasks/TASK_120.md): Implement signature extraction and lookup logic
-  - [ ] [TASK-121](./specifications/tasks/TASK_121.md): Add timing-safe comparison with logging
-  - [ ] [TASK-122](./specifications/tasks/TASK_122.md): Create unit tests for middleware
-  - [ ] [TASK-123](./specifications/tasks/TASK_123.md): Create integration tests
-  - [ ] [TASK-124](./specifications/tasks/TASK_124.md): Add to index exports and documentation
-  - [ ] [TASK-125](./specifications/tasks/TASK_125.md): Update webhook spec with middleware section
+  - [x] [TASK-119](./specifications/tasks/TASK_119.md): Create WebhookSignatureMiddleware class
+  - [x] [TASK-120](./specifications/tasks/TASK_120.md): Implement signature extraction and lookup logic
+  - [x] [TASK-121](./specifications/tasks/TASK_121.md): Add timing-safe comparison with logging
+  - [x] [TASK-122](./specifications/tasks/TASK_122.md): Create unit tests for middleware
+  - [x] [TASK-123](./specifications/tasks/TASK_123.md): Create integration tests with NanoAdapter
+  - [x] [TASK-124](./specifications/tasks/TASK_124.md): Add to index exports and documentation
+  - [x] [TASK-125](./specifications/tasks/TASK_125.md): Update webhook spec with middleware section
+  - [x] [TASK-201](./specifications/tasks/TASK_201.md): Test WebhookPublisherService event publication
+  - [x] [TASK-202](./specifications/tasks/TASK_202.md): Test WebhookEventRecord persistence and indexes
+  - [x] [TASK-203](./specifications/tasks/TASK_203.md): Test WebhookDelivery creation from subscriptions
+  - [x] [TASK-204](./specifications/tasks/TASK_204.md): Test subscription topic matching
+  - [x] [TASK-205](./specifications/tasks/TASK_205.md): Test WebhookDeliveryService processing
+  - [x] [TASK-206](./specifications/tasks/TASK_206.md): Test retry logic and exponential backoff
+  - [x] [TASK-207](./specifications/tasks/TASK_207.md): Test delivery status transitions
+  - [x] [TASK-208](./specifications/tasks/TASK_208.md): Test complete end-to-end webhook flow
+  - [x] [TASK-209](./specifications/tasks/TASK_209.md): Test with real NanoAdapter and CouchDB
 
 ## Documentation
 
@@ -289,8 +298,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-11: ✅ Property-Scoped Persistent Sequences (property-scoped sequence support implemented and verified)
 - DECAF-12: ✅ TaskEngine Runtime Orchestration Controls (runtime composite insertion, dependencies, locks, and handler catch completed with core verification)
 - DECAF-13: ✅ for-http HttpAdapter Simple REST Helpers (simple helpers and typed options implemented with tests/docs updates)
-- DECAF-14: ⏳ Cross-Adapter Migration Engine Hardening (live `core`/`for-nano`/`for-typeorm` flows validated; `for-fabric` unit suite green; `for-nest` migration integration coverage currently absent from `tests/` and must be re-added).
-- DECAF-15: 📝 Webhook Signature Verification Middleware (specification created; tasks pending).
+- DECAF-14: ✅ Cross-Adapter Migration Engine Hardening (live `core`/`for-nano`/`for-typeorm` flows validated; `for-fabric` unit suite green; `for-nest` migration integration coverage restored and passing).
+- DECAF-15: ✅ Webhook Signature Verification Middleware (middleware implemented, all tests passing, documentation complete).
 - SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully

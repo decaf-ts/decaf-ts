@@ -3,7 +3,7 @@
 **ID:** TASK-120
 **Specification:** [DECAF-15](../DECAF_15.md)
 **Priority:** Critical
-**Status:** Pending
+**Status:** In Progress
 **Dependencies:** TASK-119
 
 ## 1. Description

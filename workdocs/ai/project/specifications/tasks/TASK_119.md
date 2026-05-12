@@ -3,7 +3,7 @@
 **ID:** TASK-119
 **Specification:** [DECAF-15](../DECAF_15.md)
 **Priority:** Critical
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Create the core `WebhookSignatureMiddleware` class that implements webhook signature verification for incoming HTTP requests. This middleware will be used by subscriber applications to verify the authenticity of webhook deliveries from the decaf-ts webhook system.
