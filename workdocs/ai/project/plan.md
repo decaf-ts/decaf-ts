@@ -183,20 +183,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-10 — DecafModelControllerBuilder & BlockOperations coverage
 - **Priority:** High
 - **Goal:** Build a builder-driven NestJS controller generator that respects `@BlockOperations`, covers prepared statements/query keys, and preserves every static helper and `sqaggre` annotation currently emitted for each model.
-- **Status:** In Progress — builder and block guard implemented; validation/tests underway.
-- **Link:** [Specification Details](./specifications/DECAF_10.md)
-- **Tasks:**
-  - [x] [TASK-105](./specifications/tasks/TASK_105.md): Analyze the existing controller pipeline, metadata, and current `BlockOperations` usage so we know what the builder must reproduce.
-  - [x] [TASK-106](./specifications/tasks/TASK_106.md): Implement `DecafModelControllerBuilder` with helpers for CRUD, statements, bulk helpers, and `addComplexQueries`.
-  - [x] [TASK-107](./specifications/tasks/TASK_107.md): Extend `BlockOperations` so it can also block prepared statements (`PreparedStatementKeys`) and repository query keys before builder registration.
-  - [x] [TASK-108](./specifications/tasks/TASK_108.md): Add tests ensuring the builder respects blocked operations (including the new bulk-all descriptor), preserves static helpers, and keeps `sqaggre` metadata intact; documentation updates remain pending.
-
----
-
-## DECAF-10 — DecafModelControllerBuilder & BlockOperations coverage
-- **Priority:** High
-- **Goal:** Build a builder-driven NestJS controller generator that respects `@BlockOperations`, covers prepared statements/query keys, and preserves every static helper and `sqaggre` annotation currently emitted for each model.
-- **Status:** In Progress — builder and block guard implemented; validation/tests underway.
+- **Status:** In Progress — builder and block guard implemented; validation/docs still tracked in TASK-108.
 - **Link:** [Specification Details](./specifications/DECAF_10.md)
 - **Tasks:**
   - [x] [TASK-105](./specifications/tasks/TASK_105.md): Analyze the existing controller pipeline, metadata, and current `BlockOperations` usage so we know what the builder must reproduce.
@@ -277,6 +264,34 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-208](./specifications/tasks/TASK_208.md): Test complete end-to-end webhook flow
   - [x] [TASK-209](./specifications/tasks/TASK_209.md): Test with real NanoAdapter and CouchDB
 
+---
+
+## DECAF-16 — Jira Ticket Template Resources & Guided Creation
+- **Priority:** High
+- **Goal:** Add resource-backed Jira ticket templates and guided creation tooling in `mcp-server` so agents can create bug, incident, release, feature, test, and related tickets from default MCP resources when no custom template is provided.
+- **Status:** Completed — resource catalog, guided prompts, template-backed creation wrapper, and expanded custom-field-aware templates are implemented; dist metadata checks are largely green, and the inspector CLI transport test remains flaky in this environment but is not blocking completion.
+- **Link:** [Specification Details](./specifications/DECAF_16.md)
+- **Tasks:**
+  - [x] [TASK-126](./specifications/tasks/TASK_126.md): Add default Jira ticket template resources to the MCP resource registry.
+  - [x] [TASK-127](./specifications/tasks/TASK_127.md): Add guided Jira ticket creation prompts that resolve template resources by type.
+  - [x] [TASK-128](./specifications/tasks/TASK_128.md): Add the resource-backed Jira ticket creation tool/wrapper and tests.
+  - [x] [TASK-129](./specifications/tasks/TASK_129.md): Expand Jira ticket templates with custom-field tracking and professional incident/release layouts.
+
+---
+
+## DECAF-17 — mcp-server Agent Mode, Multi-Agent Orchestration, and Spec Sync
+- **Priority:** High
+- **Goal:** Add an explicit agent mode to `mcp-server` with agent-only tooling, provider selection, an execute flow for SPEC-targeted automation, mistreevous-backed agent orchestration, and Jira synchronization for SPEC updates when `JIRA_ENABLED=true`.
+- **Status:** Planned — spec drafted; implementation has not started.
+- **Link:** [Specification Details](./specifications/DECAF_17.md)
+- **Tasks:**
+  - [ ] [TASK-130](./specifications/tasks/TASK_130.md): Add agent CLI setup command and workspace installer.
+  - [ ] [TASK-131](./specifications/tasks/TASK_131.md): Add agent-mode resources, templates, and registration for behavior trees.
+  - [ ] [TASK-132](./specifications/tasks/TASK_132.md): Implement Agent and AgentBuilder abstractions plus concrete orchestration agents.
+  - [ ] [TASK-133](./specifications/tasks/TASK_133.md): Add JIRA_ENABLED spec synchronization for SPEC file updates.
+  - [ ] [TASK-134](./specifications/tasks/TASK_134.md): Implement agent execute flow, stage progression, and progress reporting.
+  - [ ] [TASK-135](./specifications/tasks/TASK_135.md): Add main-agent orchestration and concurrency-safe git-tree execution.
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -300,10 +315,12 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-13: ✅ for-http HttpAdapter Simple REST Helpers (simple helpers and typed options implemented with tests/docs updates)
 - DECAF-14: ✅ Cross-Adapter Migration Engine Hardening (live `core`/`for-nano`/`for-typeorm` flows validated; `for-fabric` unit suite green; `for-nest` migration integration coverage restored and passing).
 - DECAF-15: ✅ Webhook Signature Verification Middleware (middleware implemented, all tests passing, documentation complete).
+- DECAF-16: ✅ Jira Ticket Template Resources & Guided Creation (custom-field-aware template work added; one inspector CLI transport check remains flaky but non-blocking)
+- DECAF-17: ⏳ mcp-server Agent Mode, Multi-Agent Orchestration, and Spec Sync (spec drafted; implementation pending)
 - SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully
-**Test Status:** All tests passing (1461 total tests across 6 modules)
+**Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
 
 ---
 
