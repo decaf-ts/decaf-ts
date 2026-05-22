@@ -1,4 +1,4 @@
-# TASK-131: Add agent-mode resources, templates, and registration for behavior trees
+# TASK-131: Add the `agent` command namespace and dispatcher tooling
 
 **ID:** TASK-131
 **Specification:** [Link to Specification](../DECAF_17.md)
@@ -6,46 +6,34 @@
 **Status:** Pending
 
 ## 1. Description
-Add the MCP resources, prompt wiring, provider selection, and registration logic required to expose agent behavior only when the server boots in agent mode. The agent behavior definitions must be encoded as resources and reference the flat `*_template.md` files from `mcp-server/src/assets/templates`.
-The effective prompts, command definitions, mistreevous trees, and GOAP artifacts must be loaded from the repo-copied resources created by `agent setup` so the user can customize them later.
+Add the agent-prefixed command namespace so `decaf-mcp agent plan`, `decaf-mcp agent review`, `decaf-mcp agent create-specs`, `decaf-mcp agent implement`, and `decaf-mcp agent execute` resolve to explicit agent tools instead of the standard prompt flow. Introduce the canonical dispatcher tool `agent.do` and ensure the specialized tools forward to it.
 
 ## 2. Objectives
-*   [ ] Register agent-only resources in agent mode.
-*   [ ] Define the resource-backed behavior tree JSON structure for agents.
-*   [ ] Wire the agent prompts/resources into the agent-mode bootstrap path only.
-*   [ ] Ensure the assets reference the flat template files in `src/assets/templates`.
-*   [ ] Add provider selection for `AGENT_PROVIDER` / `--agent-provider` and eager initialization when agent mode loads.
-*   [ ] Add the `--goap` routing flag so the runtime can switch between hardcoded `mistreevous` workflows and GOAP-compatible branches.
-*   [ ] Load prompts and serialized agent behavior artifacts from the repo-installed resource files instead of embedded defaults.
+*   [ ] Add agent-prefixed CLI command routing for the supported operations.
+*   [ ] Implement `agent.do` as the canonical dispatcher.
+*   [ ] Add thin wrapper tools such as `agent.plan`, `agent.review`, `agent.create-specs`, `agent.implement`, and `agent.execute`.
+*   [ ] Make the wrapper tools forward the operation and arguments to `agent.do`.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
-*   Add agent resource registration modules alongside the existing prompt/resource builders.
-*   Store behavior/objective metadata in JSON resources that the model can inspect.
-*   Gate all agent-specific resources behind the agent-mode startup path.
-*   Resolve the selected agent CLI provider at startup and pass it the orchestrator prompt plus tool metadata.
-*   Initialize agent-mode assets on load when the setup flow has not already materialized the workspace.
-*   Resolve agent prompts and behavior trees from the repo-copied files so user edits are honored.
-*   Add the `--goap` flag plumbing and preserve the same branch conditions for the staged GOAP path.
+*   Parse the `agent` prefix before the existing command names.
+*   Route each command into the matching agent tool.
+*   Keep the generic dispatcher as the single selection point for agent lookup.
 
 **Technical Details:**
-*   Agent resources should not appear in normal server mode.
-*   Keep the resources deterministic and static so they can be read lazily by the model.
+*   The command surface should remain deterministic and inspectable.
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit Test: agent-mode resources are only registered in agent mode.
-*   [ ] Unit Test: agent resource metadata references the expected template files.
-*   [ ] Unit Test: agent provider resolution honors `AGENT_PROVIDER` and `--agent-provider`.
-*   [ ] Unit Test: `--goap` routes to the GOAP-capable branch metadata while preserving the hardcoded branch shape.
-*   [ ] Unit Test: repo-installed prompt and behavior resources are preferred over embedded defaults.
+*   [ ] Unit Test: `agent` prefix routes to the agent command namespace.
+*   [ ] Unit Test: `agent.do` selects the correct agent based on the supplied operation.
+*   [ ] Integration Test: compiled dist exposes the agent-prefixed commands through the inspector transport.
 
 **Manual Verification:**
-*   Boot the server in agent mode and confirm the agent resources appear in the registry.
-*   Boot agent mode without a prior setup run and confirm it initializes the workspace artifacts.
+*   [ ] Call `decaf-mcp agent plan` and confirm the dispatcher selects the planning agent.
 
 ## 5. Blockers & Clarifications
 *   None.
 
 ## 6. Execution Log
-*   [2026-05-21] - Started task.
+*   [2026-05-22] - Spec rewritten to the new agent command namespace model.

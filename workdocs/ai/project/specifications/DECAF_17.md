@@ -1,133 +1,115 @@
-# DECAF-17 — mcp-server Agent Mode, Multi-Agent Orchestration, and Spec Sync
+# DECAF-17 — Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP
 
 **Status:** Planned
 **Priority:** High
 **Owner:** Codex
 
 ## 1. Overview
-Add an explicit agent mode to `mcp-server` that exposes agent-specific tooling only when the server is started in agent mode, and provide a CLI setup flow for installing the agent workspace artifacts into a target path. The agent mode must use `mistreevous` for behavior orchestration by default, keep GOAP decision branches available behind a `--goap` flag, and encode all agent behavior as MCP resources so the model can reason over them deterministically.
+Rework `mcp-server` so it can start directly in agent mode with a `--agent` flag. When agent mode is active, the server must load the agent system prompt, register the agent tooling, and route all agent-specific behavior through explicit tools instead of relying on hidden prompt switching.
 
-When `--goap=false`, the system must execute hardcoded `mistreevous` workflows stored in resources. When `--goap=true`, the same workflow decisions must be represented in GOAP terms so the planner can converge on the same outcomes through goal selection. The GOAP implementation may be staged, but the conditional decision structure must already exist so the runtime can switch between modes without redesigning the orchestration graph.
+The agent command surface must be namespaced with the `agent` prefix. The supported flows include `agent plan`, `agent review`, `agent create-specs`, `agent implement`, and `agent execute`. Those commands must map onto a general dispatcher tool, `agent.do`, which selects the correct agent from the registry based on the input parameters and forwards the work to that agent.
 
-The agent setup flow must be available under the agent CLI command as a `setup` subcommand. It must accept an optional `--path` argument that defaults to `workdocs/ai`, and it must copy the agent markdown/resources to the target path while creating or updating the entry `AGENTS.md` file designated by `--entryFile` (default `./AGENTS.md`).
+Add a `manager` agent as the primary user-facing orchestration entry point. The manager must review the plan, delegate spec creation to the appropriate agent, and concurrently delegate execution work to the orchestrator agent. It must fan out multiple agent calls at once, surface blockers and questions back to the user as soon as they appear, and route the user response back into the waiting agent so it can continue.
 
-The agent assets must reference the corresponding `*_template.md` files in `mcp-server/src/assets/templates`, and those template files must remain flat in that folder only, with no nested subfolders.
+Each concrete agent must have a dedicated system prompt that explicitly instructs the LLM to use the matching tool entry point, such as `agent.plan` or `agent.review`, and every agent-facing command must be exposed as a tool. The specialized tools are thin wrappers over `agent.do` so the registry remains the single source of truth for agent selection.
 
-All agents must read their prompts and command definitions from the resource files previously copied into the repository by `agent setup`. This allows users to customize prompts and behavior by editing the repo-installed resources without changing code.
+The builder used for agents must register each built agent instance in a runtime registry and must also register the corresponding tool metadata. That registry is then used by `agent.do` to select the right agent for the requested operation.
 
-The same applies to serialized `mistreevous` and GOAP artifacts: they must be kept on disk with the repo-installed agent workspace files so users can replace or tune them when required.
+All agent tools must run as spawned child processes, use the MCP server in agent mode, and report progress succinctly while they work. Every run must end with the literal sentinel `TASK COMPLETE` so the orchestrator can detect that the stream is finished and safely call the next agent.
 
-The agent CLI must also support an `--agent-provider` flag, or `AGENT_PROVIDER` environment variable, to select the external CLI provider that actually runs the orchestrator prompt. The default provider is `codex`; valid providers are `claude` and `copilot`. Agent mode startup must load the selected CLI, pass it the orchestrator prompt and associated tooling metadata, and use it as the execution driver for agent-mode orchestration.
+Every agent-facing tool must return a structured JSON payload with:
+* `confidence` as an integer from 1 to 100
+* `summary` as a concise description of the work performed
+* `status` as the final state for the work
+* `questions` and `blockers` when the work needs user input
 
-Agent mode must initialize eagerly at load time if it has not already been initialized through the CLI setup flow. This means the agent resources, prompts, and entry files must be prepared as part of agent-mode startup so the runtime can resolve them immediately.
+The confidence score must be evaluated before completion. If the score is at or below the configured threshold, the tool must report the run as blocked rather than complete. The default threshold is 50, and it must be configurable through agent configuration.
 
-The `agent` command must also support an execute flow, exposed as `decaf-mcp agent execute SPEC-XXX` or equivalent `--execute SPEC-XXX` routing, to trigger an automated development run for the requested spec. That execute flow must stop on blockers or clarifications rather than silently guessing.
+When `--goap` is enabled, the runtime must not use LLM-driven reasoning for orchestration decisions. Instead, it must use deterministic GOAP or `mistreevous` decision trees to choose the next agent, spawn it, and continue the workflow without ambiguity. The GOAP path may remain staged, but the deterministic branch structure must already exist.
 
-When `JIRA_ENABLED=true`, the agent automation must create and maintain matching Jira specification tickets for every `SPEC` file. If a `SPEC` file changes, the corresponding Jira ticket must also be updated. Description changes should be minimized; status changes should be reflected by Jira comments, and checklist updates should be mirrored to the ticket when strictly necessary.
+Repo-copied agent resources remain the source of truth for prompts, commands, behavior trees, and serialized orchestration artifacts so users can customize them without changing code. When `JIRA_ENABLED=true`, the agent workflow must continue to mirror SPEC/TASK updates to the matching Jira tickets before advancing to the next stage.
+
+This spec replaces the earlier dynamic mode-switch design as the primary agent contract.
 
 ## 2. Goals
-*   [ ] Add an agent-mode startup path so `decaf-mcp agent start` boots the server in agent mode and exposes agent-only tools/resources/prompts.
-*   [ ] Add an `agent setup` CLI subcommand with `--path` and `--entryFile` options that installs the agent workspace files into a target location.
-*   [ ] Add an `agent execute SPEC-XXX` flow that runs the automated development pipeline for a specific spec and pauses on blockers or clarifications.
-*   [ ] Add provider selection with `AGENT_PROVIDER` / `--agent-provider` so the selected CLI receives the orchestrator prompt and tool metadata.
-*   [ ] Define an `Agent` abstraction and `AgentBuilder` that construct agents through `mistreevous` behavior trees with weights and objectives encoded as JSON resources.
-*   [ ] Create the core agent roles required for orchestration: main agent, orchestrator, architect, implementation, reviewer, and documentation agents.
-*   [ ] Store all agent behaviors as MCP resources and only register them in agent mode.
-*   [ ] Load agent prompts, command definitions, mistreevous trees, and GOAP serialized artifacts from the repo-copied resource files instead of hardcoding them in code.
-*   [ ] Add `--goap` routing so the runtime can switch between hardcoded `mistreevous` workflows and GOAP-equivalent decision trees.
-*   [ ] Add Jira synchronization for `SPEC` file updates when `JIRA_ENABLED=true`.
+*   [ ] Add a `--agent` startup path so `mcp-server` boots directly into agent mode and loads the agent system prompt plus agent tooling.
+*   [ ] Add the `agent` command namespace with `plan`, `review`, `create-specs`, `implement`, `execute`, and the general `agent.do` dispatcher.
+*   [ ] Register agent instances in a runtime registry through `AgentBuilder` and expose the matching tool metadata for each agent.
+*   [ ] Add the `manager` agent as the user-facing entry point for concurrent orchestration and user feedback routing.
+*   [ ] Ensure every agent prompt explicitly instructs the LLM to call the correct agent tool and to finish with `TASK COMPLETE`.
+*   [ ] Make all agent tools spawn child processes that run the MCP server in agent mode and report succinct `SPEC/TASK` progress updates.
+*   [ ] Make every agent-facing tool return structured JSON with confidence, summary, status, questions, and blockers, and gate completion on the configured confidence threshold.
+*   [ ] Keep `--goap` deterministic and non-LLM: use serialized GOAP or `mistreevous` decision trees to orchestrate the next agent selection.
+*   [ ] Preserve repo-copied prompt/resource customization and Jira synchronization for SPEC/TASK updates when enabled.
+*   [ ] Add integration coverage against the compiled `dist` artifact using the inspector transport and a full mock task flow across the orchestrator, architect, implementation, reviewer, and documentation agents.
 
 ## 3. User Stories / Requirements
-*   **US-1:** As a user, I want to run `decaf-mcp agent setup` so the agent workspace files and AGENTS entry file are installed into my chosen docs path.
-*   **US-2:** As a user, I want `decaf-mcp agent start` to run the MCP server in agent mode with agent-specific tooling available only in that mode.
-*   **US-3:** As a maintainer, I want agent behavior to be encoded as resources so the model can inspect and reason about the workflow without hidden runtime logic.
-*   **US-3a:** As a maintainer, I want the repo-installed agent resources to be user-editable so prompt and behavior changes do not require code changes.
-*   **US-4:** As a maintainer, I want agent mode to select a CLI provider (`codex`, `claude`, or `copilot`) so the orchestrator prompt runs through the appropriate external executable.
-*   **US-5:** As an orchestrator, I want behavior trees and GOAP-style goals to be explicit so the agent flow is deterministic, inspectable, and recoverable.
-*   **US-6:** As a user, I want `decaf-mcp agent execute SPEC-XXX` so the implementation pipeline runs automatically until it needs clarification or hits a blocker.
-*   **US-7:** As a project maintainer, I want Jira specification tickets to stay synchronized with `SPEC` changes whenever `JIRA_ENABLED=true`.
+*   **US-1:** As a user, I want `decaf-mcp --agent` to start the server in agent mode so the agent tooling is available from boot.
+*   **US-2:** As a user, I want to invoke `decaf-mcp agent plan`, `decaf-mcp agent review`, `decaf-mcp agent create-specs`, `decaf-mcp agent implement`, or `decaf-mcp agent execute SPEC-XXX` so the correct agent is selected through explicit tooling.
+*   **US-3:** As a maintainer, I want the agent system prompts to explicitly call the matching `agent.*` tool so the model does not free-form the orchestration path.
+*   **US-4:** As a maintainer, I want `AgentBuilder` to register each agent in a runtime registry and register the appropriate tool so `agent.do` can dispatch deterministically.
+*   **US-5:** As a user, I want a manager agent to coordinate multiple agent calls, surface blockers and questions, and route replies back so the system can continue without losing context.
+*   **US-6:** As an orchestrator, I want each spawned agent process to report succinct progress, return structured JSON, and end with `TASK COMPLETE` so the next step can be scheduled safely.
+*   **US-7:** As a maintainer, I want `--goap` to use deterministic decision trees without LLM calls so orchestration stays predictable.
+*   **US-8:** As a maintainer, I want the compiled `dist` artifact and inspector integration tests to validate the full agent stack, including a mock end-to-end task run.
+*   **US-9:** As a project maintainer, I want `JIRA_ENABLED=true` runs to keep Jira tickets synchronized with SPEC/TASK updates.
 
 ## 4. Architecture & Design
 The implementation should extend the existing `mcp-server` architecture as follows:
 
-*   Add an agent-mode boot path in the CLI so the server can be started in standard mode or agent mode.
-*   Add provider selection for agent mode:
-    * `AGENT_PROVIDER` environment variable and `--agent-provider` CLI flag,
-    * default provider `codex`,
-    * supported providers `claude` and `copilot`,
-    * provider selection should drive the external CLI that receives the orchestrator prompt and tool metadata.
-*   Initialize agent mode eagerly when the runtime loads if the setup flow has not already materialized the required agent workspace artifacts.
-*   Introduce an `Agent` abstraction backed by `mistreevous` behavior trees. Each agent should declare:
-    * objectives,
-    * action steps,
-    * weights/priorities,
-    * fallback behavior,
-    * and success/failure transitions.
-*   Introduce an `AgentBuilder` using the existing builder pattern used for prompts/resources/tools. The builder should make it easy to add a new agent by supplying its behavior resource, objectives, and actions.
-*   Store all agent behavior JSON under MCP resources and register them only in agent mode.
-*   Load the effective prompts, commands, mistreevous trees, and GOAP structures from the repo-installed resources so user edits are honored.
-*   Define the following concrete agents:
-    * main agent, responsible for spawning and tracking one orchestrator per spec,
-    * orchestrator agent, responsible for coordinating the overall task lifecycle,
-    * architect agent, responsible for planning and review,
-    * implementation agent, responsible for coding, linting, building, and testing,
-    * reviewer agent, responsible for validating the implementation against the requested task,
-    * documentation agent, responsible for updating docs after code changes.
-*   Use `goap-solver` for goal decomposition and task dependency solving when the agent needs adaptive planning, but keep `mistreevous` as the primary orchestration layer and stage the GOAP decision path behind the same branch points.
-*   Add an `agent execute SPEC-XXX` workflow:
-    * resolve the matching spec,
-    * spawn the orchestration path for that spec,
-    * stop on blockers, clarifications, or unanswered dependencies,
-    * update spec/task artifacts before each stage advances.
-*   When the orchestrator receives a `plan` request, call the architect agent via a dedicated tool to produce and validate the implementation plan, resolve blockers/clarifications, and then continue through implementation, review, and documentation stages.
-*   Adapt the agent command surface so shared plan/spec/task artifacts remain readable to every agent, while writes happen in git-tree-isolated workspaces that can run in parallel.
-*   Add standard progress reporting from child agents back to the orchestrator, and from the orchestrator back to the user, using a fixed `SPEC/TASK` status format.
-*   Allow the orchestrator to call the architect, implementation, reviewer, and documentation agents asynchronously as child processes, while keeping orchestration concurrency-safe across multiple git trees.
-*   Ensure all agents can read the plan/spec/task artifacts, but isolate work in git trees so multiple orchestrations can run safely in parallel.
-*   Require the architect/planner agent to read code, best practices, constitutions, and documentation before it produces a plan or review.
-*   Require the implementation/executor agent to follow a strict workflow: plan -> build -> lint -> test individual -> test full suite -> return.
-*   Require every agent step to update the relevant spec/task files, and to update Jira issues when enabled, before advancing to the next stage.
-*   Add a CLI setup command under `agent`:
-    * `decaf-mcp agent setup`
-    * options:
-      * `--path <path>` defaulting to `workdocs/ai`
-      * `--entryFile <file>` defaulting to `./AGENTS.md`
-    * behavior:
-      * copy the agent markdown/resource files to the target path,
-      * create/update the entry AGENTS file,
-      * ensure the installed files reference the `*_template.md` assets from `mcp-server/src/assets/templates` only.
-*   Add Jira synchronization hooks:
-    * if `JIRA_ENABLED=true`, create or update matching Jira tickets for every `SPEC` file,
-    * minimize description changes,
-    * add status changes as comments,
-    * update checklists only when necessary to reflect task completion.
+*   Add a direct agent-mode boot path in the CLI so the server can start in standard mode or agent mode.
+*   Load the agent system prompt during agent-mode startup and register the agent tooling immediately.
+*   Add the `agent` command namespace so `plan`, `review`, `create-specs`, `implement`, and `execute` resolve to agent-backed actions.
+*   Define `agent.do` as the canonical dispatcher.
+    * It selects the target agent from the registry using the supplied operation and parameters.
+    * Thin wrapper tools such as `agent.plan` and `agent.review` forward to `agent.do` with the appropriate operation key.
+*   Update `AgentBuilder` so that build time performs two actions:
+    * registers the agent instance in the runtime registry,
+    * registers the corresponding tool metadata for the agent.
+*   Add a manager agent that can fan out work to the orchestrator and other agents, aggregate their JSON responses, and relay questions or blockers back to the user.
+*   Make each agent prompt explicit about tool usage.
+    * The orchestrator prompt must say when to call `agent.plan`, `agent.review`, `agent.implement`, or `agent.execute`.
+    * The implementation and documentation prompts must instruct the model to call their dedicated tool and to terminate with `TASK COMPLETE`.
+    * The manager prompt must instruct the model to use `agent.manage` for cross-agent coordination and to surface only concise status updates.
+*   Spawn a new child process for each tool invocation.
+    * The child process must run the MCP server in agent mode.
+    * The child process must report concise progress in `SPEC/TASK` format.
+    * The child process must finish with `TASK COMPLETE`.
+    * The child process must return a structured JSON payload containing confidence, summary, status, questions, and blockers.
+*   Keep provider selection available when an LLM-backed agent is invoked.
+    * `AGENT_PROVIDER` and `--agent-provider` continue to resolve the concrete provider CLI per agent invocation.
+    * When `--goap` is active, no LLM provider should be used for orchestration decisions.
+*   Keep prompts, commands, behavior trees, and serialized orchestration artifacts in the repo-copied resources so users can customize them on disk.
+*   Preserve Jira synchronization when `JIRA_ENABLED=true` so SPEC/TASK state changes are mirrored before stage transitions.
+*   Ensure the deterministic GOAP path and the `mistreevous` path share the same branch points so the runtime can switch behavior without redesigning the orchestration graph.
+*   Gate tool completion on the configured confidence threshold, defaulting to 50, so low-confidence runs are treated as blocked and routed back through the manager/orchestrator flow.
 
 ## 5. Tasks Breakdown
 This specification is broken down into the following tasks. Each task should be small enough to be planned and executed separately.
 
 | ID | Task Name | Priority | Status | Dependencies |
 |:---|:----------|:---------|:--------|:-------------|
-| TASK-130 | [Add agent CLI setup command and workspace installer](./tasks/TASK_130.md) | High | Pending | - |
-| TASK-131 | [Add agent-mode resources, templates, and registration for behavior trees](./tasks/TASK_131.md) | High | Pending | TASK-130 |
-| TASK-132 | [Implement Agent and AgentBuilder abstractions plus concrete orchestration agents](./tasks/TASK_132.md) | High | Pending | TASK-131 |
-| TASK-133 | [Add JIRA_ENABLED spec synchronization for SPEC file updates](./tasks/TASK_133.md) | High | Pending | TASK-131 |
-| TASK-134 | [Implement agent execute flow, stage progression, and progress reporting](./tasks/TASK_134.md) | High | Pending | TASK-132, TASK-133 |
-| TASK-135 | [Add main-agent orchestration and concurrency-safe git-tree execution](./tasks/TASK_135.md) | High | Pending | TASK-132, TASK-134 |
+| TASK-130 | [Add `--agent` startup flag and agent bootstrap path](./tasks/TASK_130.md) | High | Pending | - |
+| TASK-131 | [Add the `agent` command namespace and dispatcher tooling](./tasks/TASK_131.md) | High | Pending | TASK-130 |
+| TASK-132 | [Implement Agent and AgentBuilder registry plus concrete agent definitions](./tasks/TASK_132.md) | High | Pending | TASK-131 |
+| TASK-133 | [Rewrite agent prompts/resources to call agent tools and emit `TASK COMPLETE`](./tasks/TASK_133.md) | High | Pending | TASK-132 |
+| TASK-134 | [Implement child-process orchestration, progress reporting, and `agent.do` dispatch](./tasks/TASK_134.md) | High | Pending | TASK-132, TASK-133 |
+| TASK-135 | [Implement deterministic GOAP routing and compiled-dist integration tests](./tasks/TASK_135.md) | High | Pending | TASK-134 |
+| TASK-140 | [Add manager agent orchestration and confidence-gated JSON tool responses](./tasks/TASK_140.md) | High | Pending | TASK-134, TASK-135 |
 
 ## 6. Open Questions / Risks
-*   How much of the agent runtime should live in `mcp-server` versus reusable shared modules?
-*   Which parts of the GOAP branch should ship in stage 1 versus stage 2 while keeping the conditional tree shape ready?
-*   How should behavior-tree JSON be versioned so agent resources remain stable across updates?
-*   Jira synchronization must avoid noisy churn; status and checklist updates should be mirrored with minimal description edits.
+*   How should the runtime map `agent.plan`, `agent.review`, and `agent.execute` onto the generic `agent.do` dispatcher without making the prompt surface brittle?
+*   Which orchestration metadata must be serialized so the GOAP branch remains deterministic but still editable in repo-copied resources?
+*   How should the child-process wrappers detect and propagate the `TASK COMPLETE` sentinel without truncating useful progress output?
+*   Jira synchronization must continue to avoid noisy churn; SPEC/TASK updates should still be mirrored with minimal description edits.
 
 ## 7. Results & Artifacts
-*   `agent setup` CLI command with `--path` and `--entryFile`.
-*   `agent execute SPEC-XXX` automated development command.
-*   Provider selection for `codex`, `claude`, or `copilot` via `AGENT_PROVIDER` / `--agent-provider`.
-*   Agent-mode server startup path with agent-only tooling and resources.
-*   `Agent` and `AgentBuilder` abstractions backed by `mistreevous`.
-*   Concrete main, orchestrator, architect, implementation, reviewer, and documentation agents.
-*   MCP resources containing agent behaviors and objectives.
-*   Repo-installed prompt and behavior resources that are editable after `agent setup`.
-*   GOAP decision branches staged behind the same orchestration gates.
-*   Jira synchronization for `SPEC` file updates when `JIRA_ENABLED=true`.
+*   `decaf-mcp --agent` startup path with the agent system prompt and agent tooling loaded at boot.
+*   `agent` command namespace with `plan`, `review`, `create-specs`, `implement`, `execute`, and `agent.do`.
+*   `AgentBuilder` registry integration that registers each agent instance and its matching tool.
+*   Concrete agent prompts that explicitly instruct the LLM to call the correct agent tool and finish with `TASK COMPLETE`.
+*   Child-process orchestration that runs the MCP server in agent mode and reports concise progress.
+*   Deterministic GOAP/mistreevous orchestration that does not rely on LLM reasoning for agent selection.
+*   Compiled-dist integration tests using the inspector transport, including a full mock task flow across orchestrator, architect, implementation, reviewer, and documentation agents.
+*   Repo-installed prompt and behavior resources that remain editable after setup.
+*   Jira synchronization for SPEC/TASK updates when `JIRA_ENABLED=true`.

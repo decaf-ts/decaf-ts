@@ -1,4 +1,4 @@
-# TASK-130: Add agent CLI setup command and workspace installer
+# TASK-130: Add `--agent` startup flag and agent bootstrap path
 
 **ID:** TASK-130
 **Specification:** [Link to Specification](../DECAF_17.md)
@@ -6,34 +6,34 @@
 **Status:** Pending
 
 ## 1. Description
-Add the `agent setup` CLI subcommand so `decaf-mcp agent setup` can install the agent workspace files into a target directory. The command must support an optional `--path` argument defaulting to `workdocs/ai` and an `--entryFile` argument defaulting to `./AGENTS.md`.
+Add the direct agent-mode boot path so `mcp-server` can start with `--agent`, load the agent system prompt, and activate the agent tooling at process startup. The startup path must not depend on dynamic switching to expose agent capabilities.
 
 ## 2. Objectives
-*   [ ] Add the CLI command and option parsing for `agent setup`.
-*   [ ] Copy the agent markdown/resources to the destination path.
-*   [ ] Create or update the entry `AGENTS.md` file at the requested entry path.
-*   [ ] Ensure the installed files point to the flat `*_template.md` assets from `mcp-server/src/assets/templates`.
+*   [ ] Add the `--agent` CLI flag and wire it into server bootstrap.
+*   [ ] Load the agent system prompt during agent-mode startup.
+*   [ ] Register the agent tooling immediately when the server boots in agent mode.
+*   [ ] Preserve the standard mode boot path unchanged.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
-*   Extend the `agent` CLI command tree to add a `setup` subcommand.
-*   Reuse the existing asset/template copying mechanics where possible.
-*   Add validations so the setup command respects default paths and does not recurse into nested template subfolders.
+*   Add CLI plumbing for `--agent`.
+*   Route bootstrap into an agent-mode initialization branch.
+*   Ensure the agent-mode prompt is loaded before any agent tool invocation.
 
 **Technical Details:**
-*   The setup command should be deterministic and idempotent enough to rerun safely.
-*   Keep the template references aligned with the `src/assets/templates` flat directory rule.
+*   The boot path must be deterministic and testable from the compiled dist artifact.
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit Test: `agent setup` resolves the default path and entry file.
-*   [ ] Unit Test: `agent setup` copies the expected workspace files.
+*   [ ] Unit Test: `--agent` resolves the agent bootstrap branch.
+*   [ ] Unit Test: agent-mode startup loads the agent system prompt.
+*   [ ] Integration Test: compiled dist booted with `--agent` exposes the agent tool surface.
 
 **Manual Verification:**
-*   Run `decaf-mcp agent setup` against a temp directory and confirm the workspace files are installed.
+*   [ ] Start the compiled server with `--agent` and confirm the agent prompt and tool registration are active.
 
 ## 5. Blockers & Clarifications
 *   None.
 
 ## 6. Execution Log
-*   [2026-05-21] - Started task.
+*   [2026-05-22] - Spec rewritten to the new agent-flag architecture.

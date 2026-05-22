@@ -279,18 +279,30 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
-## DECAF-17 — mcp-server Agent Mode, Multi-Agent Orchestration, and Spec Sync
+## DECAF-17 — Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP
 - **Priority:** High
-- **Goal:** Add an explicit agent mode to `mcp-server` with agent-only tooling, provider selection, an execute flow for SPEC-targeted automation, mistreevous-backed agent orchestration, and Jira synchronization for SPEC updates when `JIRA_ENABLED=true`.
-- **Status:** Planned — spec drafted; implementation has not started.
+- **Goal:** Rework mcp-server so it boots directly into agent mode with `--agent`, exposes the agent-prefixed command namespace, dispatches through `agent.do`, and uses deterministic GOAP/mistreevous branching when requested.
+- **Status:** Planned
 - **Link:** [Specification Details](./specifications/DECAF_17.md)
 - **Tasks:**
-  - [ ] [TASK-130](./specifications/tasks/TASK_130.md): Add agent CLI setup command and workspace installer.
-  - [ ] [TASK-131](./specifications/tasks/TASK_131.md): Add agent-mode resources, templates, and registration for behavior trees.
-  - [ ] [TASK-132](./specifications/tasks/TASK_132.md): Implement Agent and AgentBuilder abstractions plus concrete orchestration agents.
-  - [ ] [TASK-133](./specifications/tasks/TASK_133.md): Add JIRA_ENABLED spec synchronization for SPEC file updates.
-  - [ ] [TASK-134](./specifications/tasks/TASK_134.md): Implement agent execute flow, stage progression, and progress reporting.
-  - [ ] [TASK-135](./specifications/tasks/TASK_135.md): Add main-agent orchestration and concurrency-safe git-tree execution.
+  - [ ] [TASK-130](./specifications/tasks/TASK_130.md): Add `--agent` startup flag and agent bootstrap path.
+  - [ ] [TASK-131](./specifications/tasks/TASK_131.md): Add the `agent` command namespace and dispatcher tooling.
+  - [ ] [TASK-132](./specifications/tasks/TASK_132.md): Implement Agent and AgentBuilder registry plus concrete agent definitions.
+  - [ ] [TASK-133](./specifications/tasks/TASK_133.md): Rewrite agent prompts/resources to call agent tools and emit `TASK COMPLETE`.
+  - [ ] [TASK-134](./specifications/tasks/TASK_134.md): Implement child-process orchestration, progress reporting, and `agent.do` dispatch.
+  - [ ] [TASK-135](./specifications/tasks/TASK_135.md): Implement deterministic GOAP routing and compiled-dist integration tests.
+  - [ ] [TASK-140](./specifications/tasks/TASK_140.md): Add manager agent orchestration and confidence-gated JSON tool responses.
+
+## DECAF-18 — Context Transition Semantics for `ContextualLoggedClass`
+- **Priority:** High
+- **Goal:** Formalize how core contextual methods reuse or derive `Context` instances, preserve logger scoping, and maintain parent-child relationships across nested operations.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_18.md)
+- **Tasks:**
+  - [ ] [TASK-136](./specifications/tasks/TASK_136.md): Define context flag shape and flavour metadata contract.
+  - [ ] [TASK-137](./specifications/tasks/TASK_137.md): Implement context transition rules in `ContextualLoggedClass.logCtx`.
+  - [ ] [TASK-138](./specifications/tasks/TASK_138.md): Preserve parent-child linkage and logger propagation across derived contexts.
+  - [ ] [TASK-139](./specifications/tasks/TASK_139.md): Document and verify nested contextual call patterns.
 
 ## Documentation
 
@@ -316,7 +328,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-14: ✅ Cross-Adapter Migration Engine Hardening (live `core`/`for-nano`/`for-typeorm` flows validated; `for-fabric` unit suite green; `for-nest` migration integration coverage restored and passing).
 - DECAF-15: ✅ Webhook Signature Verification Middleware (middleware implemented, all tests passing, documentation complete).
 - DECAF-16: ✅ Jira Ticket Template Resources & Guided Creation (custom-field-aware template work added; one inspector CLI transport check remains flaky but non-blocking)
-- DECAF-17: ⏳ mcp-server Agent Mode, Multi-Agent Orchestration, and Spec Sync (spec drafted; implementation pending)
+- DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (spec revised to the `--agent`/`agent.*` tool model; manager-agent expansion added; implementation pending)
+- DECAF-18: ⏳ Context Transition Semantics for `ContextualLoggedClass` (new spec added; implementation pending)
 - SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully
