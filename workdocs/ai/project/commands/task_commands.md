@@ -25,7 +25,7 @@ These commands are related to managing individual tasks.
     2. Evaluate implementation strategy based on constitution, architecture, and existing abstractions.
     3. Identify Classes (Models, Repositories, Services, etc.) following `@decaf-ts` framework.
     4. Identify blockers and solutions.
-    5. Update the `<TASK_KEY>_<ref>.md` file using the [Task Template](../specifications/task_template.md).
+    5. Update the `<TASK_KEY>_<ref>.md` file using the dedicated [Task Template](../specifications/task_template.md).
 
 ## `add task <task description>`
 *   **Action:**
@@ -34,7 +34,7 @@ These commands are related to managing individual tasks.
     3. If new, generate a sequential ID.
     4. Execute `read constitution` to get the configured `<TASK_KEY>` and `<SPECIFICATION_KEY>`.
     5. Add a summary to the plan (or specification).
-    6. Create `<TASK_KEY>_<ref>.md` in `./workdocs/ai/project/specifications/tasks` using the [Task Template](../specifications/task_template.md).
+    6. Create `<TASK_KEY>_<ref>.md` in `./workdocs/ai/project/specifications/tasks` using the dedicated [Task Template](../specifications/task_template.md).
     7. Execute `plan task <ref>`.
 
 ## `clarify task <ref>`

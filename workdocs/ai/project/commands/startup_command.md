@@ -8,7 +8,7 @@ This command initializes the agent's context and prepares it for work.
         *   [Constitution](../constitution.md)
         *   [Plan](../plan.md)
         *   [Specification Template](../specifications/specification_template.md)
-        *   [Task Template](../specifications/task_template.md)
+        *   [Task Template](../specifications/task_template.md) - dedicated task template file, not embedded in `AGENTS.md`
     2.  **Contextualize:**
         *   Check if the [Constitution](../constitution.md) has specific project goals and invariants filled out. If not, **ASK** the user for:
             *   Project Name

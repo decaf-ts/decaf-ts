@@ -304,6 +304,16 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [ ] [TASK-138](./specifications/tasks/TASK_138.md): Preserve parent-child linkage and logger propagation across derived contexts.
   - [ ] [TASK-139](./specifications/tasks/TASK_139.md): Document and verify nested contextual call patterns.
 
+
+## DECAF-19 — Configurable Agent Execution Mode
+- **Priority:** High
+- **Goal:** Add a configurable execution mode that switches between the default prompt-based agent and deterministic GOAP/workflow execution, while keeping the manager as the user-facing reporter.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_19.md)
+- **Tasks:**
+  - [ ] [TASK-141](./specifications/tasks/TASK_141.md): Define the Execution Mode Configuration and Routing Contract - Pending
+  - [ ] [TASK-142](./specifications/tasks/TASK_142.md): Implement Deterministic GOAP/Workflow Reporting to Manager - Pending
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -330,7 +340,6 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-16: ✅ Jira Ticket Template Resources & Guided Creation (custom-field-aware template work added; one inspector CLI transport check remains flaky but non-blocking)
 - DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (spec revised to the `--agent`/`agent.*` tool model; manager-agent expansion added; implementation pending)
 - DECAF-18: ⏳ Context Transition Semantics for `ContextualLoggedClass` (new spec added; implementation pending)
-- SPECIFICATION-2: ✅ Jira MCP Toolset (issue CRUD, workflows, and documentation complete)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
