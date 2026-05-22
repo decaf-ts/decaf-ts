@@ -72,11 +72,11 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [x] `tests/unit/jira/issue.transition.spec.ts` (covers transitions with/without comments and failure paths)
+- [x] `tests/unit/jira/issue.transition.test.ts` (covers transitions with/without comments and failure paths)
 - [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
 - [x] Updated `src/modules/jira/tools/issue-transition.ts` with comment support
 - [x] `src/modules/jira/schemas/issue-transition-input.ts`
-- [x] Test coverage via `tests/unit/jira/issue.transition.spec.ts`
+- [x] Test coverage via `tests/unit/jira/issue.transition.test.ts`
 - [x] All tests pass

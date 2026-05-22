@@ -133,14 +133,14 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [x] `tests/unit/jira/worklog.add.spec.ts` (covers timeSpent, comments, authors, artifacts)
-- [ ] `tests/unit/jira/worklog.list.spec.ts` (optional – not implemented)
-- [ ] `tests/unit/jira/worklog.delete.spec.ts` (optional – not implemented)
+- [x] `tests/unit/jira/worklog.add.test.ts` (covers timeSpent, comments, authors, artifacts)
+- [ ] `tests/unit/jira/worklog.list.test.ts` (optional – not implemented)
+- [ ] `tests/unit/jira/worklog.delete.test.ts` (optional – not implemented)
 - [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
 - [x] `src/modules/jira/schemas/add-worklog-input.ts`
 - [x] `src/modules/jira/tools/worklog-add.ts`
 - [ ] Optional: worklog-list and worklog-delete tools (not implemented)
-- [x] `tests/unit/jira/worklog.add.spec.ts`
+- [x] `tests/unit/jira/worklog.add.test.ts`
 - [x] All tests pass

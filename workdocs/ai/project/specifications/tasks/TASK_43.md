@@ -178,10 +178,10 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [x] `tests/unit/jira/comment.add.spec.ts` (covers visibility variations and special characters)
-- [x] `tests/unit/jira/comment.list.spec.ts` (covers pagination, ordering, expand)
-- [ ] `tests/unit/jira/comment.update.spec.ts` (optional – not implemented)
-- [ ] `tests/unit/jira/comment.delete.spec.ts` (optional – not implemented)
+- [x] `tests/unit/jira/comment.add.test.ts` (covers visibility variations and special characters)
+- [x] `tests/unit/jira/comment.list.test.ts` (covers pagination, ordering, expand)
+- [ ] `tests/unit/jira/comment.update.test.ts` (optional – not implemented)
+- [ ] `tests/unit/jira/comment.delete.test.ts` (optional – not implemented)
 - [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
@@ -190,6 +190,6 @@ export default { name, inputSchema, runTool };
 - [x] `src/modules/jira/tools/comment-add.ts`
 - [x] `src/modules/jira/tools/comment-list.ts`
 - [ ] Optional: comment.update/comment.delete tools (left unimplemented by design)
-- [x] `tests/unit/jira/comment.add.spec.ts` and `tests/unit/jira/comment.list.spec.ts`
+- [x] `tests/unit/jira/comment.add.test.ts` and `tests/unit/jira/comment.list.test.ts`
 - [x] All tests pass
 - [ ] All tests pass

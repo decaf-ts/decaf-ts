@@ -133,14 +133,14 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [x] `tests/unit/jira/link.create.spec.ts` (covers multiple relationships and comment payloads)
-- [ ] `tests/unit/jira/link.list.spec.ts` (optional – not implemented)
-- [ ] `tests/unit/jira/link.delete.spec.ts` (optional – not implemented)
+- [x] `tests/unit/jira/link.create.test.ts` (covers multiple relationships and comment payloads)
+- [ ] `tests/unit/jira/link.list.test.ts` (optional – not implemented)
+- [ ] `tests/unit/jira/link.delete.test.ts` (optional – not implemented)
 - [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
 - [x] `src/modules/jira/schemas/create-link-input.ts`
 - [x] `src/modules/jira/tools/link-create.ts`
 - [ ] Optional: link.list/link.delete tools (not implemented)
-- [x] `tests/unit/jira/link.create.spec.ts`
+- [x] `tests/unit/jira/link.create.test.ts`
 - [x] All tests pass

@@ -250,9 +250,9 @@ export const JiraIssueTransition = { name, inputSchema, runTool };
 - [x] Updated `src/modules/jira/index.ts`
 
 ## Tests Required
-- [x] `tests/unit/jira/issue.read.spec.ts` (covering read payload validation and error normalization)
-- [x] `tests/unit/jira/issue.update.spec.ts` (covering update payloads and response paths)
-- [x] `tests/unit/jira/issue.delete.spec.ts` (covering delete scenarios and error handling)
+- [x] `tests/unit/jira/issue.read.test.ts` (covering read payload validation and error normalization)
+- [x] `tests/unit/jira/issue.update.test.ts` (covering update payloads and response paths)
+- [x] `tests/unit/jira/issue.delete.test.ts` (covering delete scenarios and error handling)
 - [x] All tests pass via `npm run test:unit`
 
 ## Notes

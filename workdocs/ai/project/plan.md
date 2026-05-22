@@ -314,6 +314,17 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-141](./specifications/tasks/TASK_141.md): Define the Execution Mode Configuration and Routing Contract - Completed
   - [x] [TASK-142](./specifications/tasks/TASK_142.md): Implement Deterministic GOAP/Workflow Reporting to Manager - Completed
 
+## DECAF-20 — Agent Tool Progress Notifications and Manager Relay
+- **Priority:** High
+- **Goal:** Make all agent tooling emit live MCP progress notifications while executing so the manager agent can relay concise feedback to the user before the final result arrives.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_20.md)
+- **Tasks:**
+  - [ ] [TASK-143](./specifications/tasks/TASK_143.md): Define the agent progress notification contract and `agent.notify` tool surface.
+  - [ ] [TASK-144](./specifications/tasks/TASK_144.md): Emit live progress from prompt-based agent tools and child-process orchestration.
+  - [ ] [TASK-145](./specifications/tasks/TASK_145.md): Emit deterministic progress from GOAP/workflow runners and manager relay paths.
+  - [ ] [TASK-146](./specifications/tasks/TASK_146.md): Add compiled-dist inspector integration tests for progress notifications and full agent-system progress flow.
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -341,6 +352,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (spec revised to the `--agent`/`agent.*` tool model; manager-agent expansion added; implementation pending)
 - DECAF-18: ⏳ Context Transition Semantics for `ContextualLoggedClass` (new spec added; implementation pending)
 - DECAF-19: ✅ Configurable Agent Execution Mode
+- DECAF-20: ⏳ Agent Tool Progress Notifications and Manager Relay (progress notification contract and integration coverage planned)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`

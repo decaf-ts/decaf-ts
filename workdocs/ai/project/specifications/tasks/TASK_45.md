@@ -125,9 +125,9 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [x] `tests/unit/jira/attach.spec.ts` (covers mime types, comments, missing files, and large payloads)
-- [x] `tests/unit/jira/attachment.list.spec.ts`
-- [x] `tests/unit/jira/attachment.delete.spec.ts`
+- [x] `tests/unit/jira/attach.test.ts` (covers mime types, comments, missing files, and large payloads)
+- [x] `tests/unit/jira/attachment.list.test.ts`
+- [x] `tests/unit/jira/attachment.delete.test.ts`
 - [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
@@ -135,5 +135,5 @@ export default { name, inputSchema, runTool };
 - [x] `src/modules/jira/tools/attach.ts`
 - [x] `src/modules/jira/tools/attachment-list.ts`
 - [x] `src/modules/jira/tools/attachment-delete.ts`
-- [x] `tests/unit/jira/attach.spec.ts`, `tests/unit/jira/attachment.list.spec.ts`, and `tests/unit/jira/attachment.delete.spec.ts`
+- [x] `tests/unit/jira/attach.test.ts`, `tests/unit/jira/attachment.list.test.ts`, and `tests/unit/jira/attachment.delete.test.ts`
 - [x] All tests pass

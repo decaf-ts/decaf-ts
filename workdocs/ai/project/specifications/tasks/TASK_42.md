@@ -89,12 +89,12 @@ export default { name, inputSchema, runTool };
 ```
 
 ## Tests Required
-- [x] `tests/unit/jira/assign.spec.ts` (covers accountId/username/accountType assignment plus unassignment and permission failures)
+- [x] `tests/unit/jira/assign.test.ts` (covers accountId/username/accountType assignment plus unassignment and permission failures)
 - [x] All tests pass via `npm run test:unit`
 
 ## Deliverables
 - [x] `src/modules/jira/schemas/assign-issue-input.ts`
 - [x] `src/modules/jira/tools/assign.ts`
 - [x] `src/modules/jira/tools/unassign.ts`
-- [x] `tests/unit/jira/assign.spec.ts` exercising both tools
+- [x] `tests/unit/jira/assign.test.ts` exercising both tools
 - [x] All tests pass
