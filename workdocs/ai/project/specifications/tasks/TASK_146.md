@@ -1,7 +1,7 @@
 # TASK-146: Add compiled-dist inspector integration tests for progress notifications and full agent-system progress flow
 
 **ID:** TASK-146
-**Specification:** [DECAF-20](../DECAF_20.md)
+**Specification:** [DECAF-17](../DECAF_17.md)
 **Priority:** High
 **Status:** Pending
 

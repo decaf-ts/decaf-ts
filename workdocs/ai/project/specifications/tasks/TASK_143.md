@@ -1,7 +1,7 @@
 # TASK-143: Define the agent progress notification contract and `agent.notify` tool surface
 
 **ID:** TASK-143
-**Specification:** [DECAF-20](../DECAF_20.md)
+**Specification:** [DECAF-17](../DECAF_17.md)
 **Priority:** High
 **Status:** Pending
 

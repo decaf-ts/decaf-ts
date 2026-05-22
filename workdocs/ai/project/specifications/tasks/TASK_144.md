@@ -1,7 +1,7 @@
 # TASK-144: Emit live progress from prompt-based agent tools and child-process orchestration
 
 **ID:** TASK-144
-**Specification:** [DECAF-20](../DECAF_20.md)
+**Specification:** [DECAF-17](../DECAF_17.md)
 **Priority:** High
 **Status:** Pending
 

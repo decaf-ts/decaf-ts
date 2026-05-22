@@ -1,7 +1,7 @@
 # TASK-145: Emit deterministic progress from GOAP/workflow runners and manager relay paths
 
 **ID:** TASK-145
-**Specification:** [DECAF-20](../DECAF_20.md)
+**Specification:** [DECAF-17](../DECAF_17.md)
 **Priority:** High
 **Status:** Pending
 

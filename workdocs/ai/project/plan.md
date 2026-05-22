@@ -281,7 +281,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ## DECAF-17 — Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP
 - **Priority:** High
-- **Goal:** Rework mcp-server so it boots directly into agent mode with `--agent`, exposes the agent-prefixed command namespace, dispatches through `agent.do`, and uses deterministic GOAP/mistreevous branching when requested.
+- **Goal:** Rework mcp-server so it boots directly into agent mode with `--agent`, exposes the agent-prefixed command namespace, dispatches through `agent.do`, uses deterministic GOAP/mistreevous branching when requested, and emits live progress through the MCP notification API.
 - **Status:** Planned
 - **Link:** [Specification Details](./specifications/DECAF_17.md)
 - **Tasks:**
@@ -292,6 +292,10 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [ ] [TASK-134](./specifications/tasks/TASK_134.md): Implement child-process orchestration, progress reporting, and `agent.do` dispatch.
   - [ ] [TASK-135](./specifications/tasks/TASK_135.md): Implement deterministic GOAP routing and compiled-dist integration tests.
   - [ ] [TASK-140](./specifications/tasks/TASK_140.md): Add manager agent orchestration and confidence-gated JSON tool responses.
+  - [ ] [TASK-143](./specifications/tasks/TASK_143.md): Define the agent progress notification contract and `agent.notify` tool surface.
+  - [ ] [TASK-144](./specifications/tasks/TASK_144.md): Emit live progress from prompt-based agent tools and child-process orchestration.
+  - [ ] [TASK-145](./specifications/tasks/TASK_145.md): Emit deterministic progress from GOAP/workflow runners and manager relay paths.
+  - [ ] [TASK-146](./specifications/tasks/TASK_146.md): Add compiled-dist inspector integration tests for progress notifications and full agent-system progress flow.
 
 ## DECAF-18 — Context Transition Semantics for `ContextualLoggedClass`
 - **Priority:** High
@@ -313,17 +317,6 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - **Tasks:**
   - [x] [TASK-141](./specifications/tasks/TASK_141.md): Define the Execution Mode Configuration and Routing Contract - Completed
   - [x] [TASK-142](./specifications/tasks/TASK_142.md): Implement Deterministic GOAP/Workflow Reporting to Manager - Completed
-
-## DECAF-20 — Agent Tool Progress Notifications and Manager Relay
-- **Priority:** High
-- **Goal:** Make all agent tooling emit live MCP progress notifications while executing so the manager agent can relay concise feedback to the user before the final result arrives.
-- **Status:** Planned
-- **Link:** [Specification Details](./specifications/DECAF_20.md)
-- **Tasks:**
-  - [ ] [TASK-143](./specifications/tasks/TASK_143.md): Define the agent progress notification contract and `agent.notify` tool surface.
-  - [ ] [TASK-144](./specifications/tasks/TASK_144.md): Emit live progress from prompt-based agent tools and child-process orchestration.
-  - [ ] [TASK-145](./specifications/tasks/TASK_145.md): Emit deterministic progress from GOAP/workflow runners and manager relay paths.
-  - [ ] [TASK-146](./specifications/tasks/TASK_146.md): Add compiled-dist inspector integration tests for progress notifications and full agent-system progress flow.
 
 ## Documentation
 
@@ -349,10 +342,9 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-14: ✅ Cross-Adapter Migration Engine Hardening (live `core`/`for-nano`/`for-typeorm` flows validated; `for-fabric` unit suite green; `for-nest` migration integration coverage restored and passing).
 - DECAF-15: ✅ Webhook Signature Verification Middleware (middleware implemented, all tests passing, documentation complete).
 - DECAF-16: ✅ Jira Ticket Template Resources & Guided Creation (custom-field-aware template work added; one inspector CLI transport check remains flaky but non-blocking)
-- DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (spec revised to the `--agent`/`agent.*` tool model; manager-agent expansion added; implementation pending)
+- DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (progress notifications and manager relay merged into this spec; implementation pending)
 - DECAF-18: ⏳ Context Transition Semantics for `ContextualLoggedClass` (new spec added; implementation pending)
 - DECAF-19: ✅ Configurable Agent Execution Mode
-- DECAF-20: ⏳ Agent Tool Progress Notifications and Manager Relay (progress notification contract and integration coverage planned)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
