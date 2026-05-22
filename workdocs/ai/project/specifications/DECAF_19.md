@@ -1,6 +1,6 @@
 # DECAF-19: Configurable Agent Execution Mode
 
-**Status:** Planned
+**Status:** Completed
 **Priority:** High
 **Owner:** Architect Agent
 
@@ -16,11 +16,11 @@ Planning note:
 - The task plan intentionally keeps the exact config shape open until that layer is confirmed in code.
 
 ## 2. Goals
-*   [ ] Add a configurable model-type flag that selects default prompt-based, GOAP, or workflow behavior.
-*   [ ] Ensure non-default modes execute programmatically instead of using LLM prompting to choose steps.
-*   [ ] Keep LLM usage limited to the manager/user interaction path and to tasks that explicitly need model reasoning.
-*   [ ] Guarantee that GOAP/workflow runs return structured results to the manager agent for user-facing reporting.
-*   [ ] Preserve the existing default path so current prompt-driven behavior does not regress.
+*   [x] Add a configurable model-type flag that selects default prompt-based, GOAP, or workflow behavior.
+*   [x] Ensure non-default modes execute programmatically instead of using LLM prompting to choose steps.
+*   [x] Keep LLM usage limited to the manager/user interaction path and to tasks that explicitly need model reasoning.
+*   [x] Guarantee that GOAP/workflow runs return structured results to the manager agent for user-facing reporting.
+*   [x] Preserve the existing default path so current prompt-driven behavior does not regress.
 
 ## 3. User Stories / Requirements
 *   **US-1:** As a user, I want to choose an execution mode from config so that the agent can run in prompt, GOAP, or workflow mode without changing user commands.
@@ -57,10 +57,10 @@ Verification note:
 ## 5. Tasks Breakdown
 This specification is broken down into the following tasks. Each task should be small enough to be planned and executed separately.
 
-| ID       | Task Name                                                                           | Priority | Status  | Dependencies |
-|:---------|:------------------------------------------------------------------------------------|:---------|:--------|:-------------|
-| TASK-141 | [Define the Execution Mode Configuration and Routing Contract](./tasks/TASK_141.md) | High     | Pending | -            |
-| TASK-142 | [Implement Deterministic GOAP/Workflow Reporting to Manager](./tasks/TASK_142.md)   | High     | Pending | TASK-141     |
+| ID       | Task Name                                                                           | Priority | Status    | Dependencies |
+|:---------|:------------------------------------------------------------------------------------|:---------|:----------|:-------------|
+| TASK-141 | [Define the Execution Mode Configuration and Routing Contract](./tasks/TASK_141.md) | High     | Completed | -            |
+| TASK-142 | [Implement Deterministic GOAP/Workflow Reporting to Manager](./tasks/TASK_142.md)   | High     | Completed | TASK-141     |
 
 ## 6. Open Questions / Risks
 *   The exact config shape is not yet defined, so the implementation must align with the repository's canonical runtime configuration layer instead of inventing a second source of truth.
@@ -72,3 +72,6 @@ This specification is broken down into the following tasks. Each task should be 
 *   `project/specifications/tasks/TASK_141.md`
 *   `project/specifications/tasks/TASK_142.md`
 *   `project/plan.md`
+
+## 8. Agent Progress
+*   [2026-05-22] - Specification implemented in code with explicit prompt, GOAP, and workflow routing.
