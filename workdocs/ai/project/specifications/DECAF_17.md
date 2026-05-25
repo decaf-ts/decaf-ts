@@ -1,6 +1,6 @@
 # DECAF-17 — Agent-Namespace MCP Startup, Tool-Driven Orchestration, Deterministic GOAP, and Progress Relay
 
-**Status:** Planned
+**Status:** In Progress
 **Priority:** High
 **Owner:** Codex
 
@@ -135,6 +135,7 @@ This specification is broken down into the following tasks. Each task should be 
 *   Which orchestration metadata must be serialized so the GOAP branch remains deterministic but still editable in repo-copied resources?
 *   How should the child-process wrappers detect and propagate the `TASK COMPLETE` sentinel without truncating useful progress output?
 *   Jira synchronization must continue to avoid noisy churn; SPEC/TASK updates should still be mirrored with minimal description edits.
+*   Agent-mode MCP client startup is still being validated under the compiled `dist` transport; the current agent-mode handshake needs follow-up before the spec can be closed.
 
 ## 7. Results & Artifacts
 *   `decaf-mcp --agent` startup path with the agent system prompt and agent tooling loaded at boot.

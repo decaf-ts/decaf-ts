@@ -81,7 +81,7 @@ This specification is broken down into the following tasks. Each task should be 
 | TASK-114 | [for-nano migration integration tests with model property additions](./tasks/TASK_114.md) | High     | Completed | TASK-113 |
 | TASK-115 | [for-typeorm migration integration tests in production-like migration mode](./tasks/TASK_115.md) | High     | Completed | TASK-113 |
 | TASK-116 | [for-fabric unit migration coverage hardening](./tasks/TASK_116.md) | Medium   | Completed | TASK-113 |
-| TASK-117 | [for-nest multi-adapter (Nano + TypeORM) migration integration boot](./tasks/TASK_117.md) | High     | Completed | TASK-114,TASK-115 |
+| TASK-117 | [for-nest multi-adapter (Nano + TypeORM) migration integration boot](./tasks/TASK_117.md) | High     | In Progress | TASK-114,TASK-115 |
 | TASK-118 | [for-nest CLI migration command (headless boot, no route exposure)](./tasks/TASK_118.md) | High     | Completed | TASK-117 |
 
 ## 6. Open Questions / Risks
@@ -111,4 +111,4 @@ This specification is broken down into the following tasks. Each task should be 
 *   Reopened milestone (2026-04-25): `TASK-114` and `TASK-115` were reopened to replace mocked/in-memory migration integration tests with live CouchDB/Postgres migration flows that include required property/column addition plus default-value backfill.
     This restart enforces RamAdapter+NanoAdapter-only coverage for `for-nano`, couples NanoAdapter with TypeORMAdapter for `for-typeorm`, and clears the way for `for-nest` migration work now that the live suites are green.
 *   Validation milestone (2026-05-04): module readiness rerun in requested order (`core => for-nano => for-typeorm => for-fabric => for-nest`) confirms `core` full tests pass, `for-nano` live integration passes, `for-typeorm` live integration passes, and `for-fabric` unit suite passes.
-*   Validation finding (2026-05-04): `for-nest` currently contains no migration integration test files under `tests/` (`rg --files tests | rg migration` returns no matches), so task-level migration coverage for Nest is not presently enforceable despite the full Nest suite passing.
+*   Validation finding (2026-05-23): `for-nest/tests/integration/migration.multi-adapter.integration.test.ts` and `for-nest/tests/integration/cli-migrate.multi-adapter.integration.test.ts` are present, but the Nest migration path is still not stable enough to mark DECAF-14 complete.

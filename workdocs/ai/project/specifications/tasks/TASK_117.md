@@ -3,7 +3,7 @@
 **ID:** TASK-117
 **Specification:** [Link to Specification](../DECAF_14.md)
 **Priority:** High
-**Status:** In Progress — Reopened; migration integration test files are not present under `for-nest/tests` in the current tree.
+**Status:** In Progress — live multi-adapter migration integration coverage is present under `for-nest/tests`, but it still needs stability hardening before the task can close.
 
 ## 1. Description
 Create `for-nest` integration coverage that boots Nest with one Nano adapter and one TypeORM adapter, then executes a migration flow that migrates both adapters in a single boot sequence. Trigger migrations through an explicit callable function after services are booted and before any endpoints are exposed, with no lifecycle hooks.
@@ -32,7 +32,7 @@ Create `for-nest` integration coverage that boots Nest with one Nano adapter and
 *   Confirm both Nano and TypeORM stores reflect migrated schema/data state after one orchestrated run.
 
 ## 5. Blockers & Clarifications
-*   Current tree has no migration integration test files under `for-nest/tests` (`rg --files tests | rg migration` produced no matches on 2026-05-04), so required live Nest migration coverage is not currently enforceable.
+*   Live migration integration coverage is present under `for-nest/tests`, but repeated-run stability still needs to be verified and hardened.
 
 ## 6. Execution Log
 *   [2026-04-25] - Task created.
@@ -42,4 +42,4 @@ Create `for-nest` integration coverage that boots Nest with one Nano adapter and
 -   [2026-04-25] - Updated Nest migration orchestration to use `MigrationService` task tracking path (`DecafCoreModule.migrate` returns migration services for caller-managed tracking in task mode).
 -   [2026-04-25] - Reworked `for-nest` multi-adapter integration test to run live Nano/Postgres migrations that add required schema changes and backfill defaults before proceeding with CLI coverage.
 -   [2026-04-25] - Executed the updated multi-adapter migration test against live CouchDB/Postgres stacks; the schema-change/backfill flow completed and version markers now reflect `1.1.0-nest-live`.
--   [2026-05-04] - Revalidation found no migration integration test files in `for-nest/tests`, while full suite still passes; task reopened until live Nano+TypeORM migration coverage is restored and passing in the current repository state.
+-   [2026-05-23] - Revalidated the repository state and confirmed live Nano+TypeORM migration integration coverage is present under `for-nest/tests/integration/`, but the path is still not stable enough to close the task.
