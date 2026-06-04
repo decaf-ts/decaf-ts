@@ -201,9 +201,21 @@ function createBundle(name, version, entry) {
   }
 }
 
-Object.entries(bundles).forEach(([bundle, rawEntry]) => {
-  // Backwards compatibility: allow array-style entries (legacy format)
-  const entry = Array.isArray(rawEntry) ? { dependencies: rawEntry } : rawEntry || {};
-  resetReleaseFolder(bundle);
-  createBundle(bundle, decaf.version, entry);
-});
+
+async function createBundles(){
+  for (const [bundle, rawEntry] of Object.entries(bundles)){
+    // Backwards compatibility: allow array-style entries (legacy format)
+    const entry = Array.isArray(rawEntry) ? { dependencies: rawEntry } : rawEntry || {};
+    resetReleaseFolder(bundle);
+    console.log(`Folder created for ${bundle}`);
+    createBundle(bundle, decaf.version, entry);
+    console.log(`${bundle} published. waiting 10 seconds before next bundl to ensure the registry is updated`);
+    await new Promise(resolve => setTimeout(resolve, 10000))
+  }
+}
+
+createBundles().then(() => console.log("Bundles created and published"))
+  .catch(e => {
+    console.error(`Bundling failed with ${e}`)
+    process.exit(1)
+  })
