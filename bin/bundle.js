@@ -122,6 +122,26 @@ function mergeOverrides(target, source) {
   return target;
 }
 
+function normalizeVersionSpec(value) {
+  if (typeof value !== "string") return value;
+  return value.startsWith("^") ? value.slice(1) : value;
+}
+
+function normalizeVersionMap(map) {
+  if (!isPlainObject(map)) return map;
+
+  for (const [key, value] of Object.entries(map)) {
+    if (isPlainObject(value)) {
+      normalizeVersionMap(value);
+      continue;
+    }
+
+    map[key] = normalizeVersionSpec(value);
+  }
+
+  return map;
+}
+
 function getReleasePackagePath(name) {
   return path.join(basePath, name, "package.json");
 }
@@ -258,7 +278,7 @@ function createBundle(name, version, entry) {
   dependencies.forEach((dependency) => {
     try {
       const version = getVersion(dependency);
-      pkg.dependencies[dependency] = `^${version}`;
+      pkg.dependencies[dependency] = version;
     } catch (err) {
       console.error(`Error resolving dependency ${dependency} for bundle ${name}: ${err.message}`);
       throw err;
@@ -269,7 +289,7 @@ function createBundle(name, version, entry) {
   devs.forEach((dependency) => {
     try {
       const version = getVersion(dependency);
-      pkg.devDependencies[dependency] = `^${version}`;
+      pkg.devDependencies[dependency] = version;
     } catch (err) {
       console.error(`Error resolving devDependency ${dependency} for bundle ${name}: ${err.message}`);
       throw err;
@@ -289,6 +309,7 @@ function createBundle(name, version, entry) {
   });
 
   overrideSources.forEach((source) => mergeOverrides(pkg.overrides, source));
+  normalizeVersionMap(pkg.overrides);
   if (!Object.keys(pkg.overrides).length) {
     delete pkg.overrides;
   }
