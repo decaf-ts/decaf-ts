@@ -4,6 +4,8 @@ const path = require("path");
 const fs = require("fs");
 const { rimraf } = require("rimraf");
 
+const timeout = (parseInt(process.env["TIMEOUT"] || "0") || 20) * 1000
+
 const filesToLink = [".npmtoken", ".token", ".npmrc"];
 
 const basePath = path.join(process.cwd(), "bin", "releases");
@@ -209,8 +211,8 @@ async function createBundles(){
     resetReleaseFolder(bundle);
     console.log(`Folder created for ${bundle}`);
     createBundle(bundle, decaf.version, entry);
-    console.log(`${bundle} published. waiting 10 seconds before next bundl to ensure the registry is updated`);
-    await new Promise(resolve => setTimeout(resolve, 20000))
+    console.log(`${bundle} published. waiting ${timeout / 1000} seconds before next bundl to ensure the registry is updated`);
+    await new Promise(resolve => setTimeout(resolve, timeout))
   }
 }
 
