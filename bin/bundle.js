@@ -20,6 +20,10 @@ const decaf = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), "package.json")),
 );
 
+function isDistPackage(dependency) {
+  return dependency.startsWith("@decaf-ts/dist-");
+}
+
 /**
  * checks if the release folder exists and deletes it if so
  * @param {string} name
@@ -69,6 +73,10 @@ function getVersion(dependency) {
     );
     return pkg.version;
   } catch (err) {
+    if (isDistPackage(dependency)) {
+      return decaf.version;
+    }
+
     throw new Error(
       `Cannot resolve version for dependency '${dependency}'. Ensure the package exists in the workspace or the bundles.json entry references a known bundle. Original error: ${err.message}`,
     );
