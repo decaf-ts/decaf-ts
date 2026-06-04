@@ -17,10 +17,10 @@
       "@decaf-ts/utils"
     ],
     "dependencies": [
+      "@decaf-ts/logging",
       "@decaf-ts/db-decorators",
       "@decaf-ts/decorator-validation",
-      "@decaf-ts/decoration",
-      "@decaf-ts/reflection"
+      "@decaf-ts/decoration"
     ]
   },
   "dist-base": {
@@ -37,15 +37,17 @@
       "observability"
     ],
     "license": "MPL-2.0",
+    "devDependencies": [
+      "@decaf-ts/utils"
+    ],
     "dependencies": [
       "@decaf-ts/dist-lite",
       "@decaf-ts/injectable-decorators",
       "@decaf-ts/transactional-decorators",
-      "@decaf-ts/logging",
       "@decaf-ts/core"
     ]
   },
-  "dist-couchdb": {
+  "dist-nano": {
     "keywords": [
       "decaf",
       "typescript",
@@ -59,6 +61,10 @@
       "nano"
     ],
     "license": "MPL-2.0",
+    "devDependencies": [
+      "@decaf-ts/utils",
+      "@decaf-ts/cli"
+    ],
     "dependencies": [
       "@decaf-ts/dist-base",
       "@decaf-ts/for-couchdb",
@@ -79,6 +85,10 @@
       "nosql"
     ],
     "license": "MPL-2.0",
+    "devDependencies": [
+      "@decaf-ts/utils",
+      "@decaf-ts/cli"
+    ],
     "dependencies": [
       "@decaf-ts/dist-base",
       "@decaf-ts/for-couchdb",
@@ -139,10 +149,13 @@
     "license": "MPL-2.0",
     "dependencies": [
       "@decaf-ts/dist-base",
+      "@decaf-ts/for-couchdb",
       "@decaf-ts/for-fabric"
     ],
     "devDependencies": [
-      "@decaf-ts/fabric-weaver"
+      "@decaf-ts/fabric-weaver",
+      "@decaf-ts/utils",
+      "@decaf-ts/cli"
     ]
   },
   "dist-angular": {
@@ -159,8 +172,13 @@
       "rest"
     ],
     "license": "MPL-2.0 OR AGPL-3.0",
+    "devDependencies": [
+      "@decaf-ts/utils",
+      "@decaf-ts/cli"
+    ],
     "dependencies": [
       "@decaf-ts/dist-base",
+      "@decaf-ts/ui-decorators",
       "@decaf-ts/for-angular",
       "@decaf-ts/for-http"
     ]
@@ -179,6 +197,10 @@
       "sync"
     ],
     "license": "MPL-2.0 OR AGPL-3.0",
+    "devDependencies": [
+      "@decaf-ts/utils",
+      "@decaf-ts/cli"
+    ],
     "dependencies": [
       "@decaf-ts/dist-pouchdb",
       "@decaf-ts/for-react-native"
