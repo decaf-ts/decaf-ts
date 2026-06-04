@@ -85,6 +85,77 @@ function getVersion(dependency) {
   }
 }
 
+function dependencyFolderName(dependency) {
+  return dependency.includes("@decaf-ts/")
+    ? dependency.split("@decaf-ts/")[1]
+    : dependency;
+}
+
+function isPlainObject(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeOverrides(target, source) {
+  if (!isPlainObject(source)) return target;
+
+  for (const [key, value] of Object.entries(source)) {
+    if (isPlainObject(value)) {
+      if (!isPlainObject(target[key])) {
+        target[key] = {};
+      }
+      mergeOverrides(target[key], value);
+      continue;
+    }
+
+    target[key] = value;
+  }
+
+  return target;
+}
+
+function collectOverrides(dependency, seen = new Set()) {
+  const name = dependencyFolderName(dependency);
+  if (seen.has(name)) return {};
+  seen.add(name);
+
+  const collected = {};
+  const localPkgPath = path.join(process.cwd(), name, "package.json");
+
+  if (fs.existsSync(localPkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(localPkgPath, "utf8"));
+    mergeOverrides(collected, pkg.overrides);
+
+    const nestedDeps = [
+      ...Object.keys(pkg.dependencies || {}),
+      ...Object.keys(pkg.devDependencies || {}),
+    ];
+
+    nestedDeps.forEach((nestedDependency) => {
+      const nestedName = dependencyFolderName(nestedDependency);
+      const nestedLocalPkgPath = path.join(process.cwd(), nestedName, "package.json");
+      if (fs.existsSync(nestedLocalPkgPath) || (bundles && bundles[nestedName])) {
+        mergeOverrides(collected, collectOverrides(nestedDependency, seen));
+      }
+    });
+
+    return collected;
+  }
+
+  if (bundles && bundles[name]) {
+    const entry = Array.isArray(bundles[name]) ? { dependencies: bundles[name] } : bundles[name] || {};
+    const nestedDeps = [
+      ...(Array.isArray(entry.dependencies) ? entry.dependencies : []),
+      ...(Array.isArray(entry.devDependencies) ? entry.devDependencies : []),
+    ];
+
+    nestedDeps.forEach((nestedDependency) => {
+      mergeOverrides(collected, collectOverrides(nestedDependency, seen));
+    });
+  }
+
+  return collected;
+}
+
 /**
  * builds the bundle folder for npm release
  *
@@ -106,7 +177,9 @@ function createBundle(name, version, entry) {
     }
   });
 
-  const pkg = Object.assign({}, template);
+  const pkg = typeof structuredClone === "function"
+    ? structuredClone(template)
+    : JSON.parse(JSON.stringify(template));
   pkg.name = `@decaf-ts/${name}`;
   pkg.version = version;
   pkg.description = `Decaf-ts' ${name} install`;
@@ -126,9 +199,10 @@ function createBundle(name, version, entry) {
     pkg.keywords = entry.keywords;
   }
 
-  // ensure dependencies and devDependencies objects exist
-  pkg.dependencies = pkg.dependencies || {};
-  pkg.devDependencies = pkg.devDependencies || {};
+  // ensure each bundle starts from a clean manifest snapshot
+  pkg.dependencies = {};
+  pkg.devDependencies = {};
+  pkg.overrides = {};
 
   const dependencies = Array.isArray(entry && entry.dependencies)
     ? entry.dependencies
@@ -158,6 +232,23 @@ function createBundle(name, version, entry) {
       throw err;
     }
   });
+
+  const overrideSources = [
+    ...(entry && entry.overrides && isPlainObject(entry.overrides) ? [entry.overrides] : []),
+    ...(decaf && decaf.overrides && isPlainObject(decaf.overrides) ? [decaf.overrides] : []),
+  ];
+
+  [...dependencies, ...devs].forEach((dependency) => {
+    const collected = collectOverrides(dependency);
+    if (Object.keys(collected).length) {
+      overrideSources.push(collected);
+    }
+  });
+
+  overrideSources.forEach((source) => mergeOverrides(pkg.overrides, source));
+  if (!Object.keys(pkg.overrides).length) {
+    delete pkg.overrides;
+  }
 
   fs.writeFileSync(
     path.join(pPath, "package.json"),
