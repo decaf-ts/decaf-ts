@@ -31,6 +31,10 @@ function isDistPackage(dependency) {
  * @param {string} name
  */
 function resetReleaseFolder(name) {
+  if (process.env.DRY_RUN === "1") {
+    return;
+  }
+
   let result;
   const p = path.join(basePath, name);
   try {
@@ -95,6 +99,11 @@ function isPlainObject(value) {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function readJsonIfExists(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
 function mergeOverrides(target, source) {
   if (!isPlainObject(source)) return target;
 
@@ -113,45 +122,79 @@ function mergeOverrides(target, source) {
   return target;
 }
 
+function getReleasePackagePath(name) {
+  return path.join(basePath, name, "package.json");
+}
+
+function getSourcePackagePath(name) {
+  return path.join(process.cwd(), name, "package.json");
+}
+
+function getManifestForDependency(dependency, preferRelease = true) {
+  const name = dependencyFolderName(dependency);
+  const releasePkgPath = getReleasePackagePath(name);
+  const sourcePkgPath = getSourcePackagePath(name);
+
+  const releasePkg = preferRelease ? readJsonIfExists(releasePkgPath) : null;
+  if (releasePkg) {
+    return releasePkg;
+  }
+
+  const sourcePkg = readJsonIfExists(sourcePkgPath);
+  if (sourcePkg) {
+    return sourcePkg;
+  }
+
+  const bundleEntry = bundles && bundles[name];
+  if (bundleEntry) {
+    return Array.isArray(bundleEntry) ? { dependencies: bundleEntry } : bundleEntry || {};
+  }
+
+  return null;
+}
+
+function getNestedDependencyNames(manifest) {
+  if (!isPlainObject(manifest)) return [];
+
+  return [
+    ...Object.keys(manifest.dependencies || {}),
+    ...Object.keys(manifest.devDependencies || {}),
+    ...Object.keys(manifest.peerDependencies || {}),
+    ...Object.keys(manifest.optionalDependencies || {}),
+  ];
+}
+
 function collectOverrides(dependency, seen = new Set()) {
   const name = dependencyFolderName(dependency);
   if (seen.has(name)) return {};
   seen.add(name);
 
   const collected = {};
-  const localPkgPath = path.join(process.cwd(), name, "package.json");
 
-  if (fs.existsSync(localPkgPath)) {
-    const pkg = JSON.parse(fs.readFileSync(localPkgPath, "utf8"));
-    mergeOverrides(collected, pkg.overrides);
+  const manifests = [];
+  const releasePkg = readJsonIfExists(getReleasePackagePath(name));
+  if (releasePkg) manifests.push(releasePkg);
 
-    const nestedDeps = [
-      ...Object.keys(pkg.dependencies || {}),
-      ...Object.keys(pkg.devDependencies || {}),
-    ];
+  const sourcePkg = readJsonIfExists(getSourcePackagePath(name));
+  if (sourcePkg) manifests.push(sourcePkg);
 
-    nestedDeps.forEach((nestedDependency) => {
+  const bundleEntry = bundles && bundles[name];
+  if (!releasePkg && !sourcePkg && bundleEntry) {
+    manifests.push(Array.isArray(bundleEntry) ? { dependencies: bundleEntry } : bundleEntry || {});
+  }
+
+  manifests.forEach((manifest) => {
+    mergeOverrides(collected, manifest.overrides);
+
+    getNestedDependencyNames(manifest).forEach((nestedDependency) => {
       const nestedName = dependencyFolderName(nestedDependency);
-      const nestedLocalPkgPath = path.join(process.cwd(), nestedName, "package.json");
-      if (fs.existsSync(nestedLocalPkgPath) || (bundles && bundles[nestedName])) {
+      if (seen.has(nestedName)) return;
+      const nestedManifest = getManifestForDependency(nestedDependency);
+      if (nestedManifest) {
         mergeOverrides(collected, collectOverrides(nestedDependency, seen));
       }
     });
-
-    return collected;
-  }
-
-  if (bundles && bundles[name]) {
-    const entry = Array.isArray(bundles[name]) ? { dependencies: bundles[name] } : bundles[name] || {};
-    const nestedDeps = [
-      ...(Array.isArray(entry.dependencies) ? entry.dependencies : []),
-      ...(Array.isArray(entry.devDependencies) ? entry.devDependencies : []),
-    ];
-
-    nestedDeps.forEach((nestedDependency) => {
-      mergeOverrides(collected, collectOverrides(nestedDependency, seen));
-    });
-  }
+  });
 
   return collected;
 }
