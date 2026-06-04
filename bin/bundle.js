@@ -210,7 +210,7 @@ async function createBundles(){
     console.log(`Folder created for ${bundle}`);
     createBundle(bundle, decaf.version, entry);
     console.log(`${bundle} published. waiting 10 seconds before next bundl to ensure the registry is updated`);
-    await new Promise(resolve => setTimeout(resolve, 10000))
+    await new Promise(resolve => setTimeout(resolve, 20000))
   }
 }
 
