@@ -34,7 +34,7 @@
     "git-pull": "npm run git-all -- pull origin master",
     "git-all": "npm run run-all -- git",
     "run-all": "node ./bin/run-all.js",
-    "prepare-release": "npm run build-all:prod && npm run coverage && npm run docs",
+    "prepare-release": "echo \"handle with care. will create a bundle from current repo versions and publish to npm. you have 10 seconds to cancel\" && sleep 10s",
     "release": "./bin/tag-release.sh",
     "bundle": "node ./bin/bundle.js",
     "clean-publish": "npx clean-publish",

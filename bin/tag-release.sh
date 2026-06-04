@@ -128,14 +128,6 @@ else
   git push --follow-tags
 fi
 
-# Map user-friendly flag to npm --access value. npm expects "public" or "restricted"
-if [[ "$PUBLISH_ACCESS_FLAG" == "public" ]]; then
-  NPM_ACCESS_VALUE="public"
-else
-  NPM_ACCESS_VALUE="restricted"
-fi
-
 if [[ "$MESSAGE" =~ -no-ci$ ]]; then
-  # Use .npmtoken for publishing; respect chosen access level
-  NPM_TOKEN=$(cat .npmtoken) npm publish --access "$NPM_ACCESS_VALUE"
+  npm run bundle
 fi
