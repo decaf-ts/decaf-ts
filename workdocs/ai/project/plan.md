@@ -318,6 +318,17 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-141](./specifications/tasks/TASK_141.md): Define the Execution Mode Configuration and Routing Contract - Completed
   - [x] [TASK-142](./specifications/tasks/TASK_142.md): Implement Deterministic GOAP/Workflow Reporting to Manager - Completed
 
+---
+
+## DECAF-21 — Fabric Channel Manager Service
+- **Priority:** High
+- **Goal:** Add a reusable `ChannelManager` service in `for-fabric` for granular peer- and organization-level channel membership operations that infra consumers can import and extend.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_21.md)
+- **Tasks:**
+  - [ ] [TASK-147](./specifications/tasks/TASK_147.md): Define the ChannelManager contract and map the Fabric channel-management flows.
+  - [ ] [TASK-148](./specifications/tasks/TASK_148.md): Implement ChannelManager service, exports, and coverage.
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -345,6 +356,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (progress notifications and manager relay merged into this spec; implementation in progress, handshake validation pending)
 - DECAF-18: ⏳ Context Transition Semantics for `ContextualLoggedClass` (new spec added; implementation pending)
 - DECAF-19: ✅ Configurable Agent Execution Mode
+- DECAF-21: ⏳ Fabric Channel Manager Service
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
