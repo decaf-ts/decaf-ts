@@ -320,6 +320,18 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-22 — TaskEngine Step Insertion & Per-Step Retry
+- **Priority:** High
+- **Goal:** Extend composite task execution with tail-insertion (`atEnd`), required context on insertion methods, per-step `maxAttempts`/`backoff`, and test coverage for previously identified gaps.
+- **Status:** COMPLETED — `atEnd(ctx)`, required ctx on `afterCurrent(ctx)`, per-step retry with in-place heartbeat, `TaskStepResultModel.attempt`, builder helpers, and 4 new tests all implemented and verified.
+- **Link:** [Specification Details](./specifications/DECAF_22.md)
+- **Tasks:**
+  - [x] [TASK-149](./specifications/tasks/TASK_149.md): Implement atEnd insertion + required ctx on TaskContext/TaskEngine.
+  - [x] [TASK-150](./specifications/tasks/TASK_150.md): Implement per-step maxAttempts/backoff and TaskStepResultModel.attempt.
+  - [x] [TASK-151](./specifications/tasks/TASK_151.md): Add test coverage for atEnd, dynamic-step survival, and per-step retry.
+
+---
+
 ## DECAF-21 — Fabric Channel Manager Service
 - **Priority:** High
 - **Goal:** Add a reusable `ChannelManager` service in `for-fabric` for granular peer- and organization-level channel membership operations that infra consumers can import and extend.
@@ -357,6 +369,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-18: ⏳ Context Transition Semantics for `ContextualLoggedClass` (new spec added; implementation pending)
 - DECAF-19: ✅ Configurable Agent Execution Mode
 - DECAF-21: ⏳ Fabric Channel Manager Service
+- DECAF-22: ✅ TaskEngine Step Insertion & Per-Step Retry (atEnd, required ctx, per-step maxAttempts/backoff, 4 new tests)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
