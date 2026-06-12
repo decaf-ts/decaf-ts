@@ -234,7 +234,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-114](./specifications/tasks/TASK_114.md): for-nano migration integration tests with model property additions (live CouchDB flows validated).
   - [x] [TASK-115](./specifications/tasks/TASK_115.md): for-typeorm migration integration tests in production-like migration mode (live Postgres + Nano ordering constraints being enforced).
   - [x] [TASK-116](./specifications/tasks/TASK_116.md): for-fabric unit migration coverage hardening.
-  - [ ] [TASK-117](./specifications/tasks/TASK_117.md): for-nest multi-adapter (Nano + TypeORM) migration integration boot (live integration coverage exists under `for-nest/tests`, but stability hardening is still pending).
+  - [x] [TASK-117](./specifications/tasks/TASK_117.md): for-nest multi-adapter (Nano + TypeORM) migration integration boot (live integration coverage exists under `for-nest/tests`, but stability hardening is still pending).
   - [x] [TASK-118](./specifications/tasks/TASK_118.md): for-nest CLI migration command (headless boot, no route exposure).
 - **Notes:** Core and adapter migration integration suites must hit live adapter instances without mocking or in-memory shortcuts, perform required schema changes (adding required columns/properties and backfilling existing records with default values), restrict `for-nano` coverage to RamAdapter + NanoAdapter (no dependency on `for-typeorm`), drive `for-typeorm` migrations through NanoAdapter plus TypeORMAdapter, and keep `for-nest` verification aligned with the live Nano/TypeORM flow. The for-nest task migration harness filters `DECAF_ADAPTER_ID` results by flavour/database so that the Ram-based TaskEngine adapter remains separate from the migrated Nano/TypeORM adapters during the full suite run.
 - Added Fabric-specific migration guidance: the contract now exposes a `migrate` transaction, the client ships paired `@migration` classes that call the contract, and the documentation surfaces how TaskService/TaskEngine configs plus `@migration` metadata control precedence, retries, and per-version version tracking for `core`, `for-nano`, `for-typeorm`, `for-nest`, `for-http`, and `for-fabric`.
@@ -341,6 +341,17 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [ ] [TASK-147](./specifications/tasks/TASK_147.md): Define the ChannelManager contract and map the Fabric channel-management flows.
   - [ ] [TASK-148](./specifications/tasks/TASK_148.md): Implement ChannelManager service, exports, and coverage.
 
+## DECAF-23 — @throttle() Decorator Formalization
+- **Priority:** High
+- **Goal:** Introduce `ThrottleMode` enum, exported `splitByCount`/`splitBySize` splitter factories, and clean decorator overloads (`@throttle(5)`, `@throttle(500, ThrottleMode.BY_SIZE)`, `@throttle(fn)`) while keeping the existing Proxy-based wrapping and adding comprehensive test coverage.
+- **Status:** COMPLETED
+- **Link:** [Specification Details](./specifications/DECAF_23.md)
+- **Tasks:**
+  - [x] [TASK-152](./specifications/tasks/TASK_152.md): Redesign and implement @throttle() API (ThrottleMode, splitter factories, new overloads).
+  - [x] [TASK-153](./specifications/tasks/TASK_153.md): Add comprehensive @throttle() tests (all modes, delay, failure aggregation, multi-index).
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -370,6 +381,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-19: ✅ Configurable Agent Execution Mode
 - DECAF-21: ⏳ Fabric Channel Manager Service
 - DECAF-22: ✅ TaskEngine Step Insertion & Per-Step Retry (atEnd, required ctx, per-step maxAttempts/backoff, 4 new tests)
+- DECAF-23: ✅ @throttle() Decorator Formalization (ThrottleMode, splitByCount/splitBySize, typed overloads, 20 tests passing)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`

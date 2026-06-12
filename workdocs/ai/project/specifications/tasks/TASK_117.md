@@ -3,7 +3,7 @@
 **ID:** TASK-117
 **Specification:** [Link to Specification](../DECAF_14.md)
 **Priority:** High
-**Status:** In Progress — live multi-adapter migration integration coverage is present under `for-nest/tests`, but it still needs stability hardening before the task can close.
+**Status:** Completed
 
 ## 1. Description
 Create `for-nest` integration coverage that boots Nest with one Nano adapter and one TypeORM adapter, then executes a migration flow that migrates both adapters in a single boot sequence. Trigger migrations through an explicit callable function after services are booted and before any endpoints are exposed, with no lifecycle hooks.
@@ -43,3 +43,4 @@ Create `for-nest` integration coverage that boots Nest with one Nano adapter and
 -   [2026-04-25] - Reworked `for-nest` multi-adapter integration test to run live Nano/Postgres migrations that add required schema changes and backfill defaults before proceeding with CLI coverage.
 -   [2026-04-25] - Executed the updated multi-adapter migration test against live CouchDB/Postgres stacks; the schema-change/backfill flow completed and version markers now reflect `1.1.0-nest-live`.
 -   [2026-05-23] - Revalidated the repository state and confirmed live Nano+TypeORM migration integration coverage is present under `for-nest/tests/integration/`, but the path is still not stable enough to close the task.
+-   [2026-06-08] - Resolved module hazard: `for-nano/node_modules/@decaf-ts/core` is a stale v0.26.1 copy (not symlinked), causing `NanoAdapter` to register in a different `Adapter._cache` than `MigrationService.initialize()` queries. Fixed with `LiveNanoAdapter` wrapper in the test (re-registers in the correct cache after `super()`, matching the `for-typeorm` pattern) and defensive pre-registration in `DecafMigrationModule.migrate()`. Test suite passes: `migration.multi-adapter.integration.test.ts` ✓ and `cli-migrate.multi-adapter.integration.test.ts` ✓.
