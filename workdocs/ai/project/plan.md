@@ -352,6 +352,22 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-24 — Graph Metadata Layer and Angular Graph Adapter
+- **Priority:** High
+- **Goal:** Add a framework-neutral graph metadata layer in `ui-decorators` and a concrete Angular graph adapter in `for-angular`, with `ngDiagram` treated as an optional runtime dependency for now.
+- **Status:** Completed
+- **Link:** [Specification Details](./specifications/DECAF_24.md)
+- **Tasks:**
+  - [x] [TASK-154](./specifications/tasks/TASK_154.md): Define the canonical graph metadata contract and merge rules.
+  - [x] [TASK-155](./specifications/tasks/TASK_155.md): Implement graph primitives and exports in `ui-decorators`.
+  - [x] [TASK-156](./specifications/tasks/TASK_156.md): Implement the Angular graph adapter in `for-angular`.
+  - [x] [TASK-157](./specifications/tasks/TASK_157.md): Add tests, documentation, and package wiring for graph support.
+  - [x] [TASK-158](./specifications/tasks/TASK_158.md): Add `@graph(...)` workflow-root metadata in `ui-decorators`.
+  - [x] [TASK-159](./specifications/tasks/TASK_159.md): Build the Angular graph renderer and reusable value nodes.
+  - [x] [TASK-160](./specifications/tasks/TASK_160.md): Add workflow serialization and restore support for graph state.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -382,6 +398,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-21: ⏳ Fabric Channel Manager Service
 - DECAF-22: ✅ TaskEngine Step Insertion & Per-Step Retry (atEnd, required ctx, per-step maxAttempts/backoff, 4 new tests)
 - DECAF-23: ✅ @throttle() Decorator Formalization (ThrottleMode, splitByCount/splitBySize, typed overloads, 20 tests passing)
+- DECAF-24: ✅ Graph Metadata Layer and Angular Graph Adapter (canonical `ui-decorators` graph layer, Angular/ngDiagram adapter, workflow-root renderer, and workflow serialization/restoration completed)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
