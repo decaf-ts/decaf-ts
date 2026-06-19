@@ -368,6 +368,19 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-25 — Webpage Refactor to Full Decaf Convention
+- **Priority:** High
+- **Goal:** Refactor the `for-angular` webpage to use the full Decaf convention and the systems already present in `for-angular`.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_25.md)
+- **Tasks:**
+  - [ ] DECAF-25-1: Audit the current `for-angular` webpage for convention gaps.
+  - [ ] DECAF-25-2: Refactor page composition and routing to reuse existing `for-angular` systems.
+  - [ ] DECAF-25-3: Normalize shared services, state handling, and page-level abstractions.
+  - [ ] DECAF-25-4: Add regression coverage and documentation for the webpage refactor.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -399,6 +412,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-22: ✅ TaskEngine Step Insertion & Per-Step Retry (atEnd, required ctx, per-step maxAttempts/backoff, 4 new tests)
 - DECAF-23: ✅ @throttle() Decorator Formalization (ThrottleMode, splitByCount/splitBySize, typed overloads, 20 tests passing)
 - DECAF-24: ✅ Graph Metadata Layer and Angular Graph Adapter (canonical `ui-decorators` graph layer, Angular/ngDiagram adapter, workflow-root renderer, and workflow serialization/restoration completed)
+- DECAF-25: ⏳ Webpage Refactor to Full Decaf Convention
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
