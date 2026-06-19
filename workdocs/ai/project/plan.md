@@ -187,9 +187,10 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - **Link:** [Specification Details](./specifications/DECAF_10.md)
 - **Tasks:**
   - [x] [TASK-105](./specifications/tasks/TASK_105.md): Analyze the existing controller pipeline, metadata, and current `BlockOperations` usage so we know what the builder must reproduce.
-  - [x] [TASK-106](./specifications/tasks/TASK_106.md): Implement `DecafModelControllerBuilder` with helpers for CRUD, statements, bulk helpers, and `addComplexQueries`.
-  - [x] [TASK-107](./specifications/tasks/TASK_107.md): Extend `BlockOperations` so it can also block prepared statements (`PreparedStatementKeys`) and repository query keys before builder registration.
-  - [ ] [TASK-108](./specifications/tasks/TASK_108.md): Add tests/docs verifying the builder respects blocked operations, keeps static helpers, and keeps `sqaggre` metadata intact.
+- [x] [TASK-106](./specifications/tasks/TASK_106.md): Implement `DecafModelControllerBuilder` with helpers for CRUD, statements, bulk helpers, and `addComplexQueries`.
+- [x] [TASK-107](./specifications/tasks/TASK_107.md): Extend `BlockOperations` so it can also block prepared statements (`PreparedStatementKeys`) and repository query keys before builder registration.
+- [ ] [TASK-108](./specifications/tasks/TASK_108.md): Add tests/docs verifying the builder respects blocked operations, keeps static helpers, and keeps `sqaggre` metadata intact.
+- [x] [TASK-180](./specifications/tasks/TASK_180.md): Live integration coverage for `@expose(...)`, controller exposure overrides, split RAM/Nano controllers, axios-backed route validation, and `/sse` delivery.
 
 ---
 
@@ -381,6 +382,21 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-26 — SecretService API and Provider Implementations for @decaf-ts/integrations
+- **Priority:** High
+- **Goal:** Add a provider-agnostic SecretService API to `@decaf-ts/integrations` with encrypted-at-rest local storage and provider-specific subpath implementations for Vault, AWS, Azure, GCP, and 1Password.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_26.md)
+- **Tasks:**
+  - [ ] DECAF-26-1: Define the secret core contracts, name policy, serializer, and error model.
+  - [ ] DECAF-26-2: Implement the memory service and the model-backed encrypted-at-rest service.
+  - [ ] DECAF-26-3: Add provider subpaths for AWS, Azure, GCP, and HashiCorp Vault.
+  - [ ] DECAF-26-4: Add the 1Password provider implementation and document its support limits.
+  - [ ] DECAF-26-5: Update package exports, dependency metadata, and root import safety.
+  - [ ] DECAF-26-6: Add contract tests, encryption tests, bundling tests, and docs.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -413,6 +429,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-23: ✅ @throttle() Decorator Formalization (ThrottleMode, splitByCount/splitBySize, typed overloads, 20 tests passing)
 - DECAF-24: ✅ Graph Metadata Layer and Angular Graph Adapter (canonical `ui-decorators` graph layer, Angular/ngDiagram adapter, workflow-root renderer, and workflow serialization/restoration completed)
 - DECAF-25: ⏳ Webpage Refactor to Full Decaf Convention
+- DECAF-26: ⏳ SecretService API and Provider Implementations for @decaf-ts/integrations
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`

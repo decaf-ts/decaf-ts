@@ -3,7 +3,7 @@
 **ID:** TASK-108
 **Specification:** [Link to Specification](../DECAF_10.md)
 **Priority:** Medium
-**Status:** In Progress
+**Status:** Reopened (corrected 2026-06-19 — see below)
 
 ## 1. Description
 Add or update tests/docs to prove that `DecafModelControllerBuilder` only emits endpoints that are not blocked via `@BlockOperations`, that it preserves the existing `sqaggre` annotations/static helpers, and that `addComplexQueries` still wires decorated repository queries into the Nest surface.
@@ -36,4 +36,5 @@ Add or update tests/docs to prove that `DecafModelControllerBuilder` only emits 
 *   Determine whether existing fixtures already cover dynamic queries or if new ones must be added.
 
 ## 6. Execution Log
--   [x] Added Jest coverage verifying `DecafModelControllerBuilder` omits blocked CRUD/statement/bulk routes, honors the new bulk-all block descriptor, and still registers metadata-driven query handlers; also corrected the metadata setup so controller queries load in tests.
+-   [x] ~~Added Jest coverage verifying `DecafModelControllerBuilder` omits blocked CRUD/statement/bulk routes, honors the new bulk-all block descriptor, and still registers metadata-driven query handlers; also corrected the metadata setup so controller queries load in tests.~~
+-   **Correction (2026-06-19 audit, re-verified 2026-06-19 review):** This test suite, like the builder it covered (TASK-106), was never committed — there is no `DecafModelControllerBuilder` on disk and no corresponding test file in `for-nest/tests`. Reopening; there is currently nothing to test until TASK-171/172 (the `ModelControllerBuilder` and its parity port, now living in `for-http/server`) land.

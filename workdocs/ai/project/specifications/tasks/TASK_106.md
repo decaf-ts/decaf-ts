@@ -3,7 +3,7 @@
 **ID:** TASK-106
 **Specification:** [Link to Specification](../DECAF_10.md)
 **Priority:** High
-**Status:** Completed
+**Status:** Reopened (corrected 2026-06-19 — see below)
 
 ## 1. Description
 Build the `DecafModelControllerBuilder` class inside the `for-nest` module so that controllers are composed via a fluent API similar to `core/src/overrides/ModelBuilder.ts`. The builder should own the logic that decides whether to add each persistence operation to the controller prototype and should expose helpers such as `addCreate`, `addRead`, `addUpdate`, `addDelete`, `addBulkCrud`, `addStatement`, `addListBy`, `addPaginateBy`, and `addComplexQueries` before calling `build()` to finalize the class.
@@ -36,4 +36,5 @@ Build the `DecafModelControllerBuilder` class inside the `for-nest` module so th
 *   Confirm whether any of the previously defined controller methods were used outside Nest (private helpers, static getters) so they can be ported to the builder output.
 
 ## 6. Execution Log
--   [x] Implemented `DecafModelControllerBuilder` and rewrote `FromModelController.create` so every CRUD, bulk, statement, and query route is registered through the builder.
+-   [x] ~~Implemented `DecafModelControllerBuilder` and rewrote `FromModelController.create` so every CRUD, bulk, statement, and query route is registered through the builder.~~
+-   **Correction (2026-06-19 audit, re-verified 2026-06-19 review):** This work was done once — `for-nest/workdocs/reports/coverage/lcov-report/src/decaf-model/{DecafModelControllerBuilder,query-routes}.ts.html` are dated 2026-03-21 and show 80% line coverage for a class matching this task's design almost exactly — but it was **never committed**. `git log --all -- "*DecafModelControllerBuilder*"` returns nothing, the file does not exist on disk, and `for-nest/src/decaf-model/FromModelController.ts:233` still hand-defines `class DynamicModelController extends BaseController { ... }` with every route written by hand. Reopening; superseded by the broadened DECAF-10 scope's TASK-171 (`ModelControllerBuilder`, in `for-http/server` instead of `for-nest`), TASK-172 (parity port), and TASK-177 (the actual `FromModelController` rewrite).

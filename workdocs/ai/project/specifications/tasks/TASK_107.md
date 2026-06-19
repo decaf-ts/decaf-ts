@@ -3,7 +3,7 @@
 **ID:** TASK-107
 **Specification:** [Link to Specification](../DECAF_10.md)
 **Priority:** High
-**Status:** Completed
+**Status:** Completed (orphaned — see note below; tracked again via TASK-177)
 
 ## 1. Description
 Expand the current `@decaf-ts/db-decorators`/`@decaf-ts/core` `BlockOperations` guard so it can also be used to block prepared statements (e.g., `PreparedStatementKeys.LIST_BY`, `PreparedStatementKeys.PAGE`) and repository query keys (`PersistenceKeys.QUERY`). The new metadata should allow `DecafModelControllerBuilder` to ask whether a CRUD operation, statement, or query route is disallowed before registering it.
@@ -38,3 +38,4 @@ Expand the current `@decaf-ts/db-decorators`/`@decaf-ts/core` `BlockOperations` 
 ## 6. Execution Log
 -   [x] Extended `BlockOperations` metadata to support statement/query/bulk descriptors and updated guards/tests to exercise the richer `isOperationBlocked` signature.
 -   [x] Added the `BulkOperationBlockTarget` descriptor so `@BlockOperations` can macro-block every bulk endpoint in a single statement.
+-   **Note (2026-06-19 audit, re-verified 2026-06-19 review):** Confirmed still genuinely shipped and correct in `db-decorators/src/operations/{decorators,constants}.ts` and `core/src/utils/utils.ts`'s 3-arg `isOperationBlocked(ModelConstructor, kind, value)` overload. However, `for-nest/src/decaf-model/decorators/ApiOperationFromModel.ts` defines its own local, 2-arg-only `isOperationBlocked(ModelConstructor, op)` instead of importing this one — so this capability has **no caller anywhere in `for-nest`** today. The "Completed" status reflects the `db-decorators`/`core` work only; closing the orphaned-capability gap is TASK-177's job.
