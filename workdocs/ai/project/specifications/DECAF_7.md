@@ -1,390 +1,130 @@
 # DECAF-7: Transaction Decorator Refactoring with Lock Context
 
-**Status:** Draft  
-**Priority:** High  
+**Status:** Completed
+**Priority:** High
 **Owner:** decaf-dev
 
 ## 1. Overview
-Refactor the `@transactional` decorator in core to use the Decoration API for proper transaction management with adapter-provided lock instances. The lock must survive multiple calls to `logCtx` and properly manage transaction boundaries (begin/end) and lock acquisition/release through a reference counter.
+Fixed and finished the `@transactional` mechanism in `core` (`core/src/persistence/transactions.ts` + `core/src/persistence/ContextLock.ts`), replacing the original `TransactionLockProxy`/hierarchical-`LockLevel` design (never implemented) with a simpler model: every adapter can expose its own transaction-lock implementation (mirroring how it exposes its own `Context` type), with all native transaction logic (begin/commit/rollback) hidden behind that implementation. The `@transactional()` proxy populates the lock into the `Context` on first entry, reuses it on nested calls, and owns the nesting/depth bookkeeping itself — the lock implementation knows nothing about nesting.
 
-**Enhanced Lock Requirements:**
-- Lock MUST support hierarchical locking (none/adapter/table/record levels) via `acquire(level, tableName?, recordId?)`
-- Lock MUST support configurable concurrent transactions via `maxConcurrent` option (null = unlimited)
-- Lock MUST be extensible: base implementation has no real locking, adapters can override
-- Lock MUST be passed via configuration to adapters, not created internally
-- Type definition: `type LockLevel = "none" | "adapter" | "table" | "record"`
+Implementation surfaced two things this spec did not anticipate, both fixed:
+1.  **`core` never actually exported a usable `@transactional` factory.** It only ran `Decoration.for(TransactionalKeys.TRANSACTIONAL).define({decorator: innerTransactional}).apply()` once at module load. But `@decaf-ts/transactional-decorators`'s own exported `transactional(...)` factory re-runs that same `.define().apply()` registration (with its **own** decorator) every time it's called — i.e. every time `@transactional()` decorates a class member. Since core exported no callable factory of its own, the only `transactional` symbol anyone could import was the base package's, and using it always re-asserted the base package's implementation, permanently undoing core's one-shot registration. Fix: `core/src/persistence/transactions.ts` now exports its own `transactional(...)` factory; consumers must import `transactional` from `@decaf-ts/core`, not `@decaf-ts/transactional-decorators`, to get this mechanism.
+2.  **Double-rollback on nested failure.** When an inner `@transactional` call rolled back and ended the transaction (depth forced to 0), the enclosing frame's own `catch` block didn't know that had already happened and called `rollback()` again. Fixed by checking whether depth was already 0 before calling `rollback()` again.
+
+The originally-suspected "context survival" problem (a `transactionLock` getting dropped when `Adapter.context()`/`Service.context()` derive a new `Context`) turned out to be a non-issue once the `ctx.put` defect (below) was fixed — `Context.toOverrides()` already returns every cache key, and `Adapter.flags()`/`Service.flags()` already pass `flags` through via permissive `Object.assign`, so an existing `transactionLock` already survives context derivation with no additional code change. This was verified with real nested-call tests through `Repository` and `ModelService`, not assumed.
+
+**Follow-up (2026-06-19): first concrete native-transaction adapter.** The override point (`Adapter.transactionLock()`) was tested with a synthetic `CountingLock` but had no real-world adapter exercising it. Implemented `TypeORMContextLock` for `for-typeorm`, backing `@transactional()` with a real Postgres `QueryRunner`'s `BEGIN`/`COMMIT`/`ROLLBACK`, and routed `TypeORMAdapter`'s CRUD methods through the active transaction's `EntityManager`. Validated with 3+-level nested-transaction tests and concurrent-transaction tests against a live Postgres container (see Section 5, TASK-161 through TASK-164).
+
+**Follow-up (2026-06-19): the default `ContextLock` is no longer a pure no-op.** Section 2's last item originally dropped the draft's hierarchical-`LockLevel`/`maxConcurrent` design entirely. A simplified, single-flag version of `maxConcurrent` was reintroduced: `AdapterFlags.maxConcurrentTransactions` (default `-1`, meaning unlimited - the previous no-op behavior). `0` disables transactions outright; any positive `N` gates concurrent transactions through an in-process counting semaphore shared per adapter, queuing callers past the limit until a permit frees up on `commit()`/`rollback()`. This only changes the *default* `ContextLock` - adapters that fully override `begin`/`commit`/`rollback` (like `for-typeorm`'s `TypeORMContextLock`) never call `super.*()`, so the flag has no effect on them; concurrency there is left entirely to the underlying database. See TASK-165 through TASK-167.
 
 ## 2. Goals
-*   [ ] Refactor `@transactional` decorator to use Decoration API
-*   [ ] Ensure Context always has a lock property (Lock instance from adapter)
-*   [ ] Implement proxy for acquire/release methods with reference counting
-*   [ ] Call adapter's beginTransaction on first acquire
-*   [ ] Call adapter's endTransaction on last release
-*   [ ] Call lock.acquire(level, tableName?, recordId?) on first acquire
-*   [ ] Call lock.release(level, tableName?, recordId?) on last release
-*   [ ] Define abstract adapter methods for transactions (no implementation)
-*   [ ] Create enhanced Lock that supports hierarchical locking (none/table/record levels) with configurable maxConcurrent
-*   [ ] Update Lock acquire() and release() methods to accept level, tableName, recordId parameters
-*   [ ] Update TransactionLockProxy to pass level/tableName/recordId to lock methods
-*   [ ] Add unit tests for transaction decorator behavior
-*   [ ] Add integration tests with concrete adapters (RamAdapter, etc.)
+*   [x] Fix the confirmed defect in `core/src/persistence/transactions.ts` (`ctx.put(...)` called a method that does not exist on `Context`; fixed to `ctx.cache.put(...)`, matching every other call site in the codebase)
+*   [x] Verify `transactionLock` survives every code path that derives/recreates a context (`Adapter.context()`, `Service.context()`) — confirmed already correct via tests, no extra code needed once `ctx.cache.put` was fixed
+*   [x] Move nested-call reference counting out of the lock wrapper and into the `@transactional` proxy itself (depth tracked directly on the lock instance, mutated by the proxy)
+*   [x] Let each adapter expose its own transaction-lock implementation via `Adapter.transactionLock()` (default no-op `ContextLock` at the base `Adapter`), analogous to how `Context` is overridable per adapter
+*   [x] Make `rollback()` end the transaction outright (depth forced to 0) and made enclosing frames no-op instead of double-rolling-back
+*   [x] Verified the identical contract holds for `Service`/`ModelService`, not just `Adapter`/`Repository`
+*   [x] Export `transactional(...)` as a proper factory from `core/src/persistence/transactions.ts` — fixes the real defect that the original spec's "decorator-registration precedence" risk only partially described (see Overview)
+*   [x] Replaced `core/tests/unit/transaction-cross-service.test.ts` — previously imported `transactional` from `@decaf-ts/transactional-decorators` and asserted `expect(true).toBe(true)`; now imports from `@decaf-ts/core` and asserts real begin/commit/depth counts through a Repository
+*   [x] Added a registration-precedence test proving core's factory is what's active when explicitly imported/used, regardless of the base package's factory being used elsewhere in the same process
+*   [x] Added unit tests for nested `@transactional` calls sharing one transaction across `Repository` and `ModelService` call sites
+*   [x] Added an integration test with `RamAdapter` performing real CRUD (two `create`s) inside one shared transaction
+*   [x] Implemented a concrete native-transaction adapter (`for-typeorm`'s `TypeORMContextLock`, wrapping a real Postgres `QueryRunner`'s `BEGIN`/`COMMIT`/`ROLLBACK`), validating the `Adapter.transactionLock()` override point end-to-end instead of only via a synthetic test lock
+*   [x] Routed `TypeORMAdapter`'s CRUD methods (`create`/`read`/`update`/`delete`/`createAll`/`readAll`/`deleteAll`) through the active transaction's `EntityManager` when present, so nested operations actually share one connection/transaction, not just have begin/commit/rollback called around independently-pooled-connection operations
+*   [x] Added a 3+-level nested `@transactional` test with several operations per level — to `core` (RAM adapter, since none existed at that complexity) and to `for-typeorm` against a live Postgres database, proving commit and rollback are each atomic across the whole call tree
+*   [x] Added concurrent/simultaneous-transaction tests against live Postgres, confirming native isolation (an uncommitted insert is invisible to another connection until `COMMIT`) and row-lock contention (a concurrent `UPDATE` of the same row blocks until the first transaction ends), verified directly via `pg_stat_activity`
+*   [x] `AdapterTransaction`/hierarchical `LockLevel` from the original draft were dropped entirely — not part of the final design, nothing to do there. `maxConcurrent` was partially reintroduced (2026-06-19), in a simplified single-flag form: `AdapterFlags.maxConcurrentTransactions`, enforced by the default `ContextLock` itself via an in-process counting semaphore - no hierarchical locking levels (none/adapter/table/record)
+*   [x] Added `maxConcurrentTransactions` to `AdapterFlags` (default `-1`/unlimited) and implemented `0` (disabled, throws), and `N > 0` (counting-semaphore gated concurrency) in the default `ContextLock`
+*   [x] Added integration tests covering all four `maxConcurrentTransactions` behaviors (`-1`, `0`, `1`, `3`) against a real `RamAdapter` + `@transactional()` call tree
+*   [x] Documented `maxConcurrentTransactions` in `core`'s "How to Use" guide and its explicit no-effect caveat for `for-typeorm` (concurrency there is governed by Postgres, not this flag)
 
 ## 3. User Stories / Requirements
-*   **US-1:** As a developer using @transactional, I want the decorator to automatically manage lock acquisition and transaction boundaries
-*   **US-2:** As a developer, I want the lock to persist across multiple logCtx calls within a single transaction
-*   **US-3:** As a maintainer, I want different adapters (RamAdapter, TypeORM, etc.) to provide their own lock implementations
-*   **US-4:** As a developer, I want nested @transactional calls to share the same lock instance
-*   **US-5:** As a developer, I want to configure the maximum number of concurrent transactions (null = unlimited)
-*   **US-6:** As a developer, I want locking at different levels: none, adapter, table, record
-*   **US-7:** As a developer, I want to provide the lock instance via adapter configuration, not have it created internally
-*   **Req-1:** @transactional MUST always inject a Lock instance into the Context
-*   **Req-2:** Lock instance MUST come from the adapter configuration, not a singleton
-*   **Req-3:** acquire/release proxy MUST increase counter on acquire, decrease on release
-*   **Req-4:** First acquire MUST call adapter.beginTransaction() and lock.acquire(level, tableName?, recordId?)
-*   **Req-5:** Last release MUST call lock.release(level, tableName?, recordId?) and adapter.endTransaction()
-*   **Req-6:** Adapter base class MUST define abstract async methods: beginTransaction, endTransaction
-*   **Req-7:** Lock must survive multiple logCtx() calls (store in Context, not local variable)
-*   **Req-8:** Lock MUST support hierarchical levels: none, adapter, table, record via `acquire(level, tableName?, recordId?)`
-*   **Req-9:** Lock MUST support configurable maxConcurrent transactions (null = unlimited)
-*   **Req-10:** Lock MUST be passed via adapter config, NOT created internally by adapter
+*   **US-1:** As a developer using `@transactional`, I want the decorator to manage lock acquisition and transaction boundaries automatically. — Met.
+*   **US-2:** As a developer, I want the lock to persist across nested `@transactional` calls within a single logical transaction. — Met, verified via `transaction-cross-service.test.ts` and `transaction-model-service.test.ts`.
+*   **US-3:** As a maintainer, I want different adapters to provide their own transaction-lock implementations. — Met: `Adapter.transactionLock()` is the override point; base implementation is a no-op `ContextLock`. `for-typeorm` now overrides it with `TypeORMContextLock`, backed by a real Postgres `QueryRunner` (`BEGIN`/`COMMIT`/`ROLLBACK`); validated against a live Postgres database, not just via the synthetic `CountingLock` used elsewhere in tests.
+*   **US-4:** As a developer, I want nested `@transactional` calls (including across Repository/Service boundaries) to share the same transaction. — Met.
+*   **US-5:** As a developer, I want any error inside a transaction to roll it back and end it outright. — Met, including the double-rollback fix.
+*   **Req-1:** `@transactional` stores the transaction-lock instance on the `Context` (`ctx.cache.put("transactionLock", lock)`), visible to nested calls. — Met.
+*   **Req-2:** The transaction-lock instance comes from `Adapter.transactionLock()`, not a singleton, not threaded through adapter config. — Met.
+*   **Req-3:** The `@transactional` proxy detects an existing lock on the context (`ctx.getOrUndefined("transactionLock")`) and reuses it, incrementing `lock.depth`. — Met.
+*   **Req-4:** First entry (depth 0 → 1) calls `lock.begin()`. Last exit (depth 1 → 0) calls `lock.commit()`. — Met.
+*   **Req-5:** On error, the proxy calls `lock.rollback(err)` and resets depth to 0 immediately; enclosing frames detect `depth === 0` already and skip a second `rollback()` call. — Met.
+*   **Req-6:** No acquisition timeout. — Met (no timeout logic added).
+*   **Req-7:** No configurable transaction isolation levels — out of scope. — Met (not implemented).
+*   **Req-8 (superseded):** Originally specified an explicit `flags()` fix to forward `transactionLock` across context derivation. Verified unnecessary: `ctx.toOverrides()` already returns every cache key (including `transactionLock`), and both `Adapter.flags()`/`Service.flags()` already pass incoming flags through via `Object.assign` without stripping unknown keys. No code change made here; covered by tests instead of by inspection alone.
+*   **Req-9:** The same lock-survival and nesting contract holds for `Service`/`ModelService`, not only `Adapter`/`Repository`. — Met, verified via `transaction-model-service.test.ts`.
+*   **Req-10:** `ctx.put("transactionLock", lock)` defect fixed to `ctx.cache.put(...)`. — Met.
+*   **Req-11 (new):** `core` must export its own callable `transactional(...)` factory; merely having `core/src/persistence/transactions.ts` loaded/imported is not sufficient, because `@decaf-ts/transactional-decorators`'s factory re-registers itself under the same Decoration key every time it is invoked. — Met.
+*   **Req-12 (new, 2026-06-19):** The default `ContextLock` must expose a `maxConcurrentTransactions` `AdapterFlags` flag (default `-1`/unlimited): `0` disables transactions outright (throws), any positive `N` caps concurrent transactions per adapter via a counting semaphore, shared across every `ContextLock` instance for that adapter. Adapters that fully override the lock lifecycle (no `super.*()` calls) are unaffected. — Met, verified via `transaction.max-concurrent.integration.test.ts` against `RamAdapter` and confirmed as a documented no-op against `for-typeorm`.
 
-## 4. Architecture & Design
+## 4. Architecture & Design (as implemented)
 
-### Current State (Problem)
-- `@transactional` decorator likely exists but doesn't use Decoration API
-- Lock management is not properly integrated with Context
-- Transaction boundaries may not be correctly managed
-- Current MultiLock doesn't support hierarchical locking (none/table/record levels)
-- No support for configurable concurrent transactions
-- Locks were being created internally by adapters instead of being passed via config
-
-### New Architecture
-
-#### 1. Enhanced Lock Design
-```typescript
-// transactional-decorators/src/Lock.ts
-export type LockLevel = "none" | "adapter" | "table" | "record";
-
-export class Lock {
-  protected maxConcurrent: number | null;
-
-  constructor(config: { maxConcurrent?: number | null } = {}) {
-    this.maxConcurrent = config.maxConcurrent ?? null;
-  }
-
-  async acquire(level: LockLevel, tableName?: string, recordId?: string): Promise<void> {
-    // Base implementation: no real locking
-    // Adapters can override this method for proper locking
-  }
-
-  async release(level: LockLevel, tableName?: string, recordId?: string): Promise<void> {
-    // Base implementation: no real locking
-    // Adapters can override this method for proper locking
-  }
-}
-
-export class MultiLock extends Lock {
-  constructor(config: { maxConcurrent?: number | null } = {}) {
-    super(config);
-  }
-
-  override async acquire(level: LockLevel, tableName?: string, recordId?: string): Promise<void> {
-    // MultiLock implementation with hierarchical support
-  }
-
-  override async release(level: LockLevel, tableName?: string, recordId?: string): Promise<void> {
-    // MultiLock implementation with hierarchical support
-  }
-}
-
-// Proxy for acquire/release with reference counting
-class TransactionLockProxy {
-  private realLock: Lock;
-  private adapter: Adapter;
-  private acquireCount: number = 0;
-
-  constructor(lock: Lock, adapter: Adapter) {
-    this.realLock = lock;
-    this.adapter = adapter;
-  }
-
-  async acquire(level: LockLevel = "none", tableName?: string, recordId?: string): Promise<void> {
-    this.acquireCount++;
-    
-    if (this.acquireCount === 1) {
-      // First acquire - start transaction
-      await this.adapter.beginTransaction();
-      await this.realLock.acquire(level, tableName, recordId);
-
-  constructor(lock: Lock, adapter: Adapter) {
-    this.realLock = lock;
-    this.adapter = adapter;
-  }
-
-  async acquire(level: LockLevel = "none", tableName?: string, recordId?: string): Promise<void> {
-    this.acquireCount++;
-    
-    if (this.acquireCount === 1) {
-      // First acquire - start transaction
-      await this.adapter.beginTransaction();
-      await this.realLock.acquire(level, tableName, recordId);
-      
-      // Inject lock into Context for persistence across logCtx calls
-      const ctx = Context.current();
-      if (ctx) {
-        // Store the lock instance in context for logCtx to access
-        // The lock survives because it's in Context, not a local variable
-        ctx.accumulate({ transactionLock: this });
-      }
-    }
-  }
-
-  async release(level: LockLevel = "none", tableName?: string, recordId?: string): Promise<void> {
-    this.acquireCount--;
-    
-    if (this.acquireCount === 0) {
-      // Last release - end transaction
-      await this.realLock.release(level, tableName, recordId);
-      await this.adapter.endTransaction();
-    }
-  }
-
-  // Get the real lock for direct access if needed
-  get real(): Lock {
-    return this.realLock;
-  }
-}
-```
-
-#### 2. Adapter Base Class (Abstract Methods)
-```typescript
-// core/src/persistence/Adapter.ts
-export abstract class Adapter<CONFIG, QUERY, FLAGS, CONTEXT> {
-  // ... existing code ...
-
-  /**
-   * @description Begin a transaction
-   * @summary Called by the transaction decorator before the first acquire
-   * @async
-   */
-  protected async beginTransaction(): Promise<void> {
-    // Base implementation is a no-op
-    // Adapters requiring transaction management can override this
-  }
-
-  /**
-   * @description End a transaction
-   * @summary Called by the transaction decorator after the last release
-   * @async
-   */
-  protected async endTransaction(): Promise<void> {
-    // Base implementation is a no-op
-    // Adapters requiring transaction management can override this
-  }
-}
-```
-
-#### 3. RamAdapter Implementation
-```typescript
-// core/src/ram/RamAdapter.ts
-export class RamAdapter extends Adapter<RamConfig, RamStorage, RawRamQuery, RamContext> {
-  constructor(
-    conf: RamConfig = { lock: new MultiLock({ maxConcurrent: null }) } as any,
-    alias?: string
-  ) {
-    super(conf, RamFlavour, alias);
-  }
-
-  override async beginTransaction(): Promise<void> {
-    // No-op for in-memory adapter - transaction management is handled by lock reference counting
-  }
-
-  override async endTransaction(): Promise<void> {
-    // No-op for in-memory adapter - transaction management is handled by lock reference counting
-  }
-}
-```
-
-#### 4. Context Lock Management
-```typescript
-// core/src/persistence/Context.ts
-export class Context<F extends ContextFlags<any> = AdapterFlags<any>> extends Ctx<F> {
-  // ... existing code ...
-
-  /**
-   * @description Get the transaction lock from context
-   * @summary Retrieves the Lock instance that was injected by @transactional decorator
-   * @returns {Lock | undefined} The transaction lock, or undefined if not in transaction
-   */
-  getTransactionLock(): Lock | undefined {
-    return this.getOrDefault("transactionLock");
-  }
-}
-```
-
-#### 5. Decorator Handler
-```typescript
-// transactional-decorators/src/handlers/transactional-handler.ts
-import { Lock, LockLevel } from "@decaf-ts/transactional-decorators";
-import { Adapter, Context } from "@decaf-ts/core";
-
-export async function transactionalHandler(
-  target: any,
-  propertyKey: string | symbol,
-  descriptor: PropertyDescriptor,
-  adapter: Adapter<any, any, any, any>,
-  level: LockLevel = "none",
-  tableName?: string,
-  recordId?: string
-) {
-  const originalMethod = descriptor.value;
-
-  descriptor.value = async function (...args: any[]) {
-    // Get or create transaction lock
-    let ctx = Context.current();
-    let lockProxy: TransactionLockProxy;
-
-    if (!ctx) {
-      // No context - create one
-      ctx = new Context();
-    }
-
-    // Check if lock already exists in context (nested calls)
-    lockProxy = ctx.getTransactionLock();
-    
-    if (!lockProxy) {
-      // Create new lock proxy using lock from adapter config
-      const lock = adapter.lock;
-      if (!lock) {
-        throw new Error("Adapter must provide a lock instance via config");
-      }
-      lockProxy = new TransactionLockProxy(lock, adapter);
-    }
-
-    // Execute method with lock acquired
-    await lockProxy.acquire(level, tableName, recordId);
-    
-    try {
-      const result = await originalMethod.apply(this, args);
-      return result;
-    } finally {
-      // Release lock
-      await lockProxy.release(level, tableName, recordId);
-    }
-  };
-
-  return descriptor;
-}
-```
-
-### MethodCall Sequence
-
-```
-┌─────────────┐
-│ @transactional decorated method called with level, tableName, recordId
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────┐
-│ Check if lock in Context
-└──────┬──────────┘
-       │
-       ├─ No lock → Create TransactionLockProxy
-       │           └─ Lock from adapter.config.lock (NOT created internally)
-       │           └─ Proxy wraps real lock + adapter
-       │
-       ├─ Lock exists (nested) → Reuse existing proxy
-       │
-       ▼
-┌─────────────────┐
-│ lockProxy.acquire(level, tableName?, recordId?)
-└──────┬──────────┘
-       │
-       ├─ First acquire (count=1):
-       │  └─ adapter.beginTransaction() [async] (optional, no-op by default)
-       │  └─ realLock.acquire(level, tableName?, recordId?) [async]
-       │  └─ Store proxy in Context
-       │
-       └─ Subsequent acquire (count>1):
-          └─ Just increment counter
-       ▼
-┌─────────────────┐
-│ Original method executes
-│ Context has lock accessible via logCtx
-└──────┬──────────┘
-       │
-       ▼
-┌─────────────────┐
-│ lockProxy.release(level, tableName?, recordId?)
-└──────┬──────────┘
-       │
-       ├─ Last release (count=0):
-       │  └─ realLock.release(level, tableName?, recordId?) [async]
-       │  └─ adapter.endTransaction() [async] (optional, no-op by default)
-       │
-       └─ Not last (count>0):
-          └─ Just decrement counter
-       ▼
-┌─────────────────┐
-│ Transaction complete
-└─────────────────┘
-```
-
-### logCtx Survival
-
-The lock survives `logCtx` calls because:
-
-1. **`@transactional` Decorator:**
-   - Creates `TransactionLockProxy` with reference counter
-   - Calls `ctx.accumulate({ transactionLock: lockProxy })` to store in Context
-
-2. **Context Class:**
-   - Uses `accumulate()` which creates new Context but preserves parent data
-   - Lock instance is stored in the Context's internal map
-
-3. **logCtx Method:**
-   - `const { ctx } = this.logCtx(args, operation)`
-   - Uses the Context that contains `transactionLock`
-   - Lock remains accessible via `ctx.getTransactionLock()`
+*   **`core/src/persistence/ContextLock.ts`** — collapsed the old `AdapterTransaction` + counting-`ContextLock` pair into a single class: `ContextLock<A>` with `begin(ctx)`/`commit()`/`rollback(err)` and a plain `depth` counter property that the proxy mutates directly. No `AdapterTransaction` class anymore (confirmed unused outside `core` before removing it). **(2026-06-19)** `begin(ctx)` now reads `ctx.getOrUndefined("maxConcurrentTransactions")`: throws `UnsupportedError` at `0`, acquires a permit from a per-adapter `ConcurrencySemaphore` (a minimal internal FIFO counting semaphore, module-scoped `WeakMap<Adapter, ConcurrencySemaphore>` keyed by adapter instance) when positive, and stays a no-op for `-1`/default; `commit()`/`rollback()` release the permit if one was acquired.
+*   **`core/src/persistence/Adapter.ts`** — `transactionLock(...args): ContextLock<this>` returns `new ContextLock(this, ...args)`; adapters override this method to return a subclass wired to native transaction semantics (e.g. a future TypeORM adapter wrapping `BEGIN`/`COMMIT`/`ROLLBACK`).
+*   **`core/src/persistence/transactions.ts`** — `resolveTransactionLock(obj, ...args)` resolves the underlying adapter (`Adapter`/`Repository.adapter`/`ModelService.repo.adapter`) and calls `adapter.transactionLock(...args)`. `innerTransactional`'s proxy: get `ctx` via `logCtx`; `existing = ctx.getOrUndefined("transactionLock")`; reuse-or-create the lock; `lock.depth++`; call `begin(ctx)` only when not nested, and only cache the lock onto `ctx.cache` *after* `begin()` resolves (so a rejected `begin()` - e.g. `maxConcurrentTransactions=0` - leaves no stale lock/depth on the context); run the method; on success decrement depth and `commit()` only at depth 0; on error, check `alreadyEnded = lock.depth === 0` before forcing depth to 0 and calling `rollback(err)` (skip the call if already ended by an inner frame), then rethrow. **Exports `transactional(...data)` as a factory** (`return Decoration.for(TransactionalKeys.TRANSACTIONAL).define({decorator: innerTransactional, args: data}).apply();`) — this is the critical fix; without an exported factory that performs the registration at call time, core's implementation can never "win" against the base package's.
+*   **`core/src/persistence/types.ts` / `constants.ts`** — `maxConcurrentTransactions: number` added to `AdapterFlags`, defaulting to `-1` in `DefaultAdapterFlags`.
+*   **`Adapter.flags()`/`Service.flags()`** — unchanged. Verified (not assumed) that they already forward `transactionLock` correctly across context derivation.
+*   **`RamAdapter`'s `conf.lock`/`MultiLock`** — unchanged, confirmed unrelated (per-table CRUD concurrency, not transaction boundaries).
+*   **Naming** — kept the existing exported name `ContextLock` rather than introducing `AdapterTransactionLock`; it doesn't collide with `transactional-decorators`'s `TransactionLock` interface (different shape: `submit`/`release`/`currentTransaction`) and was already the type used by `ContextFlags.transactionLock`/`AdapterFlags.lock` in `core/src/persistence/types.ts`, so reusing it minimized blast radius.
+*   **`for-typeorm/src/TypeORMContextLock.ts`** (new) — `TypeORMContextLock<A extends TypeORMAdapter = TypeORMAdapter>` extends `ContextLock<A>`. `begin()` ensures the `DataSource` is initialized, creates+connects a `QueryRunner`, and calls `startTransaction()`. `commit()`/`rollback()` call the matching native method then always `release()` the `QueryRunner`. `manager()` exposes the transactional `EntityManager` while a transaction is active, `undefined` otherwise. Generic over `A` (rather than fixed to `TypeORMAdapter`) so the override's return type satisfies the base class's polymorphic `ContextLock<this>` signature under further adapter subclassing.
+*   **`for-typeorm/src/TypeORMAdapter.ts`** — `transactionLock(...args)` returns `new TypeORMContextLock(this, ...args)`. New private `getRepository<M>(m, ctx?)` helper: if `ctx.getOrUndefined("transactionLock")` is a `TypeORMContextLock` with an active `manager()`, returns `manager.getRepository(m)`; otherwise falls back to `this.client.getRepository(m)` (the DataSource's pooled, non-transactional connection). `create`/`read`/`update`/`delete`/`createAll`/`readAll`/`deleteAll` all updated to extract `ctx` via `this.logCtx(args, ...)` and call this helper instead of `this.client.getRepository(m)` directly — this is what makes every operation performed under `@transactional()`, across however many nested calls, participate in the *same* Postgres transaction rather than each grabbing an independent pooled connection.
 
 ## 5. Tasks Breakdown
 | ID           | Task Name                                      | Priority | Status  | Dependencies |
 |:-------------|:-----------------------------------------------|:---------|:--------|:-------------|
-| TASK-66      | Refactor @transactional decorator using Decoration API | High | Pending | - |
-| TASK-67      | Implement TransactionLockProxy with reference counting and level parameters | High | Pending | TASK-66 |
-| TASK-68      | Add abstract methods to Adapter base class (beginTransaction, endTransaction) | High | Pending | - |
-| TASK-69      | Update RamAdapter to use lock from config (no internal creation) | High | Pending | - |
-| TASK-70      | Update Context with getTransactionLock method | High | Pending | - |
-| TASK-71      | Add transactionLock property to Context on first acquire | High | Pending | TASK-67,TASK-70 |
-| TASK-72      | Create transactionalHandler for decoratee method wrapping | High | Pending | TASK-66,TASK-67 |
-| TASK-73      | Add unit tests for Lock class and MultiLock | High | Pending | - |
-| TASK-74      | Add unit tests for TransactionLockProxy | High | Pending | TASK-67 |
-| TASK-75      | Add unit tests for @transactional decorator | High | Pending | TASK-71,TASK-72 |
-| TASK-76      | Add integration tests with RamAdapter | High | Pending | TASK-71,TASK-72 |
-| TASK-77      | Document transaction decorator usage and lock lifecycle | Medium | Pending | TASK-71,TASK-72 |
+| TASK-66      | Fix `ctx.put` → `ctx.cache.put` defect in `transactions.ts` (Req-10) | High | Completed | - |
+| TASK-67      | Move nested-call depth counting from `ContextLock` into the `@transactional` proxy (Req-3, Req-4) | High | Completed | TASK-66 |
+| TASK-68      | Collapse `AdapterTransaction`/`ContextLock` into one adapter-overridable lock contract; rework `Adapter.transactionLock()` (Req-2) | High | Completed | - |
+| TASK-69      | Fix `rollback()` to force depth to 0; guard enclosing frames against double-rollback (Req-5) | High | Completed | TASK-67 |
+| TASK-70      | ~~Fix `Adapter.flags()` to forward `transactionLock`~~ — verified unnecessary by test (Req-8) | High | Completed (no-op) | TASK-66 |
+| TASK-71      | ~~Apply same fix to `Service.flags()`~~ — verified unnecessary by test (Req-9) | High | Completed (no-op) | TASK-70 |
+| TASK-72      | Add decorator-registration-precedence test | High | Completed | TASK-66 |
+| TASK-73      | Replace `transaction-cross-service.test.ts` with a real test against core's `transactional` | High | Completed | TASK-67,TASK-69 |
+| TASK-74      | Unit tests: nested `@transactional` calls share one transaction across Repository/ModelService | High | Completed | TASK-67,TASK-71 |
+| TASK-75      | Unit tests: error inside a nested call rolls back and ends the whole transaction | High | Completed | TASK-69 |
+| TASK-76      | Integration test with `RamAdapter` end-to-end through `@transactional` | Medium | Completed | TASK-67 |
+| TASK-78 (new) | Export `transactional(...)` as a callable factory from `core/src/persistence/transactions.ts` (Req-11) | High | Completed | TASK-66 |
+| TASK-77      | Document the transaction-lock override point and lifecycle | Medium | Completed | TASK-68 |
+| TASK-161 (new) | Implement native Postgres transaction lock for the TypeORM adapter (`TypeORMContextLock`, `getRepository(m, ctx)` routing) (US-3, Req-2) | High | Completed | TASK-68 |
+| TASK-162 (new) | Deep-nesting (3+ levels) `@transactional` test with `RamAdapter` in `core` | Medium | Completed | TASK-74,TASK-76 |
+| TASK-163 (new) | Deep-nesting (3+ levels) `@transactional` integration test against live Postgres | High | Completed | TASK-161 |
+| TASK-164 (new) | Simultaneous-transaction tests against live Postgres (visibility + row-lock contention, verified via `pg_stat_activity`) | High | Completed | TASK-161 |
+| TASK-165 (new) | `maxConcurrentTransactions` flag + counting-semaphore gating in the default `ContextLock` (Req-12) | High | Completed | TASK-68 |
+| TASK-166 (new) | Integration tests for `maxConcurrentTransactions` (-1, 0, 1, 3) against `RamAdapter` | High | Completed | TASK-165 |
+| TASK-167 (new) | Document `maxConcurrentTransactions` and its no-effect caveat in `for-typeorm` | Medium | Completed | TASK-165 |
 
 ## 6. Open Questions / Risks
-*   **Nested Transactions:** Should nested @transactional calls create nested transactions or share the same transaction?
-*   **Lock Timeout:** Should there be a timeout for lock acquisition? What happens if it expires?
-*   **Transaction Isolation:** How to handle transaction isolation levels? Should this be configurable per adapter?
-*   **Error Recovery:** What happens if beginTransaction succeeds but endTransaction fails? Should we rollback?
-*   **Performance:** Does the reference counting and proxy add significant overhead for non-transactional methods?
-*   **LogCtx Timing:** What if logCtx is called before the first acquire? Should lock be injected earlier?
+*   ~~**Nested Transactions / Lock Timeout / Transaction Isolation / Error Recovery / LogCtx Timing:**~~ All resolved per Section 3.
+*   ~~**Naming collision:**~~ Resolved — kept `ContextLock`, no collision with `transactional-decorators`'s `TransactionLock`.
+*   ~~**Decorator-registration precedence:**~~ Resolved, but the actual mechanism was different from what was originally suspected (see Overview point 1) — it was never about *import order*, it was that core exported no callable factory at all. Fixed by exporting one; `transaction-registration-precedence.test.ts` locks this in.
+*   ~~**Test integrity:**~~ Resolved — `transaction-cross-service.test.ts` now asserts real behavior.
+*   **Performance:** Still open, not addressed in this pass. Every `@transactional` call pays for a `Proxy` dispatch, an async `logCtx`/`context()` round trip, and lock bookkeeping, even when the adapter's lock is the no-op default. No special-casing was added; left as a future optimization if it proves to matter.
+*   ~~**No native-transaction adapter exists yet.**~~ Resolved (2026-06-19) — `for-typeorm` now overrides `Adapter.transactionLock()` with `TypeORMContextLock`, wrapping real Postgres `BEGIN`/`COMMIT`/`ROLLBACK`. Validated with 3+-level nested-transaction tests and concurrent-transaction tests against a live Postgres container (TASK-161 through TASK-164).
+*   ~~**TASK-77 documentation.**~~ Resolved (2026-06-19) — usage, lifecycle, adapter-override, and concurrent-transaction documentation added to `core/workdocs/5-HowToUse.md` and `for-typeorm/workdocs/5-HowToUse.md` (see Section 7).
+*   **Positional-argument footgun (new, found 2026-06-19):** `Repository.logCtx` → `Adapter.context()` → `Adapter.flags()` capture *every* trailing positional argument of a contextual method call into the new `Context`'s `flags.args`. This is intended for legitimate domain pass-through, but it means any extra non-domain value (e.g. a test-only callback or `Promise` used to control timing) sitting in that positional list gets carried into the context and can be awaited downstream before the decorated method itself resolves — a genuine deadlock if that value depends on the method's own completion. Not a defect in the transaction mechanism itself, but a real trap for anyone writing contextual-method test helpers; keep such test-only state on instance fields instead of method parameters (see TASK-164 notes).
+*   ~~**`maxConcurrent` dropped entirely.**~~ Partially revisited (2026-06-19) — reintroduced as a single `maxConcurrentTransactions` flag enforced by the default `ContextLock`'s own counting semaphore (TASK-165/166/167), without bringing back the dropped hierarchical-`LockLevel` design (none/adapter/table/record levels remain out of scope).
 
 ## 7. Results & Artifacts
-*   Updated `@decaf-ts/transactional-decorators` package with refactored `@transactional` using Decoration API
-*   Updated `core/src/persistence/Adapter.ts` with abstract `beginTransaction()` and `endTransaction()` methods
-*   Updated `core/src/ram/RamAdapter.ts` with transaction implementation
-*   Updated `core/src/persistence/Context.ts` with `getTransactionLock()` method
-*   TransactionLockProxy implementation in `@decaf-ts/transactional-decorators`
-*   Unit tests in `core/tests/unit/transaction-decorator.test.ts`
-*   Integration tests in `core/tests/e2e/transaction.e2e.test.ts`
-*   Documentation in `core/docs/TRANSACTIONS.md`
+*   `core/src/persistence/transactions.ts` — fixed `ctx.cache.put`, proxy-owned nesting/depth, rollback-ends-transaction with double-rollback guard, exported `transactional(...)` factory.
+*   `core/src/persistence/ContextLock.ts` — collapsed to a single `ContextLock<A>` class (`begin`/`commit`/`rollback`/`depth`), `AdapterTransaction` removed.
+*   `core/src/persistence/Adapter.ts` — `transactionLock()` returns `ContextLock` directly.
+*   New/replaced tests: `core/tests/unit/transaction-cross-service.test.ts` (replaced), `transaction-model-service.test.ts`, `transaction-rollback.test.ts`, `transaction-registration-precedence.test.ts` (all new), `core/tests/integration/transaction.ram-adapter.integration.test.ts` (new).
+*   Full `core` suite verified green after the change: 99 test suites (3 pre-existing, unrelated skips), 595/595 tests passing, no regressions.
+*   `for-typeorm/src/TypeORMContextLock.ts` (new) — native Postgres `QueryRunner`-backed `ContextLock`.
+*   `for-typeorm/src/TypeORMAdapter.ts` — `transactionLock()` override, `getRepository(m, ctx)` helper, CRUD methods routed through it.
+*   New tests: `core/tests/integration/transaction.deep-nesting.integration.test.ts`; `for-typeorm/tests/integration/transaction.nested.integration.test.ts`; `for-typeorm/tests/integration/transaction.concurrent.integration.test.ts`.
+*   `core/workdocs/5-HowToUse.md` — new "Transactions (`@transactional`)" section (usage, lifecycle, adapter-override point).
+*   `for-typeorm/workdocs/5-HowToUse.md` — new "Transactions (`@transactional` backed by real Postgres transactions)" section (worked nested example, under-the-hood mechanics, concurrent-transaction/isolation behavior, positional-argument caution).
+*   `core/src/persistence/types.ts` / `constants.ts` — `maxConcurrentTransactions: number` added to `AdapterFlags`, default `-1` in `DefaultAdapterFlags`.
+*   `core/src/persistence/ContextLock.ts` — internal `ConcurrencySemaphore`, per-adapter `WeakMap` registry, `begin(ctx)`/`commit()`/`rollback()` gating logic.
+*   `core/src/persistence/transactions.ts` — `lock.begin(ctx)` now passes context; lock is cached onto `ctx.cache` only after a successful `begin()`.
+*   New test: `core/tests/integration/transaction.max-concurrent.integration.test.ts` (4 scenarios: `-1`, `0`, `1`, `3`).
+*   `core/workdocs/5-HowToUse.md` / `for-typeorm/workdocs/5-HowToUse.md` — `maxConcurrentTransactions` documentation, including the `for-typeorm` no-effect caveat.
 
-## 8. Current Status Notes
-*   `@transactional` decorator likely exists in `@decaf-ts/transactional-decorators` package
-*   `@decaf-ts/transactional-decorators` is a dependency of core
-*   `RamAdapter` uses `lock: new MultiLock({ maxConcurrent: null })` passed via config
-*   Lock is passed via adapter configuration, not created internally
-*   `beginTransaction`/`endTransaction` are no-ops for in-memory adapter
-*   Lock instance needs to survive multiple `logCtx()` calls for nested decorator scenarios
+## 8. Completion Notes
+*   Verification milestone (2026-06-18): `npm test` (build + full jest run with coverage) in `core` passed clean — 99 suites (3 skipped, pre-existing and unrelated to this work), 595 tests passed, 0 failed.
+*   The most significant deviation from the original plan was discovering that core's `@transactional` had never been reachable at all in practice (no exported factory), not just "needs a few fixes" — every test or usage that appeared to exercise it was actually silently running `@decaf-ts/transactional-decorators`'s base implementation instead. This is now fixed and covered by `transaction-registration-precedence.test.ts`.
+*   `Adapter.flags()`/`Service.flags()` were verified correct as-is; no changes were made there despite the original spec calling for an explicit fix (Req-8/Req-9, TASK-70/TASK-71) — confirmed unnecessary via passing nested-call tests rather than left as an assumption.
+*   Verification milestone (2026-06-19): `for-typeorm`'s full suite (39 suites, 206 tests, 53 pre-existing unrelated skips) and `core`'s full suite (100 suites, 597/622 tests, 25 pre-existing unrelated skips) both green after adding `TypeORMContextLock` and the new transaction tests — no regressions. All new Postgres-backed tests (`transaction.nested.integration.test.ts`, `transaction.concurrent.integration.test.ts`) run against a live Postgres container, not mocks.
+*   The TypeORM work surfaced two non-obvious findings, both documented in TASK-163/TASK-164's Notes and in Section 6: (1) `@pk({ type: "Number" })` always generates the PK via Postgres `SERIAL`, silently ignoring caller-supplied ids; (2) extra positional arguments on a contextual method get captured into the new `Context`'s `flags.args`, which deadlocked an early version of the concurrent-transaction test when a test-control `Promise` was passed positionally instead of as an instance field.
+*   Verification milestone (2026-06-19, `maxConcurrentTransactions`): full `core` suite green after adding the flag and semaphore gating — 101 suites (3 pre-existing unrelated skips), 601/626 tests passing, no regressions. `for-typeorm`'s full suite re-verified green against the rebuilt `core` (39 suites, 206 tests, 53 pre-existing unrelated skips) - confirming the new `AdapterFlags` field and `ContextLock.begin(ctx)` signature change don't break the existing `TypeORMContextLock` override (which ignores the extra parameter, as TypeScript allows for method overrides with fewer parameters).
