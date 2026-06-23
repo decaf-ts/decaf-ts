@@ -73,3 +73,6 @@
 [submodule "integrations"]
 	path = integrations
 	url = https://github.com/decaf-ts/integrations.git
+[submodule "reusable-actions"]
+	path = reusable-actions
+	url = git@github.com:decaf-ts/reusable-actions.git

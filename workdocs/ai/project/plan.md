@@ -397,6 +397,19 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-27 — Reusable GitHub Actions Repository
+- **Priority:** High
+- **Goal:** Create a `reusable-actions` repository in the workspace that centralizes reusable GitHub Actions workflows under `reusable-actions/.github/workflows` and migrates existing repositories toward that shared automation.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_27.md)
+- **Tasks:**
+  - [x] [TASK-181](./specifications/tasks/TASK_181.md): Inventory existing GitHub Actions usage across the workspace repositories.
+  - [x] [TASK-182](./specifications/tasks/TASK_182.md): Create the `reusable-actions` repository layout and workflow directory structure.
+  - [x] [TASK-183](./specifications/tasks/TASK_183.md): Extract shared workflows and migrate consuming repositories.
+  - [x] [TASK-184](./specifications/tasks/TASK_184.md): Document reuse patterns, inputs, and validation steps.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -430,6 +443,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-24: ✅ Graph Metadata Layer and Angular Graph Adapter (canonical `ui-decorators` graph layer, Angular/ngDiagram adapter, workflow-root renderer, and workflow serialization/restoration completed)
 - DECAF-25: ⏳ Webpage Refactor to Full Decaf Convention
 - DECAF-26: ⏳ SecretService API and Provider Implementations for @decaf-ts/integrations
+- DECAF-27: ⏳ Reusable GitHub Actions Repository
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
