@@ -1,25 +1,25 @@
 # DECAF-27: Reusable GitHub Actions Repository
 
-**Status:** Planned
+**Status:** Completed
 **Priority:** High
 **Owner:** decaf-dev
 
 ## 1. Overview
 Create a new `reusable-actions` repository in the `decaf-ts` workspace that centralizes GitHub Actions assets for reuse across the other repositories.
 
-The target structure must provide a shared `.github/workflows` area under `reusable-actions/` where reusable workflows and related action definitions can live. Existing repositories should be migrated away from duplicated workflow logic and updated to consume the shared automation from this repository wherever practical.
+The target structure provides a shared `.github/workflows` area under `reusable-actions/` where reusable workflows and related action definitions can live. Existing repositories have been migrated away from duplicated workflow logic and now consume the shared automation from this repository wherever practical.
 
 The end state is a workspace-level automation repo that can be versioned independently and reused by the other Decaf repositories without copying workflow implementations around.
 
 This specification is scoped to reusable GitHub Actions workflows under `.github/workflows`. It does not introduce composite actions unless a later inventory task finds a concrete need for them.
 
 ## 2. Goals
-*   [ ] Create a new `reusable-actions` repository folder in the workspace with a GitHub Actions-compatible layout.
-*   [ ] Centralize reusable workflow definitions under `reusable-actions/.github/workflows`.
-*   [ ] Inventory the current repositories and identify duplicated GitHub Actions logic that should move into the shared repo.
-*   [ ] Migrate repository-specific workflows to call the shared reusable workflows where possible.
-*   [ ] Keep the migration incremental so existing CI behavior remains stable while repositories are updated one by one.
-*   [ ] Document the reuse model so future repositories can adopt the shared automation consistently.
+*   [x] Create a new `reusable-actions` repository folder in the workspace with a GitHub Actions-compatible layout.
+*   [x] Centralize reusable workflow definitions under `reusable-actions/.github/workflows`.
+*   [x] Inventory the current repositories and identify duplicated GitHub Actions logic that should move into the shared repo.
+*   [x] Migrate repository-specific workflows to call the shared reusable workflows where possible.
+*   [x] Keep the migration incremental so existing CI behavior remains stable while repositories are updated one by one.
+*   [x] Document the reuse model so future repositories can adopt the shared automation consistently.
 
 ## 3. User Stories / Requirements
 *   **US-1:** As a maintainer, I want shared workflow logic in one repository so I do not have to copy changes into every repo.

@@ -400,7 +400,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-27 — Reusable GitHub Actions Repository
 - **Priority:** High
 - **Goal:** Create a `reusable-actions` repository in the workspace that centralizes reusable GitHub Actions workflows under `reusable-actions/.github/workflows` and migrates existing repositories toward that shared automation.
-- **Status:** Planned
+- **Status:** Completed — the shared workflow repo is in place and the consumer repositories now call the reusable workflows where applicable.
 - **Link:** [Specification Details](./specifications/DECAF_27.md)
 - **Tasks:**
   - [x] [TASK-181](./specifications/tasks/TASK_181.md): Inventory existing GitHub Actions usage across the workspace repositories.
@@ -443,7 +443,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-24: ✅ Graph Metadata Layer and Angular Graph Adapter (canonical `ui-decorators` graph layer, Angular/ngDiagram adapter, workflow-root renderer, and workflow serialization/restoration completed)
 - DECAF-25: ⏳ Webpage Refactor to Full Decaf Convention
 - DECAF-26: ⏳ SecretService API and Provider Implementations for @decaf-ts/integrations
-- DECAF-27: ⏳ Reusable GitHub Actions Repository
+- DECAF-27: ✅ Reusable GitHub Actions Repository
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`

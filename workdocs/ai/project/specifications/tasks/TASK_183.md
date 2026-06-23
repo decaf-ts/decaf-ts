@@ -41,7 +41,7 @@ This task focuses on the common baseline identified in TASK-181. Repository-spec
 
 ## 6. Execution Log
 *   2026-06-23 - Started task.
-*   2026-06-23 - Extracted the shared baseline workflows and migrated the root consumer workflows to reusable calls.
+*   2026-06-23 - Extracted the shared baseline workflows and migrated the workspace consumer workflows to reusable calls across all applicable repositories.
 
 ## 7. Results & Artifacts
 *   `reusable-actions/.github/workflows/codeql-analysis.yml`
@@ -60,4 +60,5 @@ This task focuses on the common baseline identified in TASK-181. Repository-spec
 *   `.github/workflows/release-on-merge-pr.yml`
 *   `.github/workflows/release-on-tag.yaml`
 *   `.github/workflows/snyk-analysis.yaml`
+*   Consumer repository workflow callers updated across the workspace, including `as-zod`, `cli`, `core`, `crypto`, `db-decorators`, `decoration`, `decorator-validation`, `demo`, `for-angular`, `for-couchdb`, `for-fabric`, `for-http`, `for-nano`, `for-nest`, `for-pouch`, `for-react-native`, `for-typeorm`, `injectable-decorators`, `logging`, `styles`, `transactional-decorators`, `ui-decorators`, `utils`, and `web-page` for the applicable shared workflows.
 *   `reusable-actions/README.md`
