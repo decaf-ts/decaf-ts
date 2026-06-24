@@ -103,7 +103,7 @@ This specification is broken down into the following workstreams. The individual
 |:---|:----------|:---------|:-------|:-------------|
 | TASK-190 | [Inventory all workflow files and classify them by reuse potential](./tasks/TASK_190.md) | High | Completed | - |
 | TASK-191 | [Extract or parameterize shared workflows in `reusable-actions`](./tasks/TASK_191.md) | High | Completed | TASK-190 |
-| TASK-192 | [Update consumer repositories to call the shared workflows and replicate the trigger rules](./tasks/TASK_192.md) | High | Pending | TASK-191 |
+| TASK-192 | [Update consumer repositories to call the shared workflows and replicate the trigger rules](./tasks/TASK_192.md) | High | Completed | TASK-191 |
 | TASK-193 | [Document the action-by-action trigger and condition matrix](./tasks/TASK_193.md) | Medium | Pending | TASK-190 |
 | TASK-194 | [Validate the final workflow behavior across representative repositories](./tasks/TASK_194.md) | Medium | Pending | TASK-192 |
 
