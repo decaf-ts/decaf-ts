@@ -410,6 +410,20 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-28 — GitHub Actions Inventory, Normalization, and Rule Replication
+- **Priority:** High
+- **Goal:** Audit every GitHub Actions workflow in the workspace, identify the reusable candidates that still need to be extracted or generalized, and replicate each workflow's trigger rules and guard conditions consistently across the consuming repositories.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_28.md)
+- **Tasks:**
+  - [ ] [TASK-185](./specifications/tasks/TASK_185.md): Inventory all workflow files and classify them by reuse potential.
+  - [ ] [TASK-186](./specifications/tasks/TASK_186.md): Extract or parameterize shared workflows in `reusable-actions`.
+  - [ ] [TASK-187](./specifications/tasks/TASK_187.md): Update consumer repositories to call the shared workflows and replicate the trigger rules.
+  - [ ] [TASK-188](./specifications/tasks/TASK_188.md): Document the action-by-action trigger and condition matrix.
+  - [ ] [TASK-189](./specifications/tasks/TASK_189.md): Validate the final workflow behavior across representative repositories.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -444,6 +458,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-25: ⏳ Webpage Refactor to Full Decaf Convention
 - DECAF-26: ⏳ SecretService API and Provider Implementations for @decaf-ts/integrations
 - DECAF-27: ✅ Reusable GitHub Actions Repository
+- DECAF-28: ⏳ GitHub Actions Inventory, Normalization, and Rule Replication
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
