@@ -76,3 +76,9 @@
 [submodule "reusable-actions"]
 	path = reusable-actions
 	url = git@github.com:decaf-ts/reusable-actions.git
+[submodule "for-nextjs"]
+	path = for-nextjs
+	url = git@github.com:decaf-ts/for-nextjs.git
+[submodule "for-react"]
+	path = for-react
+	url = git@github.com:decaf-ts/for-react.git
