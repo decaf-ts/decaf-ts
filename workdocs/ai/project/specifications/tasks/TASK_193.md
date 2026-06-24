@@ -1,7 +1,7 @@
-# TASK-188: Document the action-by-action trigger and condition matrix
+# TASK-193: Document the action-by-action trigger and condition matrix
 
-**ID:** TASK-188
-**Specification:** [DECAF-28](../DECAF_28.md)
+**ID:** TASK-193
+**Specification:** [DECAF-29](../DECAF_29.md)
 **Priority:** Medium
 **Status:** Pending
 
@@ -21,7 +21,7 @@ This task produces the decision record that explains what each workflow does, wh
 *   Create a workflow-by-workflow rule matrix.
 *   Include events, filters, permissions, and dependency assumptions.
 *   Summarize what behavior is replicated across all consumers.
-*   Link the documentation back to the DECAF-28 specification.
+*   Link the documentation back to the DECAF-29 specification.
 
 **Technical Details:**
 *   Treat the matrix as the acceptance record for the migration.

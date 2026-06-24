@@ -1,14 +1,14 @@
-# TASK-189: Validate the final workflow behavior across representative repositories
+# TASK-194: Validate the final workflow behavior across representative repositories
 
-**ID:** TASK-189
-**Specification:** [DECAF-28](../DECAF_28.md)
+**ID:** TASK-194
+**Specification:** [DECAF-29](../DECAF_29.md)
 **Priority:** Medium
 **Status:** Pending
 
 ## 1. Description
 Validate the migrated workflows against representative repositories to confirm that the shared automation still behaves as expected.
 
-This is the final confidence check for the DECAF-28 migration.
+This is the final confidence check for the DECAF-29 migration.
 
 ## 2. Objectives
 *   [ ] Validate representative consumer repositories after migration.

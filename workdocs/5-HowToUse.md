@@ -34,6 +34,16 @@
 - **@decaf-ts/as-zod**: Zod integration. Schema validation that’s actually fun.
 - **@decaf-ts/decoration**: Advanced decoration utilities. Because your code deserves to look good.
 
+## Integrations
+
+- [`@decaf-ts/integrations`](../integrations/workdocs/Readme.md)
+- [Keycloak service guide](../integrations/workdocs/services/keycloak.md)
+- [Kibana service guide](../integrations/workdocs/services/kibana.md)
+- [Nest service guide](../integrations/workdocs/services/nest.md)
+- [Secret services guide](../integrations/workdocs/services/secrets.md)
+- [Docker Compose service guide](../integrations/workdocs/services/docker-compose.md)
+- [Service implementation guide](./tutorials/ServiceImplementation.md)
+
 ## Quickstart
 
 1. Pick your modules (see above).

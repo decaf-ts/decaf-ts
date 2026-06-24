@@ -1,7 +1,7 @@
-# TASK-187: Update consumer repositories to call the shared workflows and replicate the trigger rules
+# TASK-192: Update consumer repositories to call the shared workflows and replicate the trigger rules
 
-**ID:** TASK-187
-**Specification:** [DECAF-28](../DECAF_28.md)
+**ID:** TASK-192
+**Specification:** [DECAF-29](../DECAF_29.md)
 **Priority:** High
 **Status:** Pending
 

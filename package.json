@@ -106,5 +106,8 @@
   },
   "dependencies": {
     "@decaf-ts/mcp-server": "latest"
+  },
+  "overrides": {
+    "js-yaml": "^4.2.0"
   }
 }
