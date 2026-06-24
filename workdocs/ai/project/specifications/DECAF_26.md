@@ -14,6 +14,7 @@ The cryptographic boundary is strict:
 - all crypto-related implementation code must live in `@decaf-ts/crypto`;
 - `@decaf-ts/integrations` may import crypto helpers, types, and decorators from `@decaf-ts/crypto`;
 - `@decaf-ts/integrations` must not reimplement encryption primitives, key derivation, or payload crypto helpers locally.
+- CryptoService in `@decaf-ts/crypto` provides reusable crypto operations including `deriveKeyFromSecret()`, `encryptPayload()`, `decryptPayload()`, and `extractKeyFromDerivedKey()`.
 
 This specification intentionally describes a secret storage mode, not the existing `@encrypt(...)` model-property decorator. The secret service layer is the higher-level API that coordinates storage semantics, provider abstraction, serialization, metadata, and provider portability.
 
@@ -97,7 +98,39 @@ src/
       MemorySecretService.ts
 ```
 
-### 4.2 Export boundaries
+### 4.2 Service lifecycle
+
+All secret services must follow the `ClientBasedService` pattern:
+
+- **No constructor arguments:** Services must not accept configuration or dependencies in their constructors.
+- **Initialize method:** All services must implement `async initialize(...args: ContextualArgs<any>): Promise<{ config: Config; client: Client }>` to set up their client and configuration.
+- **Provider property:** Each service must expose `readonly provider: SecretProvider` identifying the provider type.
+- **Parse error method:** Client-based services must implement `protected parseError(unknown): Error` to convert provider errors to Decaf errors.
+- **Contextual logging:** All operations must accept `...args: MaybeContextualArg<any>` and use `logCtx()` for logging.
+
+Example:
+```typescript
+export class MySecretService extends ClientBasedService<Client, Config> {
+  readonly provider: SecretProvider = "my-provider";
+
+  async initialize(...args: ContextualArgs<any>): Promise<{ config: Config; client: Client }> {
+    const config = args[0] as Config;
+    if (!config) throw new InternalError("Missing configuration");
+    const client = new Client(config);
+    return { config, client };
+  }
+
+  protected parseError(error: unknown): Error {
+    // Convert provider errors to SecretError
+  }
+
+  async store(name: SecretName, value: SecretPayload, options?: StoreSecretOptions, ...args: MaybeContextualArg<any>): Promise<SecretReference> {
+    const { log, ctxArgs } = (await this.logCtx(args, "store", true)).for(this.store);
+    log.verbose(`Storing secret ${name}`);
+    // ... implementation using this.client and this.config
+  }
+}
+```
 
 - `src/secrets/index.ts` must export only the core contracts:
 
@@ -232,6 +265,8 @@ export interface SerializedSecretPayload {
 
 ### 4.6 Error model
 
+All errors MUST extend from `InternalError` or `BaseError` from `@decaf-ts/db-decorators`. The `SecretError` class extends `InternalError` and includes HTTP status code mapping based on the error code.
+
 Define provider-independent error codes and translate provider SDK failures into them:
 
 ```ts
@@ -251,7 +286,22 @@ export type SecretErrorCode =
   | "SECRET_PROVIDER_RATE_LIMITED"
   | "SECRET_PROVIDER_CONFLICT"
   | "SECRET_UNSUPPORTED_OPERATION";
+
+export class SecretError extends InternalError {
+  readonly secretCode: SecretErrorCode;
+
+  constructor(secretCode: SecretErrorCode, message: string, cause?: Error) {
+    super(message);
+    this.secretCode = secretCode;
+    this.name = "SecretError";
+    if (cause) {
+      (this as any).cause = cause;
+    }
+  }
+}
 ```
+
+Each provider implementation MUST have a `parseError(unknown): Error` protected method that converts client library errors to Decaf errors. Error translation must be consistent across all providers.
 
 ### 4.7 Model-backed secret storage
 
@@ -286,7 +336,11 @@ Each provider implementation must live in its own folder and only load the depen
 - Provider subpaths may import their SDKs directly if the subpath is the explicit opt-in surface.
 - If build/runtime behavior requires it, provider loading may fall back to dynamic import with explicit missing-dependency errors.
 
-### 4.10 Testing and documentation boundaries
+### 4.10 Logging
+
+All client-based services MUST retrieve loggers via `logCtx()` when available. Each operation should log at appropriate levels (verbose for operations, error for failures). Log entries must include correlation context when available.
+
+### 4.11 Testing and documentation boundaries
 
 - Shared contract tests should exercise all implementations through the same behavior suite.
 - Bundling tests must prove that importing `@decaf-ts/integrations/secrets` does not load provider SDKs.
@@ -299,11 +353,12 @@ This specification is broken down into the following tasks. Each task should be 
 | ID | Task Name | Priority | Status | Dependencies |
 |:--|:--|:--|:--|:--|
 | DECAF-26-1 | Define the secret core contracts, name policy, serializer, and error model | High | Pending | - |
-| DECAF-26-2 | Implement the memory service and the model-backed encrypted-at-rest service | High | Pending | DECAF-26-1 |
-| DECAF-26-3 | Add provider subpaths for AWS, Azure, GCP, and HashiCorp Vault | High | Pending | DECAF-26-1 |
+| DECAF-26-2 | Implement the memory service and the model-backed encrypted-at-rest service, including proper error handling with InternalError and logging via logCtx | High | Pending | DECAF-26-1 |
+| DECAF-26-3 | Add provider subpaths for AWS, Azure, GCP, and HashiCorp Vault with parseError() methods, Decaf error handling, and logging via logCtx | High | Pending | DECAF-26-1 |
 | DECAF-26-4 | Add the 1Password provider implementation and document its support limits | High | Pending | DECAF-26-1 |
 | DECAF-26-5 | Update package exports, dependency metadata, and root import safety | High | Pending | DECAF-26-1 |
 | DECAF-26-6 | Add contract tests, encryption tests, bundling tests, and docs | High | Pending | DECAF-26-2 |
+| DECAF-26-7 | Add unit tests for error parsing in each provider, verify all errors extend from InternalError/BaseError, and test logging behavior | High | Pending | DECAF-26-3 |
 
 ## 6. Open Questions / Risks
 *   Should the local model-backed implementation expose a dedicated `Secret` model export for consumers, or keep it internal and only expose the service?

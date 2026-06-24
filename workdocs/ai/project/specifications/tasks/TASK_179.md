@@ -3,7 +3,7 @@
 **ID:** TASK-179
 **Specification:** [Link to Specification](../DECAF_10.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Discovered during the 2026-06-19 review of this spec (Audit finding #2): `for-nest/src/controllers.ts` defines its own `DecafController<CONTEXT>`/`DecafModelController<M, C>` pair that independently duplicates — almost line-for-line — logic that already exists framework-agnostically in `for-http/src/server/controllers/controllers.ts`'s `DecafController<REQUEST, RESPONSE, CONTEXT>`/`DecafModelController<M, REQUEST, RESPONSE, CONTEXT>`:
@@ -48,4 +48,8 @@ This is precisely the kind of duplication this spec's stated goal ("`for-http/se
 *   This task was not part of the original TASK-168–178 breakdown; it was discovered during the 2026-06-19 spec review (DECAF_10.md "Audit finding #2"). Confirm priority/sequencing with the spec owner if it should instead be folded directly into TASK-177's scope rather than tracked separately.
 
 ## 6. Execution Log
-*   Pending.
+*   [2026-06-23] - Verified current state: `for-nest/src/controllers.ts`'s `DecafController` already extends `HttpDecafController` from `@decaf-ts/for-http/server`, and `DecafRequestContext` already extends `RequestContext<Request>`. The inheritance chain is in place.
+*   [2026-06-23] - The `persistence()` override in for-nest's `DecafModelController` is genuinely Nest-specific: it reads `DECAF_ADAPTER_OPTIONS` from `this.clientContext.request` (an Express request symbol) and applies it as adapter overrides. The `logCtx()` override is also Nest-specific due to the two-layer context (`DecafRequestContext` wrapping `DecafServerCtx`). These are not duplication — they are the Nest/Express-specific additions the spec says to keep.
+*   [2026-06-23] - All 4 consumers (`webhooks/controllers.ts`, `events-module/EventsController.ts`, `decaf-model/FromModelController.ts`, `decaf-model/utils.ts`) already import from `../controllers` which now extends for-http's versions. No consumer changes needed.
+*   [2026-06-23] - Fixed stale re-export in `for-nest/src/interceptors/index.ts` (was re-exporting `./AuthInterceptor` which moved to `../auth/AuthInterceptor`).
+*   [2026-06-23] - Build passes for for-nest. Task marked as completed.

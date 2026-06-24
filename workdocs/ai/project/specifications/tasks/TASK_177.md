@@ -3,7 +3,7 @@
 **ID:** TASK-177
 **Specification:** [Link to Specification](../DECAF_10.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 This is the task that actually fulfills DECAF-10's original ask. With `ModelControllerBuilder`/`ModelControllerFactory` (TASK-171–174) built and parity-proven (TASK-172) against today's hand-written routes, rewrite `for-nest/src/decaf-model/FromModelController.create()` to delegate to them instead of hand-defining `DynamicModelController`. This is also where `@BlockOperations`'s statement/query targets (TASK-107, currently shipped in `core` but never called from `for-nest`) finally get a caller.
@@ -36,4 +36,11 @@ This is the task that actually fulfills DECAF-10's original ask. With `ModelCont
 *   Depends on TASK-172 (parity proof), TASK-173 (factory), TASK-174 (composed-PK handling), TASK-176 (auth module — promoted from "ideally" to a hard dependency, 2026-06-19 review: Objective 2 explicitly requires `@Auth()` from the new module, so doing this rewrite before TASK-176 lands means migrating `@Auth()` wiring twice), and TASK-179 (retiring `for-nest/src/controllers.ts`'s duplicate `DecafController`/`DecafModelController`, Audit finding #2 — `FromModelController`'s `DynamicModelController`/`QueryController` currently extend that local `DecafModelController`; migrating its base class once, alongside this rewrite, avoids a second migration of the same file).
 
 ## 6. Execution Log
-*   Pending.
+*   2026-06-23: Rewrote `FromModelController.create()` to delegate to `ModelControllerFactory.create()`. The factory generates route metadata (`__routes__`), and `FromModelController` materializes each route as a NestJS controller method via `matchRoute()` dispatcher (pattern-matches HTTP method + path to Nest decorators/handlers).
+*   2026-06-23: Added `@controllerConfig` decorator (`for-nest/src/decaf-model/decorators/controller-config.ts`) storing per-model `ModelControllerFactoryConfig` in metadata under `DECAF_CONTROLLER_CONFIG`. Module-level `controllerConfig` overrides merged with decorator config (module takes precedence).
+*   2026-06-23: Updated `DecafModelModule.forRoot()` to pass `options.controllerConfig` to `FromModelController.create()`.
+*   2026-06-23: Added statement shortcut routes (`listBy`, `paginateBy`, `find`, `page`, `findOneBy`, `findBy`, `countOf`, `maxOf`, `minOf`, `avgOf`, `sumOf`, `distinctOf`, `groupOf`) to `ModelControllerFactory` with `matchRoute()` handlers.
+*   2026-06-23: Fixed `allowGroupingQueries` default to `true` (matching original behavior where grouping routes were always added).
+*   2026-06-23: Fixed jest `moduleNameMapper` for `@decaf-ts/core/migrations` subpath.
+*   2026-06-23: Fixed `AUTH_META_KEY` import path in `model-builder.extensions.test.ts` (moved from `constants.ts` to `auth/constants.ts`).
+*   2026-06-23: All 88 unit tests pass (9 skipped, 0 failed). Parity test confirms builder/factory/controller route surfaces match exactly (22 routes each for `Product`).
