@@ -104,8 +104,8 @@ This specification is broken down into the following workstreams. The individual
 | TASK-190 | [Inventory all workflow files and classify them by reuse potential](./tasks/TASK_190.md) | High | Completed | - |
 | TASK-191 | [Extract or parameterize shared workflows in `reusable-actions`](./tasks/TASK_191.md) | High | Completed | TASK-190 |
 | TASK-192 | [Update consumer repositories to call the shared workflows and replicate the trigger rules](./tasks/TASK_192.md) | High | Completed | TASK-191 |
-| TASK-193 | [Document the action-by-action trigger and condition matrix](./tasks/TASK_193.md) | Medium | Pending | TASK-190 |
-| TASK-194 | [Validate the final workflow behavior across representative repositories](./tasks/TASK_194.md) | Medium | Pending | TASK-192 |
+| TASK-193 | [Document the action-by-action trigger and condition matrix](./tasks/TASK_193.md) | Medium | Completed | TASK-190 |
+| TASK-194 | [Validate the final workflow behavior across representative repositories](./tasks/TASK_194.md) | Medium | Completed | TASK-192 |
 
 ## 6. Open Questions / Risks
 *   Which workflows should remain repository-local because their trigger conditions are intentionally tied to a single repo?
@@ -121,5 +121,7 @@ This specification is broken down into the following workstreams. The individual
 *   `workdocs/ai/project/specifications/tasks/TASK_192.md`
 *   `workdocs/ai/project/specifications/tasks/TASK_193.md`
 *   `workdocs/ai/project/specifications/tasks/TASK_194.md`
+*   `reusable-actions/README.md`
+*   `reusable-actions/WORKFLOWS.md`
 *   Action-by-action inventory and rule matrix for workspace GitHub Actions
 *   Updated reusable workflows and consumer call sites, if execution follows this specification

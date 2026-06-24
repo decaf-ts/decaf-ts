@@ -3,7 +3,7 @@
 **ID:** TASK-193
 **Specification:** [DECAF-29](../DECAF_29.md)
 **Priority:** Medium
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Document the trigger and guard conditions for each GitHub Actions workflow so the workspace has a clear rule matrix for future changes.
@@ -11,10 +11,10 @@ Document the trigger and guard conditions for each GitHub Actions workflow so th
 This task produces the decision record that explains what each workflow does, what prevents it from running, and what must stay repository-local.
 
 ## 2. Objectives
-*   [ ] Document the triggers for every workflow.
-*   [ ] Record the guard conditions and skip logic for every workflow.
-*   [ ] Identify which inputs are required for each reusable workflow.
-*   [ ] Capture the repository-local exceptions and the reason they remain local.
+*   [x] Document the triggers for every workflow.
+*   [x] Record the guard conditions and skip logic for every workflow.
+*   [x] Identify which inputs are required for each reusable workflow.
+*   [x] Capture the repository-local exceptions and the reason they remain local.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -30,15 +30,19 @@ This task produces the decision record that explains what each workflow does, wh
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Rule matrix published in the task artifact.
+*   [x] Rule matrix published in the task artifact.
 
 **Manual Verification:**
-*   [ ] Confirmed each workflow has an explicit trigger/condition entry.
-*   [ ] Confirmed exceptions are documented with rationale.
+*   [x] Confirmed each workflow has an explicit trigger/condition entry.
+*   [x] Confirmed exceptions are documented with rationale.
 
 ## 5. Blockers & Clarifications
 *   None yet.
 
 ## 6. Execution Log
 *   2026-06-24 - Task file created.
+*   2026-06-24 - Published reusable-actions workflow documentation and trigger/condition matrix in `WORKFLOWS.md`.
 
+## 7. Results & Artifacts
+*   `reusable-actions/README.md`
+*   `reusable-actions/WORKFLOWS.md`
