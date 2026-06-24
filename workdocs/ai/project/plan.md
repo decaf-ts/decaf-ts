@@ -419,7 +419,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - **Link:** [Specification Details](./specifications/DECAF_29.md)
 - **Tasks:**
   - [x] [TASK-190](./specifications/tasks/TASK_190.md): Inventory all workflow files and classify them by reuse potential.
-  - [ ] [TASK-191](./specifications/tasks/TASK_191.md): Extract or parameterize shared workflows in `reusable-actions`.
+  - [x] [TASK-191](./specifications/tasks/TASK_191.md): Extract or parameterize shared workflows in `reusable-actions`.
   - [ ] [TASK-192](./specifications/tasks/TASK_192.md): Update consumer repositories to call the shared workflows and replicate the trigger rules.
   - [ ] [TASK-193](./specifications/tasks/TASK_193.md): Document the action-by-action trigger and condition matrix.
   - [ ] [TASK-194](./specifications/tasks/TASK_194.md): Validate the final workflow behavior across representative repositories.

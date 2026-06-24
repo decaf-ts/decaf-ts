@@ -3,7 +3,7 @@
 **ID:** TASK-191
 **Specification:** [DECAF-29](../DECAF_29.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Refactor workflows that are shared across repositories so the common behavior lives in `reusable-actions` and the remaining differences are exposed as inputs.
@@ -11,10 +11,10 @@ Refactor workflows that are shared across repositories so the common behavior li
 This task turns the inventory into reusable workflow definitions or reusable workflow inputs.
 
 ## 2. Objectives
-*   [ ] Move reusable workflow bodies into `reusable-actions` where appropriate.
-*   [ ] Parameterize commands, versions, secrets, and other repository-specific inputs.
-*   [ ] Preserve existing workflow behavior while reducing duplication.
-*   [ ] Identify any workflow that cannot be generalized and document why.
+*   [x] Move reusable workflow bodies into `reusable-actions` where appropriate.
+*   [x] Parameterize commands, versions, secrets, and other repository-specific inputs.
+*   [x] Preserve existing workflow behavior while reducing duplication.
+*   [x] Identify any workflow that cannot be generalized and document why.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -30,16 +30,27 @@ This task turns the inventory into reusable workflow definitions or reusable wor
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Reusable workflow definitions updated.
-*   [ ] Consumer repositories still reference valid workflow calls.
+*   [x] Reusable workflow definitions updated.
+*   [x] Consumer repositories still reference valid workflow calls.
 
 **Manual Verification:**
-*   [ ] Confirmed reusable workflow inputs cover the known use cases.
-*   [ ] Confirmed repo-local exceptions remain intentionally local.
+*   [x] Confirmed reusable workflow inputs cover the known use cases.
+*   [x] Confirmed repo-local exceptions remain intentionally local.
 
 ## 5. Blockers & Clarifications
 *   None yet.
 
 ## 6. Execution Log
 *   2026-06-24 - Task file created.
+*   2026-06-24 - Parameterized the shared reusable workflows and added a reusable Trivy workflow for later consumer wiring.
 
+## 7. Results & Artifacts
+*   `reusable-actions/.github/workflows/nodejs-build-prod.yaml`
+*   `reusable-actions/.github/workflows/jest-coverage.yaml`
+*   `reusable-actions/.github/workflows/release-on-merge-pr.yml`
+*   `reusable-actions/.github/workflows/release-on-tag.yaml`
+*   `reusable-actions/.github/workflows/publish-on-release.yaml`
+*   `reusable-actions/.github/workflows/pages.yaml`
+*   `reusable-actions/.github/workflows/codeql-analysis.yml`
+*   `reusable-actions/.github/workflows/snyk-analysis.yaml`
+*   `reusable-actions/.github/workflows/trivy-scan.yml`
