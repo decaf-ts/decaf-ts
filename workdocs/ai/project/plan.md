@@ -426,6 +426,22 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-30 — BlobStoreService API and Provider Implementations for @decaf-ts/integrations
+- **Priority:** High
+- **Goal:** Add a provider-agnostic BlobStoreService API to `@decaf-ts/integrations` with key/value CRUD-like operations (put/get/has/stat/delete/copy/list/url) and provider-specific subpath implementations for S3, MinIO, Cloudflare R2, Azure Blob, GCS, local filesystem, and IPFS, following the same ClientBasedService lifecycle as DECAF-26.
+- **Status:** Planned — specification created; optional dependencies and Docker Compose scaffolding for integration tests added.
+- **Link:** [Specification Details](./specifications/DECAF_30.md)
+- **Tasks:**
+  - [ ] DECAF-30-1: Define the blob core contracts, key normalization, factory, and error model
+  - [ ] DECAF-30-2: Implement the memory and local filesystem services with ClientBasedService pattern, parseError(), Decaf error handling, and logCtx logging
+  - [ ] DECAF-30-3: Add provider subpaths for S3/MinIO/R2, Azure Blob, and GCS with parseError() methods, Decaf error handling, and logCtx logging
+  - [ ] DECAF-30-4: Add the IPFS provider with key-index abstraction and document its content-addressed limitations
+  - [ ] DECAF-30-5: Update package exports, optional dependency metadata, and root import safety
+  - [ ] DECAF-30-6: Add Docker Compose files (MinIO, Azurite, fake-gcs-server, Kubo) and integration tests under tests/integration/blob/
+  - [ ] DECAF-30-7: Add contract tests, bundling tests, error-parsing unit tests, and docs
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -461,6 +477,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-26: ⏳ SecretService API and Provider Implementations (core contracts, memory/model services, and provider implementations complete; error handling and logging updates pending full compliance; DECAF-26-7 test coverage pending)
 - DECAF-27: ✅ Reusable GitHub Actions Repository
 - DECAF-29: ⏳ GitHub Actions Inventory, Normalization, and Rule Replication
+- DECAF-30: ⏳ BlobStoreService API and Provider Implementations (spec created; optional deps and Docker Compose scaffolding added)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
