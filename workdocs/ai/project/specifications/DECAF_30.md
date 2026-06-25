@@ -507,13 +507,13 @@ This specification is broken down into the following tasks. Each task should be 
 
 | ID | Task Name | Priority | Status | Dependencies |
 |:--|:--|:--|:--|:--|
-| DECAF-30-1 | Define the blob core contracts, key normalization, factory, and error model | High | Pending | - |
-| DECAF-30-2 | Implement the memory and local filesystem services with ClientBasedService pattern, parseError(), Decaf error handling, and logCtx logging | High | Pending | DECAF-30-1 |
-| DECAF-30-3 | Add provider subpaths for S3/MinIO/R2, Azure Blob, and GCS with parseError() methods, Decaf error handling, and logCtx logging | High | Pending | DECAF-30-1 |
-| DECAF-30-4 | Add the IPFS provider with key-index abstraction and document its content-addressed limitations | High | Pending | DECAF-30-1 |
-| DECAF-30-5 | Update package exports, optional dependency metadata, and root import safety | High | Pending | DECAF-30-1 |
-| DECAF-30-6 | Add Docker Compose files (MinIO, Azurite, fake-gcs-server, Kubo) and integration tests under tests/integration/blob/ | High | Pending | DECAF-30-3 |
-| DECAF-30-7 | Add contract tests, bundling tests, error-parsing unit tests, and docs | High | Pending | DECAF-30-2 |
+| DECAF-30-1 | Define the blob core contracts, key normalization, factory, and error model | High | Completed | - |
+| DECAF-30-2 | Implement the memory and local filesystem services with ClientBasedService pattern, parseError(), Decaf error handling, and logCtx logging | High | Completed | DECAF-30-1 |
+| DECAF-30-3 | Add provider subpaths for S3/MinIO/R2, Azure Blob, and GCS with parseError() methods, Decaf error handling, and logCtx logging | High | Completed | DECAF-30-1 |
+| DECAF-30-4 | Add the IPFS provider with key-index abstraction and document its content-addressed limitations | High | Completed | DECAF-30-1 |
+| DECAF-30-5 | Update package exports, optional dependency metadata, and root import safety | High | Completed | DECAF-30-1 |
+| DECAF-30-6 | Add Docker Compose files (MinIO, Azurite, fake-gcs-server, Kubo) and integration tests under tests/integration/blob/ | High | Completed | DECAF-30-3 |
+| DECAF-30-7 | Add contract tests, bundling tests, error-parsing unit tests, and docs | High | Completed | DECAF-30-2 |
 
 ## 6. Open Questions / Risks
 
