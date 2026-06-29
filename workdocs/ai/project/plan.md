@@ -442,6 +442,20 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-31 — mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation
+- **Priority:** High
+- **Goal:** Repair `mcp-server` CLI packaging and path resolution so ADOS/orchestration commands work when the package is installed under `node_modules`, and revalidate the compiled `dist` artifact through the MCP inspector transport.
+- **Status:** Planned
+- **Link:** [Specification Details](./specifications/DECAF_31.md)
+- **Tasks:**
+  - [ ] [DECAF-31-1](./specifications/tasks/TASK_31_1.md): Fix packaged asset and template resolution for `mcp-server` CLI commands
+  - [ ] [DECAF-31-2](./specifications/tasks/TASK_31_2.md): Repair `repo:init` orchestration and ADOS setup when installed from `node_modules`
+  - [ ] [DECAF-31-3](./specifications/tasks/TASK_31_3.md): Restore compiled `dist` loading and inspector transport validation for `mcp-server`
+  - [ ] [DECAF-31-4](./specifications/tasks/TASK_31_4.md): Add and repair integration tests for orchestration CLI flows and dist boot
+  - [ ] [DECAF-31-5](./specifications/tasks/TASK_31_5.md): Document the supported ADOS/package-install CLI flow and verification steps
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -478,6 +492,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-27: ✅ Reusable GitHub Actions Repository
 - DECAF-29: ⏳ GitHub Actions Inventory, Normalization, and Rule Replication
 - DECAF-30: ✅ BlobStoreService API and Provider Implementations (all providers implemented: memory, local, S3/MinIO/R2, Azure Blob, GCS, IPFS; 105/105 tests passing across 14 suites; lint and build clean)
+- DECAF-31: ⏳ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (new spec added for node_modules packaging, orchestration CLI repair, and dist inspector coverage)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
