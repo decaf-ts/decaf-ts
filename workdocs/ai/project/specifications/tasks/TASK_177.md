@@ -9,10 +9,10 @@
 This is the task that actually fulfills DECAF-10's original ask. With `ModelControllerBuilder`/`ModelControllerFactory` (TASK-171–174) built and parity-proven (TASK-172) against today's hand-written routes, rewrite `for-nest/src/decaf-model/FromModelController.create()` to delegate to them instead of hand-defining `DynamicModelController`. This is also where `@BlockOperations`'s statement/query targets (TASK-107, currently shipped in `core` but never called from `for-nest`) finally get a caller.
 
 ## 2. Objectives
-*   [ ] Replace `FromModelController.create()`'s hand-written `DynamicModelController` class body with a call into `ModelControllerFactory.create(ModelConstr, persistence, config)`.
-*   [ ] Layer the Nest-specific concerns (`@Controller`, `@nestjs/swagger` decorators built from the framework-agnostic `ServerRoute.{summary,description,responses}`, `@Param`/`@Query`/`@Response` parameter decorators, `@Auth()` from the new auth module — TASK-176) on top of the factory's output.
-*   [ ] Replace `for-nest/src/decaf-model/decorators/ApiOperationFromModel.ts`'s local, 2-arg-only `isOperationBlocked` with the real `core` 3-arg `isOperationBlocked(ctor, kind, value)`, so prepared-statement/query blocking (TASK-107) is finally consulted by `for-nest`, not just by CRUD-verb mapping.
-*   [ ] Preserve the static `get class()` getter, PK lookup, and logging wiring exactly as today's `DynamicModelController` does.
+*   [x] Replace `FromModelController.create()`'s hand-written `DynamicModelController` class body with a call into `ModelControllerFactory.create(ModelConstr, persistence, config)`.
+*   [x] Layer the Nest-specific concerns (`@Controller`, `@nestjs/swagger` decorators built from the framework-agnostic `ServerRoute.{summary,description,responses}`, `@Param`/`@Query`/`@Response` parameter decorators, `@Auth()` from the new auth module — TASK-176) on top of the factory's output.
+*   [x] Replace `for-nest/src/decaf-model/decorators/ApiOperationFromModel.ts`'s local, 2-arg-only `isOperationBlocked` with the real `core` 3-arg `isOperationBlocked(ctor, kind, value)`, so prepared-statement/query blocking (TASK-107) is finally consulted by `for-nest`, not just by CRUD-verb mapping.
+*   [x] Preserve the static `get class()` getter, PK lookup, and logging wiring exactly as today's `DynamicModelController` does.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -26,8 +26,8 @@ This is the task that actually fulfills DECAF-10's original ask. With `ModelCont
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Full `for-nest` existing test suite (unit + integration + e2e) passes unchanged against the rewritten `FromModelController`.
-*   [ ] New test: applying `@BlockOperations({ kind: "statement", value: PreparedStatementKeys.LIST_BY })` (or equivalent) to a model actually removes the `listBy` Nest route — this exact scenario has no working test today because nothing calls the richer `isOperationBlocked` from `for-nest`.
+*   [x] Full `for-nest` existing test suite (unit + integration + e2e) passes unchanged against the rewritten `FromModelController`.
+*   [x] New test: applying `@BlockOperations({ kind: "statement", value: PreparedStatementKeys.LIST_BY })` (or equivalent) to a model actually removes the `listBy` Nest route — this exact scenario has no working test today because nothing calls the richer `isOperationBlocked` from `for-nest`.
 
 **Manual Verification:**
 *   Boot a sample Nest app with a model controller generated through the rewritten `FromModelController` and confirm the full route list (Swagger UI or direct route inspection) matches pre-rewrite behavior, including for a model with a `@composed()` PK.
@@ -44,3 +44,4 @@ This is the task that actually fulfills DECAF-10's original ask. With `ModelCont
 *   2026-06-23: Fixed jest `moduleNameMapper` for `@decaf-ts/core/migrations` subpath.
 *   2026-06-23: Fixed `AUTH_META_KEY` import path in `model-builder.extensions.test.ts` (moved from `constants.ts` to `auth/constants.ts`).
 *   2026-06-23: All 88 unit tests pass (9 skipped, 0 failed). Parity test confirms builder/factory/controller route surfaces match exactly (22 routes each for `Product`).
+*   2026-06-30: Revalidated the rewritten `FromModelController` against live integration coverage. `decaf-model-exposure.integration.test.ts` passes with the shared `for-http/server` route objects driving CRUD, bulk, statement, grouping, and composed-PK endpoints.

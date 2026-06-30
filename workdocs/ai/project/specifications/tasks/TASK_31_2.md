@@ -3,14 +3,14 @@
 **ID:** TASK-31-2
 **Specification:** [Link to Specification](../DECAF_31.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Repair the orchestration-oriented CLI flow so `decaf-mcp repo:init <path> --orchestration --agent <agent>` works when `mcp-server` is consumed as a Node library.
 
 ## 2. Objectives
-*   [ ] Validate `repo:init` with orchestration and agent flags.
-*   [ ] Fix any CLI wiring that depends on source-tree assumptions.
+*   [x] Validate `repo:init` with orchestration and agent flags.
+*   [x] Fix any CLI wiring that depends on source-tree assumptions.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -23,8 +23,8 @@ Repair the orchestration-oriented CLI flow so `decaf-mcp repo:init <path> --orch
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Integration Test: `repo:init --orchestration --agent` from packaged layout
-*   [ ] Integration Test: orchestration command file generation
+*   [x] Integration Test: `repo:init --orchestration --agent` from packaged layout
+*   [x] Integration Test: orchestration command file generation
 
 **Manual Verification:**
 *   Run the command from a simulated installed package and inspect the generated workspace.
@@ -33,4 +33,4 @@ Repair the orchestration-oriented CLI flow so `decaf-mcp repo:init <path> --orch
 *   **Clarification 1:** Which orchestration/ADOS command variants should be included in the supported matrix?
 
 ## 6. Execution Log
-*   [Date] - Started task.
+*   [2026-06-29] - Verified `repo:init` through the CLI command path with a packaged asset tree and confirmed orchestration artifacts are generated.

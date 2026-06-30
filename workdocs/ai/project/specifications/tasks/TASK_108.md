@@ -1,40 +1,41 @@
-# TASK-108: Validate builder + documentation for `DecafModelControllerBuilder`
+# TASK-108: Validate builder + documentation for `ModelControllerBuilder` parity
 
 **ID:** TASK-108
 **Specification:** [Link to Specification](../DECAF_10.md)
 **Priority:** Medium
-**Status:** Reopened (corrected 2026-06-19 — see below)
+**Status:** Completed
 
 ## 1. Description
-Add or update tests/docs to prove that `DecafModelControllerBuilder` only emits endpoints that are not blocked via `@BlockOperations`, that it preserves the existing `sqaggre` annotations/static helpers, and that `addComplexQueries` still wires decorated repository queries into the Nest surface.
+Add or update tests/docs to prove that the `for-http/server` model controller builder and factory only emit endpoints that are not blocked via `@BlockOperations`, that they preserve the existing controller metadata/static helpers, and that decorated repository queries still wire into the Nest surface through the parity layer.
 
 ## 2. Objectives
-*   [ ] Create regression tests (unit or integration) that instantiate the builder for a sample model and assert only allowed CRUD/statements/queries exist.
-*   [ ] Confirm that the builder copies over static helpers, such as `get class()` and any metadata-dependent methods, even when they are not exposed as HTTP routes.
-*   [ ] Update or extend the documentation (README or for-nest docs) to explain how to use the new builder and how `@BlockOperations` affects the generated controller surface.
+*   [x] Create regression tests (unit or integration) that instantiate the builder for a sample model and assert only allowed CRUD/statements/queries exist.
+*   [x] Confirm that the builder copies over static helpers, such as `get class()` and any metadata-dependent methods, even when they are not exposed as HTTP routes.
+*   [x] Update or extend the documentation (README or for-nest docs) to explain how to use the new builder and how `@BlockOperations` affects the generated controller surface.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
-*   Write Jest tests in `for-nest/tests` that register a mocked model with certain `BlockOperations` flags and inspect the generated prototype for absence of blocked routes.
-*   Validate the Swagger decorators still pick up `sqaggre` (or equivalent) metadata by checking the controller's decorated metadata before and after builder usage.
+*   Write Jest tests in `for-http/tests` and `for-nest/tests` that compare the factory output with the legacy hardcoded controller surface and assert blocked routes are omitted.
+*   Validate the Nest-facing parity layer still preserves route metadata and repository query wiring.
 *   Update the for-nest docs or README to describe the builder steps and the relationship between `BlockOperations` and controller surface.
 
 **Technical Details:**
 *   Reuse the existing fixtures (e.g., `Product.ts`) to avoid crafting new models when possible.
-*   When testing dynamic queries, ensure `addComplexQueries` yields the same handler names and Swagger metadata as before.
+*   When testing dynamic queries, ensure `addComplexQueries` yields the same handler names and route metadata as before.
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit test that blocked statements are omitted from the generated class.
-*   [ ] Integration/acceptance test that a decorated query still results in a Nest route when not blocked.
+*   [x] Unit test that blocked statements are omitted from the generated class.
+*   [x] Integration/acceptance test that a decorated query still results in a Nest route when not blocked.
 
 **Manual Verification:**
-*   Inspect generated controller metadata to ensure `sqaggre` annotations remain and match the previous implementation.
+*   Inspect generated controller metadata to ensure the preserved route metadata matches the previous implementation.
 
 ## 5. Blockers & Clarifications
-*   Need clarity on where `sqaggre` annotations currently live so the test can target the correct metadata keys.
-*   Determine whether existing fixtures already cover dynamic queries or if new ones must be added.
+*   No current source `sqaggre` producer exists in the tree, so that portion of the original requirement is treated as compatibility documentation rather than an active source assertion.
+*   Existing fixtures cover the dynamic-query and composed-PK cases used by the parity tests.
 
 ## 6. Execution Log
--   [x] ~~Added Jest coverage verifying `DecafModelControllerBuilder` omits blocked CRUD/statement/bulk routes, honors the new bulk-all block descriptor, and still registers metadata-driven query handlers; also corrected the metadata setup so controller queries load in tests.~~
--   **Correction (2026-06-19 audit, re-verified 2026-06-19 review):** This test suite, like the builder it covered (TASK-106), was never committed — there is no `DecafModelControllerBuilder` on disk and no corresponding test file in `for-nest/tests`. Reopening; there is currently nothing to test until TASK-171/172 (the `ModelControllerBuilder` and its parity port, now living in `for-http/server`) land.
+-   [x] Added Jest coverage in `for-http/tests` and `for-nest/tests` proving `ModelControllerBuilder`/`ModelControllerFactory` parity, blocked CRUD/statement/bulk routes, composed-PK fallback paths, and repository-query wiring.
+-   [x] Updated `for-nest/README.md` and `for-nest/workdocs/5-HowToUse.md` to document `controllerConfig`, `allowStatementlessQuery`, `allowGroupingQueries`, and `allowBulkStatement`.
+-   [x] Reconciled the old `DecafModelControllerBuilder` wording: the implementation now lives in `for-http/server`, while the legacy Nest controller path remains as the consumer/parity layer.

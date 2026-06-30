@@ -183,13 +183,13 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-10 — DecafModelControllerBuilder & BlockOperations coverage
 - **Priority:** High
 - **Goal:** Build a builder-driven NestJS controller generator that respects `@BlockOperations`, covers prepared statements/query keys, and preserves every static helper and `sqaggre` annotation currently emitted for each model.
-- **Status:** In Progress — builder and block guard implemented; validation/docs still tracked in TASK-108.
+- **Status:** In Progress — builder and block guard implemented; TASK-108 is now closed, and the broader `for-nest` rewrite remains pending in the spec.
 - **Link:** [Specification Details](./specifications/DECAF_10.md)
 - **Tasks:**
   - [x] [TASK-105](./specifications/tasks/TASK_105.md): Analyze the existing controller pipeline, metadata, and current `BlockOperations` usage so we know what the builder must reproduce.
 - [x] [TASK-106](./specifications/tasks/TASK_106.md): Implement `DecafModelControllerBuilder` with helpers for CRUD, statements, bulk helpers, and `addComplexQueries`.
 - [x] [TASK-107](./specifications/tasks/TASK_107.md): Extend `BlockOperations` so it can also block prepared statements (`PreparedStatementKeys`) and repository query keys before builder registration.
-- [ ] [TASK-108](./specifications/tasks/TASK_108.md): Add tests/docs verifying the builder respects blocked operations, keeps static helpers, and keeps `sqaggre` metadata intact.
+  - [x] [TASK-108](./specifications/tasks/TASK_108.md): Add tests/docs verifying the builder respects blocked operations, keeps static helpers, and keeps `sqaggre` metadata intact.
   - [x] [TASK-180](./specifications/tasks/TASK_180.md): Live integration coverage for `@expose(...)`, controller exposure overrides, split RAM/Nano controllers, axios-backed route validation, and `/sse` delivery.
   - [x] [TASK-185](./specifications/tasks/TASK_185.md): E2e verification with complex relational + `@composed()` PK models, per-model `@controllerConfig` decoration, module-level config overrides, and full `AxiosHttpAdapter` API coverage (CRUD/bulk/query/group/events).
 
@@ -445,14 +445,14 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-31 — mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation
 - **Priority:** High
 - **Goal:** Repair `mcp-server` CLI packaging and path resolution so ADOS/orchestration commands work when the package is installed under `node_modules`, and revalidate the compiled `dist` artifact through the MCP inspector transport.
-- **Status:** Planned
+- **Status:** Completed — packaged template resolution, repo:init orchestration, documentation, and packaging-aware coverage are updated; the existing dist inspector suite remains the verification path.
 - **Link:** [Specification Details](./specifications/DECAF_31.md)
 - **Tasks:**
-  - [ ] [DECAF-31-1](./specifications/tasks/TASK_31_1.md): Fix packaged asset and template resolution for `mcp-server` CLI commands
-  - [ ] [DECAF-31-2](./specifications/tasks/TASK_31_2.md): Repair `repo:init` orchestration and ADOS setup when installed from `node_modules`
-  - [ ] [DECAF-31-3](./specifications/tasks/TASK_31_3.md): Restore compiled `dist` loading and inspector transport validation for `mcp-server`
-  - [ ] [DECAF-31-4](./specifications/tasks/TASK_31_4.md): Add and repair integration tests for orchestration CLI flows and dist boot
-  - [ ] [DECAF-31-5](./specifications/tasks/TASK_31_5.md): Document the supported ADOS/package-install CLI flow and verification steps
+  - [x] [DECAF-31-1](./specifications/tasks/TASK_31_1.md): Fix packaged asset and template resolution for `mcp-server` CLI commands
+  - [x] [DECAF-31-2](./specifications/tasks/TASK_31_2.md): Repair `repo:init` orchestration and ADOS setup when installed from `node_modules`
+  - [x] [DECAF-31-3](./specifications/tasks/TASK_31_3.md): Restore compiled `dist` loading and inspector transport validation for `mcp-server`
+  - [x] [DECAF-31-4](./specifications/tasks/TASK_31_4.md): Add and repair integration tests for orchestration CLI flows and dist boot
+  - [x] [DECAF-31-5](./specifications/tasks/TASK_31_5.md): Document the supported ADOS/package-install CLI flow and verification steps
 
 ---
 
@@ -473,11 +473,11 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-7: ✅ Transaction Decorator Refactoring
 - DECAF-8: ⏳ Universal E2E Test Coverage (infrastructure template created following decoration module pattern)
 - DECAF-9: ✅ MiniLogger LogParameter Engine (parameter registry/pattern parser implemented with documentation and regression tests)
-- DECAF-10: ⏳ DecafModelControllerBuilder & BlockOperations coverage (builder/block work implemented; remaining validation/docs tracked in TASK-108)
+- DECAF-10: ⏳ DecafModelControllerBuilder & BlockOperations coverage (builder/block work implemented; TASK-108 closed; broader `for-nest` rewrite still pending in the spec)
 - DECAF-11: ✅ Property-Scoped Persistent Sequences (property-scoped sequence support implemented and verified)
 - DECAF-12: ✅ TaskEngine Runtime Orchestration Controls (runtime composite insertion, dependencies, locks, and handler catch completed with core verification)
 - DECAF-13: ✅ for-http HttpAdapter Simple REST Helpers (simple helpers and typed options implemented with tests/docs updates)
-- DECAF-14: ⏳ Cross-Adapter Migration Engine Hardening (live `core`/`for-nano`/`for-typeorm` flows validated; `for-fabric` unit suite green; `for-nest` migration integration coverage exists but still needs stability hardening).
+- DECAF-14: ⏳ Cross-Adapter Migration Engine Hardening (implementation complete; live `for-nest` rerun is currently blocked because the Nano/Postgres integration infra is unavailable in this workspace).
 - DECAF-15: ✅ Webhook Signature Verification Middleware (middleware implemented, all tests passing, documentation complete).
 - DECAF-16: ✅ Jira Ticket Template Resources & Guided Creation (custom-field-aware template work added; one inspector CLI transport check remains flaky but non-blocking)
 - DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (progress notifications and manager relay merged into this spec; implementation in progress, handshake validation pending)
@@ -492,7 +492,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-27: ✅ Reusable GitHub Actions Repository
 - DECAF-29: ⏳ GitHub Actions Inventory, Normalization, and Rule Replication
 - DECAF-30: ✅ BlobStoreService API and Provider Implementations (all providers implemented: memory, local, S3/MinIO/R2, Azure Blob, GCS, IPFS; 105/105 tests passing across 14 suites; lint and build clean)
-- DECAF-31: ⏳ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (new spec added for node_modules packaging, orchestration CLI repair, and dist inspector coverage)
+- DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`

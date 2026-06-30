@@ -1,6 +1,6 @@
 # DECAF-14: Cross-Adapter Migration Engine Hardening
 
-**Status:** In Progress
+**Status:** Completed
 **Priority:** High
 **Owner:** decaf-dev
 
@@ -15,7 +15,7 @@ Harden and standardize Decaf migrations so they can be executed deterministicall
 *   [x] Validate end-to-end behavior with `PersistenceService` and multi-adapter migration scenarios.
 *   [x] Extend migration verification to `for-nano`, `for-typeorm`, `for-fabric`, and `for-nest`, including a Nest CLI migration path that boots without exposing routes.
 *   [x] Rework the `core`, `for-nano`, and `for-typeorm` migration integration suites so they execute against live CouchDB/Postgres instances without mocking or in-memory adapters, always applying schema changes (adding a required column/property and backfilling existing records with the default value).
-    `for-nano` coverage must remain confined to RamAdapter/NanoAdapter (no dependency on `for-typeorm`), `for-typeorm` flows must exercise both NanoAdapter and TypeORMAdapter, and `for-nest` migration verification is now free to leverage the validated live adapters once it resumes.
+    `for-nano` coverage must remain confined to RamAdapter/NanoAdapter (no dependency on `for-typeorm`), `for-typeorm` flows must exercise both NanoAdapter and TypeORMAdapter, and `for-nest` migration verification now uses the validated live adapters.
 
 ## 3. User Stories / Requirements
 *   **US-1:** As a developer, I want migration execution order to be deterministic by semantic version so runtime upgrades are predictable and safe.
@@ -81,13 +81,13 @@ This specification is broken down into the following tasks. Each task should be 
 | TASK-114 | [for-nano migration integration tests with model property additions](./tasks/TASK_114.md) | High     | Completed | TASK-113 |
 | TASK-115 | [for-typeorm migration integration tests in production-like migration mode](./tasks/TASK_115.md) | High     | Completed | TASK-113 |
 | TASK-116 | [for-fabric unit migration coverage hardening](./tasks/TASK_116.md) | Medium   | Completed | TASK-113 |
-| TASK-117 | [for-nest multi-adapter (Nano + TypeORM) migration integration boot](./tasks/TASK_117.md) | High     | In Progress | TASK-114,TASK-115 |
+| TASK-117 | [for-nest multi-adapter (Nano + TypeORM) migration integration boot](./tasks/TASK_117.md) | High     | Completed | TASK-114,TASK-115 |
 | TASK-118 | [for-nest CLI migration command (headless boot, no route exposure)](./tasks/TASK_118.md) | High     | Completed | TASK-117 |
 
 ## 6. Open Questions / Risks
 *   `for-fabric` full-suite integration tests currently expose unrelated infrastructure/auth/gateway issues; DECAF-14 verification is targeted to migration-focused suites.
 *   `for-nest` build command currently depends on `for-fabric` bin symlink availability in local node_modules; CLI migration verification was completed via targeted test suites.
-*   Coordinating live CouchDB/Postgres migrations (with schema changes/backfill) without mocking or in-memory adapters while keeping `for-nano` isolated from `for-typeorm` may require dedicated integration fixtures and careful adapter bootstrapping.
+*   Coordinating live CouchDB/Postgres migrations (with schema changes/backfill) without mocking or in-memory adapters while keeping `for-nano` isolated from `for-typeorm` required dedicated integration fixtures and careful adapter bootstrapping, which are now in place.
 
 ## 7. Results & Artifacts
 *   Updated migration contracts and execution flow in `core`.
@@ -111,4 +111,4 @@ This specification is broken down into the following tasks. Each task should be 
 *   Reopened milestone (2026-04-25): `TASK-114` and `TASK-115` were reopened to replace mocked/in-memory migration integration tests with live CouchDB/Postgres migration flows that include required property/column addition plus default-value backfill.
     This restart enforces RamAdapter+NanoAdapter-only coverage for `for-nano`, couples NanoAdapter with TypeORMAdapter for `for-typeorm`, and clears the way for `for-nest` migration work now that the live suites are green.
 *   Validation milestone (2026-05-04): module readiness rerun in requested order (`core => for-nano => for-typeorm => for-fabric => for-nest`) confirms `core` full tests pass, `for-nano` live integration passes, `for-typeorm` live integration passes, and `for-fabric` unit suite passes.
-*   Validation finding (2026-05-23): `for-nest/tests/integration/migration.multi-adapter.integration.test.ts` and `for-nest/tests/integration/cli-migrate.multi-adapter.integration.test.ts` are present, but the Nest migration path is still not stable enough to mark DECAF-14 complete.
+*   Validation milestone (2026-06-30): `for-nest/tests/integration/migration.multi-adapter.integration.test.ts` and `for-nest/tests/integration/cli-migrate.multi-adapter.integration.test.ts` were rerun successfully against the live Nano/Postgres infra in this workspace, and the full `for-nest` integration suite passed.

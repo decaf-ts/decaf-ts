@@ -3,14 +3,14 @@
 **ID:** TASK-31-4
 **Specification:** [Link to Specification](../DECAF_31.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Add or repair the integration tests needed to validate the orchestration CLI flows, packaged boot path, and dist inspector behavior.
 
 ## 2. Objectives
-*   [ ] Cover the CLI paths that currently fail or are not tested.
-*   [ ] Make sure regressions fail in CI before release.
+*   [x] Cover the CLI paths that currently fail or are not tested.
+*   [x] Make sure regressions fail in CI before release.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -23,8 +23,8 @@ Add or repair the integration tests needed to validate the orchestration CLI flo
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Integration Test: orchestration CLI command set
-*   [ ] Integration Test: dist boot through inspector transport
+*   [x] Integration Test: orchestration CLI command set
+*   [x] Integration Test: dist boot through inspector transport
 
 **Manual Verification:**
 *   Run the focused integration suite and confirm the regressions are reproduced before the fix and resolved after.
@@ -33,4 +33,4 @@ Add or repair the integration tests needed to validate the orchestration CLI flo
 *   **Clarification 1:** Which tests should remain skipped, if any, after the fix?
 
 ## 6. Execution Log
-*   [Date] - Started task.
+*   [2026-06-29] - Added packaging-aware repo-init integration coverage and retained the compiled dist inspector path in the existing suite.

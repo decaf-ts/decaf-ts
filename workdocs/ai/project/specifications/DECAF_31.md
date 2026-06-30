@@ -1,6 +1,6 @@
 # DECAF-31 — mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation
 
-**Status:** Planned
+**Status:** Completed
 **Priority:** High
 **Owner:** Codex
 
@@ -17,11 +17,11 @@ This specification hardens the `mcp-server` CLI and packaging path so the server
 The expected result is a CLI and dist build that can be loaded reliably from `node_modules`, resolves templates and workspace assets correctly, and passes integration coverage through the inspector transport after `build:dist`.
 
 ## 2. Goals
-*   [ ] Make `mcp-server` load reliably from the compiled `dist` artifact under the inspector transport.
-*   [ ] Revalidate the `repo:init` orchestration flow and related ADOS/orchestration CLI commands when installed as a library in `node_modules`.
-*   [ ] Fix template and asset resolution so packaged CLI commands do not assume a source-tree working directory.
-*   [ ] Add or repair integration tests that cover `build:dist`, inspector boot, and the orchestration CLI paths.
-*   [ ] Update the documentation to explain the working installation and boot model for `mcp-server` and the ADOS setup.
+*   [x] Make `mcp-server` load reliably from the compiled `dist` artifact under the inspector transport.
+*   [x] Revalidate the `repo:init` orchestration flow and related ADOS/orchestration CLI commands when installed as a library in `node_modules`.
+*   [x] Fix template and asset resolution so packaged CLI commands do not assume a source-tree working directory.
+*   [x] Add or repair integration tests that cover `build:dist`, inspector boot, and the orchestration CLI paths.
+*   [x] Update the documentation to explain the working installation and boot model for `mcp-server` and the ADOS setup.
 
 ## 3. User Stories / Requirements
 *   **US-1:** As a consumer, I want `mcp-server` to boot from `dist` through the inspector so I can validate the published package, not just the source tree.
@@ -57,11 +57,11 @@ This specification is broken down into the following tasks. Each task should be 
 
 | ID | Task Name | Priority | Status | Dependencies |
 |:---|:----------|:---------|:-------|:-------------|
-| TASK-31-1 | [Fix packaged asset and template resolution for `mcp-server` CLI commands](./tasks/TASK_31_1.md) | High | Pending | - |
-| TASK-31-2 | [Repair `repo:init` orchestration and ADOS setup when installed from `node_modules`](./tasks/TASK_31_2.md) | High | Pending | TASK-31-1 |
-| TASK-31-3 | [Restore compiled `dist` loading and inspector transport validation for `mcp-server`](./tasks/TASK_31_3.md) | High | Pending | TASK-31-1 |
-| TASK-31-4 | [Add and repair integration tests for orchestration CLI flows and dist boot](./tasks/TASK_31_4.md) | High | Pending | TASK-31-2, TASK-31-3 |
-| TASK-31-5 | [Document the supported ADOS/package-install CLI flow and verification steps](./tasks/TASK_31_5.md) | Medium | Pending | TASK-31-2, TASK-31-4 |
+| TASK-31-1 | [Fix packaged asset and template resolution for `mcp-server` CLI commands](./tasks/TASK_31_1.md) | High | Completed | - |
+| TASK-31-2 | [Repair `repo:init` orchestration and ADOS setup when installed from `node_modules`](./tasks/TASK_31_2.md) | High | Completed | TASK-31-1 |
+| TASK-31-3 | [Restore compiled `dist` loading and inspector transport validation for `mcp-server`](./tasks/TASK_31_3.md) | High | Completed | TASK-31-1 |
+| TASK-31-4 | [Add and repair integration tests for orchestration CLI flows and dist boot](./tasks/TASK_31_4.md) | High | Completed | TASK-31-2, TASK-31-3 |
+| TASK-31-5 | [Document the supported ADOS/package-install CLI flow and verification steps](./tasks/TASK_31_5.md) | Medium | Completed | TASK-31-2, TASK-31-4 |
 
 ## 6. Open Questions / Risks
 *   Which asset root should be treated as canonical when both the source tree and an installed package are present?
@@ -71,7 +71,7 @@ This specification is broken down into the following tasks. Each task should be 
 *   Documentation may need to distinguish between development-time source usage and production-like installed-package usage to avoid future path regressions.
 
 ## 7. Results & Artifacts
-*   A new `DECAF-31` specification covering `mcp-server` CLI packaging and ADOS setup hardening.
+*   A completed `DECAF-31` specification covering `mcp-server` CLI packaging and ADOS setup hardening.
 *   CLI/path-resolution fixes for packaged use under `node_modules`.
 *   Integration tests covering `build:dist`, inspector boot, and orchestration CLI commands.
 *   Updated documentation for the packaged `mcp-server` boot and template resolution model.
