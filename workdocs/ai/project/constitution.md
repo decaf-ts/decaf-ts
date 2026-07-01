@@ -63,6 +63,7 @@ These rules are **non-negotiable**.
 
 1.  Every public API must preserve declarative metadata—decorators, models, repositories, and adapters share consistent metadata keys so adapters can operate without ad-hoc wiring.
 2.  Persistence flows must follow the prepare→action→revert sequence with observable hooks so validation, logging, and error translation happen predictably across all adapters.
+3.  Runtime code must throw only Decaf error types (`BaseError` or subclasses such as `ValidationError`, `InternalError`, `NotFoundError`, `UnsupportedError`, and `AuthorizationError`). Never throw a native `Error` from shipped source; wrap or translate unknown failures before rethrowing.
 
 ## 2. Core Decaf Architectural Patterns
 
