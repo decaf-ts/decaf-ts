@@ -3,17 +3,17 @@
 **ID:** TASK-212
 **Specification:** [DECAF-32: Decaf Graph Execution Engine](../DECAF_32.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Define the configurable graph value store contract (`GraphValueStoreAdapter`), provide the default `InMemoryGraphValueStoreAdapter`, define `GraphValueKey`/`GraphCachedValue`, and add the `GraphValueStore` runtime wrapper that holds runtime values for the current execution and delegates persistent/cache/pinned values to the adapter.
 
 ## 2. Objectives
-*   [ ] Add `GraphValueKey` (`workflowId`, `nodeId`, `fingerprint`, optional `namespace`/`version`).
-*   [ ] Add `GraphCachedValue` (`key`, `outputs`, `pinned`, `createdAt`, `updatedAt`, optional `expiresAt`/`metadata`).
-*   [ ] Add `GraphValueStoreAdapter` interface with `read`, `write`, `delete`, `has`, and optional `list`, `clearRun`, `readRuntimeValues`, `writeRuntimeValues`.
-*   [ ] Add `InMemoryGraphValueStoreAdapter` as the default.
-*   [ ] Add `GraphValueStore` with `seedWorkflowInputs`, `setNodeOutputs`, `getPort`, `hasPort`, `setWorkflowOutput`, `getWorkflowValues`, `readCached`, `writeCached`, `deleteCached`, `snapshot`.
+*   [x] Add `GraphValueKey` (`workflowId`, `nodeId`, `fingerprint`, optional `namespace`/`version`).
+*   [x] Add `GraphCachedValue` (`key`, `outputs`, `pinned`, `createdAt`, `updatedAt`, optional `expiresAt`/`metadata`).
+*   [x] Add `GraphValueStoreAdapter` interface with `read`, `write`, `delete`, `has`, and optional `list`, `clearRun`, `readRuntimeValues`, `writeRuntimeValues`.
+*   [x] Add `InMemoryGraphValueStoreAdapter` as the default.
+*   [x] Add `GraphValueStore` with `seedWorkflowInputs`, `setNodeOutputs`, `getPort`, `hasPort`, `setWorkflowOutput`, `getWorkflowValues`, `readCached`, `writeCached`, `deleteCached`, `snapshot`.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -27,8 +27,8 @@ Define the configurable graph value store contract (`GraphValueStoreAdapter`), p
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit Test: `tests/unit/graph/InMemoryGraphValueStoreAdapter.test.ts`
-*   [ ] Unit Test: `tests/unit/graph/GraphValueStore.test.ts`
+*   [x] Unit Test: `tests/unit/graph/InMemoryGraphValueStoreAdapter.test.ts`
+*   [x] Unit Test: `tests/unit/graph/GraphValueStore.test.ts`
 
 **Manual Verification:**
 *   Confirm values are separated by workflow id and fingerprint.
@@ -38,4 +38,4 @@ Define the configurable graph value store contract (`GraphValueStoreAdapter`), p
 *   None anticipated.
 
 ## 6. Execution Log
-*   [pending] - Task created during DECAF-32 specification.
+*   [completed] - Implemented during DECAF-32.

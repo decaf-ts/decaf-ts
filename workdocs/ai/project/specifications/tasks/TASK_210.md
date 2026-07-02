@@ -3,17 +3,17 @@
 **ID:** TASK-210
 **Specification:** [DECAF-32: Decaf Graph Execution Engine](../DECAF_32.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Create the foundational `src/graph` area in `@decaf-ts/core`: `constants.ts`, `types.ts`, `decorators.ts`, the structured error classes, and `GraphExecutionContext` which must extend Decaf's `Context` abstraction (mirroring the `TaskEngine`/`TaskContext` pattern). This task establishes the contract every subsequent graph task depends on.
 
 ## 2. Objectives
-*   [ ] Add `src/graph/constants.ts` with `GRAPH_WORKFLOW_BOUNDARY`, default concurrency/loop limits, `GRAPH_PINNING_METADATA_KEY`, `GraphExecutionStatus`, and `GraphExecutionEventType`.
-*   [ ] Add `src/graph/types.ts` with `GraphRunId`, `GraphWorkflowId`, `GraphNodeId`, `GraphPortName`, `GraphExecutionValues`, `GraphExecutionOptions`, `GraphExecutionErrorPayload`, `GraphExecutionEvent`, `GraphNodeExecutionResult`, `GraphExecutionResult`, `GraphExecutionContextOptions`.
-*   [ ] Add structured error classes extending `GraphExecutionError`: `GraphCycleError`, `GraphInputError`, `GraphLoopLimitError`, `GraphPinningError`, `GraphPortError`, `GraphStoreError`, `GraphTopologyError`.
-*   [ ] Add `GraphExecutionContext` extending Decaf `Context` with `emit`, `progress`, and `log` methods, mirroring `TaskContext` constructor/usage patterns.
-*   [ ] Add `src/graph/index.ts` exporting public APIs explicitly (specific-file imports only).
+*   [x] Add `src/graph/constants.ts` with `GRAPH_WORKFLOW_BOUNDARY`, default concurrency/loop limits, `GRAPH_PINNING_METADATA_KEY`, `GraphExecutionStatus`, and `GraphExecutionEventType`.
+*   [x] Add `src/graph/types.ts` with `GraphRunId`, `GraphWorkflowId`, `GraphNodeId`, `GraphPortName`, `GraphExecutionValues`, `GraphExecutionOptions`, `GraphExecutionErrorPayload`, `GraphExecutionEvent`, `GraphNodeExecutionResult`, `GraphExecutionResult`, `GraphExecutionContextOptions`.
+*   [x] Add structured error classes extending `GraphExecutionError`: `GraphCycleError`, `GraphInputError`, `GraphLoopLimitError`, `GraphPinningError`, `GraphPortError`, `GraphStoreError`, `GraphTopologyError`.
+*   [x] Add `GraphExecutionContext` extending Decaf `Context` with `emit`, `progress`, and `log` methods, mirroring `TaskContext` constructor/usage patterns.
+*   [x] Add `src/graph/index.ts` exporting public APIs explicitly (specific-file imports only).
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -30,9 +30,9 @@ Create the foundational `src/graph` area in `@decaf-ts/core`: `constants.ts`, `t
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit Test: `tests/unit/graph/constants.test.ts`
-*   [ ] Unit Test: `tests/unit/graph/errors.test.ts`
-*   [ ] Unit Test: `tests/unit/graph/GraphExecutionContext.test.ts`
+*   [x] Unit Test: `tests/unit/graph/constants.test.ts`
+*   [x] Unit Test: `tests/unit/graph/errors.test.ts`
+*   [x] Unit Test: `tests/unit/graph/GraphExecutionContext.test.ts`
 
 **Manual Verification:**
 *   Confirm `GraphExecutionContext` extends `Context` and `emit`/`progress`/`log` work as expected.
@@ -43,4 +43,4 @@ Create the foundational `src/graph` area in `@decaf-ts/core`: `constants.ts`, `t
 *   **Clarification 2:** Whether `decorators.ts` should stay empty for now (reserved for future core-level graph decorators) — yes, reserve it.
 
 ## 6. Execution Log
-*   [pending] - Task created during DECAF-32 specification.
+*   [completed] - Implemented during DECAF-32.

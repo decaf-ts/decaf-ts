@@ -3,16 +3,16 @@
 **ID:** TASK-215
 **Specification:** [DECAF-32: Decaf Graph Execution Engine](../DECAF_32.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Add `GraphDefinitionValidator` (workflow structure, unique node IDs, relation endpoints/ports, required port sources, cycles, loop metadata, loop body acyclicity, connection rules), `GraphPortSchemaResolver` (preferring `decaf-ts/as-zod` with primitive fallback), and `GraphValueValidator` (workflow/node input/output validation). Validation failures emit `VALIDATION_FAILED` and throw structured errors.
 
 ## 2. Objectives
-*   [ ] Add `GraphDefinitionValidator` with the full validation list from spec §22.1.
-*   [ ] Add `GraphPortSchemaResolver` converting workflow/node input/output ports to Zod schemas via `as-zod`, with primitive fallback (`string`, `number`, `boolean`, `Date`, `array`, `unknown`).
-*   [ ] Add `GraphValueValidator` with `validateWorkflowInputs`, `validateNodeInputs`, `validateNodeOutputs`, `validateWorkflowOutputs`.
-*   [ ] Emit `VALIDATION_STARTED`, `VALIDATION_COMPLETED`, `VALIDATION_FAILED` events; throw structured `GraphInputError`/`GraphPortError` on failure.
+*   [x] Add `GraphDefinitionValidator` with the full validation list from spec §22.1.
+*   [x] Add `GraphPortSchemaResolver` converting workflow/node input/output ports to Zod schemas via `as-zod`, with primitive fallback (`string`, `number`, `boolean`, `Date`, `array`, `unknown`).
+*   [x] Add `GraphValueValidator` with `validateWorkflowInputs`, `validateNodeInputs`, `validateNodeOutputs`, `validateWorkflowOutputs`.
+*   [x] Emit `VALIDATION_STARTED`, `VALIDATION_COMPLETED`, `VALIDATION_FAILED` events; throw structured `GraphInputError`/`GraphPortError` on failure.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -26,9 +26,9 @@ Add `GraphDefinitionValidator` (workflow structure, unique node IDs, relation en
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit Test: `tests/unit/graph/GraphDefinitionValidator.test.ts`
-*   [ ] Unit Test: `tests/unit/graph/GraphPortSchemaResolver.test.ts`
-*   [ ] Unit Test: `tests/unit/graph/GraphValueValidator.test.ts`
+*   [x] Unit Test: `tests/unit/graph/GraphDefinitionValidator.test.ts`
+*   [x] Unit Test: `tests/unit/graph/GraphPortSchemaResolver.test.ts`
+*   [x] Unit Test: `tests/unit/graph/GraphValueValidator.test.ts`
 
 **Manual Verification:**
 *   Confirm invalid topologies, missing ports, and invalid values are rejected with structured errors.
@@ -37,4 +37,4 @@ Add `GraphDefinitionValidator` (workflow structure, unique node IDs, relation en
 *   Depends on TASK-213 (planner) for cycle detection reuse.
 
 ## 6. Execution Log
-*   [pending] - Task created during DECAF-32 specification.
+*   [completed] - Implemented during DECAF-32.

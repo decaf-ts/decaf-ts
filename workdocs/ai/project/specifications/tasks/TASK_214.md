@@ -3,19 +3,19 @@
 **ID:** TASK-214
 **Specification:** [DECAF-32: Decaf Graph Execution Engine](../DECAF_32.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Implement the basic `GraphExecutionEngine`: validates the workflow definition, plans it, seeds workflow inputs, executes layers with a concurrency limit, resolves node inputs from incoming edges, routes outputs to downstream inputs and workflow outputs, emits structured events through the observer pipeline, and returns a `GraphExecutionResult`. Includes the `GraphExecutionFrame` runtime state container.
 
 ## 2. Objectives
-*   [ ] Add `GraphExecutionEngine` implementing `Observable<[GraphExecutionObserver], [GraphExecutionEvent]>`.
-*   [ ] Add `GraphExecutionEngineConfig` (`registry`, `planner?`, `validator?`, `valueValidator?`, `eventEmitter?`, `valueStoreAdapter?`, `pinningService?`, `defaultOptions?`).
-*   [ ] Add `GraphExecutionFrame` holding per-run state (run id, plan, value store, node results, events).
-*   [ ] Implement `execute(workflow, inputs, options)` with default options (concurrency, failFast, validateInputs/Outputs, maxLoopIterations, usePinnedValues, etc.).
-*   [ ] Implement workflow input/output routing and node input/output routing along edges.
-*   [ ] Emit `WORKFLOW_STARTED`, `WORKFLOW_PLANNED`, `NODE_STARTED`, `NODE_OUTPUT`, `NODE_COMPLETED`, `EDGE_VALUE_ROUTED`, `WORKFLOW_COMPLETED` (and failure variants).
-*   [ ] Parallel execution of independent nodes in the same layer via a small internal worker queue (no external concurrency dependency).
+*   [x] Add `GraphExecutionEngine` implementing `Observable<[GraphExecutionObserver], [GraphExecutionEvent]>`.
+*   [x] Add `GraphExecutionEngineConfig` (`registry`, `planner?`, `validator?`, `valueValidator?`, `eventEmitter?`, `valueStoreAdapter?`, `pinningService?`, `defaultOptions?`).
+*   [x] Add `GraphExecutionFrame` holding per-run state (run id, plan, value store, node results, events).
+*   [x] Implement `execute(workflow, inputs, options)` with default options (concurrency, failFast, validateInputs/Outputs, maxLoopIterations, usePinnedValues, etc.).
+*   [x] Implement workflow input/output routing and node input/output routing along edges.
+*   [x] Emit `WORKFLOW_STARTED`, `WORKFLOW_PLANNED`, `NODE_STARTED`, `NODE_OUTPUT`, `NODE_COMPLETED`, `EDGE_VALUE_ROUTED`, `WORKFLOW_COMPLETED` (and failure variants).
+*   [x] Parallel execution of independent nodes in the same layer via a small internal worker queue (no external concurrency dependency).
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -30,7 +30,7 @@ Implement the basic `GraphExecutionEngine`: validates the workflow definition, p
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit Test: `tests/unit/graph/GraphExecutionEngine.test.ts` (single node, workflow input->node, node->workflow output, node->downstream, independent nodes same layer, async node, ordered events, missing executor, missing required input, full result, context is a Decaf Context, `context.progress(...)` works).
+*   [x] Unit Test: `tests/unit/graph/GraphExecutionEngine.test.ts` (single node, workflow input->node, node->workflow output, node->downstream, independent nodes same layer, async node, ordered events, missing executor, missing required input, full result, context is a Decaf Context, `context.progress(...)` works).
 
 **Manual Verification:**
 *   Confirm event ordering and result shape match the spec.
@@ -39,4 +39,4 @@ Implement the basic `GraphExecutionEngine`: validates the workflow definition, p
 *   Depends on TASK-211 (events/registry), TASK-212 (value store), TASK-213 (planner).
 
 ## 6. Execution Log
-*   [pending] - Task created during DECAF-32 specification.
+*   [completed] - Implemented during DECAF-32.

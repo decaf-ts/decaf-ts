@@ -3,18 +3,18 @@
 **ID:** TASK-211
 **Specification:** [DECAF-32: Decaf Graph Execution Engine](../DECAF_32.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Add the event pipeline (`GraphExecutionObserver`, `GraphExecutionEventEmitter`, `GraphExecutionEventFactory`), the `GraphNodeExecutor` interface, and the `GraphNodeExecutorRegistry`. These components let the engine emit structured events through Decaf's `Observable` pipeline and resolve executors by node kind.
 
 ## 2. Objectives
-*   [ ] Add `GraphExecutionObserver` extending Decaf's `Observer` with `refresh(event)`.
-*   [ ] Add `GraphExecutionEventEmitter` implementing Decaf's `Observable`, with `observe`, `unObserve`, and `updateObservers` (awaiting async observers).
-*   [ ] Add `GraphExecutionEventFactory` producing event id, sequence number, and timestamp.
-*   [ ] Add `GraphNodeExecutor` interface (`execute(input, context)`).
-*   [ ] Add `GraphNodeExecutorRegistry` with `register`, `unregister`, `has`, `resolve` (throwing `GraphExecutionError` on missing executor).
-*   [ ] Wire `src/graph/events/index.ts` and `src/graph/registry/index.ts` and update `src/graph/index.ts`.
+*   [x] Add `GraphExecutionObserver` extending Decaf's `Observer` with `refresh(event)`.
+*   [x] Add `GraphExecutionEventEmitter` implementing Decaf's `Observable`, with `observe`, `unObserve`, and `updateObservers` (awaiting async observers).
+*   [x] Add `GraphExecutionEventFactory` producing event id, sequence number, and timestamp.
+*   [x] Add `GraphNodeExecutor` interface (`execute(input, context)`).
+*   [x] Add `GraphNodeExecutorRegistry` with `register`, `unregister`, `has`, `resolve` (throwing `GraphExecutionError` on missing executor).
+*   [x] Wire `src/graph/events/index.ts` and `src/graph/registry/index.ts` and update `src/graph/index.ts`.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -30,9 +30,9 @@ Add the event pipeline (`GraphExecutionObserver`, `GraphExecutionEventEmitter`, 
 
 ## 4. Verification Plan
 **Automated Tests:**
-*   [ ] Unit Test: `tests/unit/graph/GraphExecutionEventEmitter.test.ts`
-*   [ ] Unit Test: `tests/unit/graph/GraphExecutionEventFactory.test.ts`
-*   [ ] Unit Test: `tests/unit/graph/GraphNodeExecutorRegistry.test.ts`
+*   [x] Unit Test: `tests/unit/graph/GraphExecutionEventEmitter.test.ts`
+*   [x] Unit Test: `tests/unit/graph/GraphExecutionEventFactory.test.ts`
+*   [x] Unit Test: `tests/unit/graph/GraphNodeExecutorRegistry.test.ts`
 
 **Manual Verification:**
 *   Confirm observers receive ordered events and async observers are awaited.
@@ -42,4 +42,4 @@ Add the event pipeline (`GraphExecutionObserver`, `GraphExecutionEventEmitter`, 
 *   **Clarification 1:** Exact `Observer`/`Observable` method names in core — match the actual interfaces at implementation time.
 
 ## 6. Execution Log
-*   [pending] - Task created during DECAF-32 specification.
+*   [completed] - Implemented during DECAF-32.
