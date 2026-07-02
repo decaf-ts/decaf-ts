@@ -103,6 +103,9 @@ The core engine must **consume** these definitions. It must not duplicate graph 
 *   [ ] NestJS backend module hosting the graph engine (for-nest + integrations) as the supplier.
 *   [ ] for-angular consuming graph execution via the for-http adapter (REST + SSE).
 *   [ ] Full-stack e2e test validating the production communication pipeline.
+*   [ ] Double-click on any graph node opens a modal with that node's input-schema CRUD rendering (update mode).
+*   [ ] Graph-aware CRUD field component with a "use as port" checkbox that exposes the matching graph port for connection.
+*   [ ] Output port splitting: a single output port can be connected to multiple input ports.
 *   [ ] Future compatibility with a Mastra compiler/backend.
 
 ## 3. Non-Goals For V1
@@ -135,6 +138,10 @@ RxJS dependency inside core
 *   **US-10:** As a Decaf consumer, I want graph execution results and pinned values to be persisted via RamAdapter so that execution state survives across page reloads within the same session.
 *   **US-11:** As a Decaf maintainer, I want a NestJS module that hosts the graph execution engine server-side so that for-angular can consume graph execution as a real API (REST + SSE), not just an in-process call.
 *   **US-12:** As a Decaf maintainer, I want a dedicated full-stack e2e test that boots the actual for-nest backend with the graph engine and validates that for-angular (via the for-http adapter) can trigger execution and receive events over the network.
+*   **US-13:** As a Decaf consumer, I want to double-click any graph node to open a modal showing that node's input-schema CRUD form (in update mode) so that I can inspect and edit the node's configured input values without leaving the graph page.
+*   **US-14:** As a Decaf consumer, I want each field in the node-edit modal to have a "use as port" checkbox on its left side (off by default) so that I can choose which inputs are wired from upstream outputs (checkbox on) versus set as literal values in the form (checkbox off).
+*   **US-15:** As a Decaf consumer, I want output ports to be splittable so that a single node output can feed multiple downstream inputs, enabling fan-out directly from the node-edit modal.
+*   **US-16:** As a Decaf consumer, I want all node-edit modal configuration — which inputs are port-wired vs literal, output port splits, and connection precedence — to be serialized into the graph snapshot so that loading a saved graph fully restores every connection and value binding without manual reconfiguration.
 *   **Req-1:** `GraphExecutionContext` must extend or implement Decaf's `Context` abstraction from `@decaf-ts/core`, mirroring the `TaskEngine`/`TaskContext` pattern.
 *   **Req-2:** The engine must not treat arbitrary cycles as executable loops. Each workflow graph (including loop-body workflows) must be acyclic. Loop behaviour is represented by loop nodes that execute nested workflow bodies repeatedly.
 *   **Req-3:** The value store must be configurable via `GraphValueStoreAdapter`. The engine must not be hardcoded to an in-memory map.
@@ -150,6 +157,12 @@ RxJS dependency inside core
 *   **Req-13:** A `GraphExecutionModule` for for-nest must host the `GraphExecutionEngine`, expose `POST /graph/execute` for triggering execution, and expose `GET /graph/events` (SSE) for streaming events. The module must use RamAdapter for server-side persistence.
 *   **Req-14:** The full-stack e2e test must boot a real NestJS application (not mocked), use for-http's `ServerEventConnector` or `AxiosHttpAdapter` as the client, trigger execution via HTTP, and validate that all event types arrive via SSE in the correct order with correct payloads.
 *   **Req-15:** The full-stack e2e test must validate that persisted execution results are retrievable from RamAdapter after execution completes.
+*   **Req-16:** Double-clicking any graph node must open a modal containing a CRUD form built from that node's input schema (the decorated `Model` class), rendered in update mode with current values pre-populated.
+*   **Req-17:** The node-edit modal must use a graph-aware CRUD field component that extends the standard for-angular CRUD field, adding a "use as port" checkbox on the left side of each field (off by default). When checked, the field's input is hidden and the matching graph port is exposed for connection on the canvas. When unchecked, the field accepts a literal value and no port is rendered.
+*   **Req-18:** The "use as port" checkbox state, the literal field values, and any output-port split configuration must be stored as part of the graph snapshot — in the existing `GraphWorkflowSnapshot` / `GraphWorkflowDefinition` format — so that loading a saved graph restores all connections, precedences, and value bindings without loss.
+*   **Req-19:** Output port splitting must be serialized as multiple `GraphWorkflowRelation` entries sharing the same `source`/`sourcePort` but targeting different `target`/`targetPort` pairs. The engine and planner must already support fan-out (multiple outgoing edges from one port) — this requirement ensures the UI produces those relations when the user splits an output from the node-edit modal.
+*   **Req-20:** The graph snapshot's `nodeValues` (or equivalent per-node data section) must persist, per node: (a) the set of input fields marked "use as port", (b) the literal values for non-port fields, and (c) the output split metadata. On load, the renderer must reconstruct ports, values, and edges from this data.
+*   **Req-21:** The existing `graphWorkflowSnapshotToJSON` / `graphWorkflowSnapshotFromJSON` round-trip must preserve this per-node configuration. A snapshot saved after configuring nodes via the modal must produce an identical graph (same ports, same edges, same literal values, same split outputs) when loaded.
 
 ## 5. Architecture & Design
 
@@ -444,6 +457,10 @@ Recommended implementation sequence:
 36. Add for-angular graph page "Run" button, real-time node/edge state, workflow outputs.
 37. Add `GraphExecutionResultModel` and `GraphExecutionResultRepository` (RamAdapter persistence).
 38. Add full-stack e2e test booting real NestJS backend with for-http client.
+39. Add `GraphPortFieldComponent` extending CRUD field with "use as port" checkbox and output split control.
+40. Add double-click handler on graph nodes to open CRUD modal in update mode using `GraphPortFieldComponent`.
+41. Extend snapshot types to persist per-node port-binding mode (`'port' | 'value'`), literal values, and output splits.
+42. Update snapshot round-trip (`toJSON`/`fromJSON` + renderer rebuild) to fully restore port modes, values, edges, and splits on load.
 
 ## 14. Workdocs To Add
 *   `integrations/workdocs/graph/basic-workflow.md` — workflow input -> node -> workflow output.
@@ -476,6 +493,8 @@ This specification is broken down into the following tasks. Each task should be 
 | TASK-224 | [NestJS Graph Execution Backend: GraphExecutionModule for for-nest hosting the engine with RamAdapter persistence](./tasks/TASK_224.md) | High | Pending | TASK-222 |
 | TASK-225 | [for-angular Graph Page Working Execution UI: Run button, real-time node/edge state, RamAdapter persistence](./tasks/TASK_225.md) | High | Pending | TASK-224 |
 | TASK-226 | [Full-Stack E2E Test: boot real for-nest backend, for-http client consumer, validate production pipeline](./tasks/TASK_226.md) | High | Pending | TASK-224, TASK-225 |
+| TASK-227 | [Node-Edit Modal: double-click opens CRUD modal with graph-aware port fields and output splitting](./tasks/TASK_227.md) | High | Pending | TASK-225 |
+| TASK-228 | [Graph Snapshot Serialization: persist port-mode, literal values, and output splits so loading restores all connections](./tasks/TASK_228.md) | High | Pending | TASK-227 |
 
 ## 16. Open Questions / Risks
 *   Should `@pinnable()` live in `@decaf-ts/ui-decorators/graph` from the start, or temporarily in `@decaf-ts/integrations/graph` until the `ui-decorators` types are extended?
@@ -579,3 +598,89 @@ Client (for-http adapter)
 *   The test must use `ServerEventConnector` from `@decaf-ts/for-http` (the same class for-angular uses in production), not a custom SSE client.
 *   RamAdapter must be used for server-side persistence (not a mock adapter).
 *   The test must clean up the NestJS app and SSE connection after all tests complete.
+
+## 20. Phase 2 — Node-Edit Modal & Graph-Aware CRUD Fields
+
+### 20.1 Overview
+Users need to configure individual graph nodes: set literal input values, choose which inputs are wired from upstream outputs (ports), and split outputs to multiple downstream consumers. This is done via a modal that opens on double-click and renders a graph-aware CRUD form built from the node's input schema. All configuration is serialized into the graph snapshot so that loading a saved graph restores every connection, precedence, and value binding.
+
+### 20.2 Double-Click → Modal
+
+```txt
+User double-clicks a node on the canvas
+  → GraphRendererComponent detects dblclick on a node article
+  → Opens a modal (getNgxModalCrudComponent) with:
+      model = new instance of the node's decorated Model class
+      operation = UPDATE
+      pre-populated with current node values from the snapshot
+  → Modal renders graph-aware CRUD fields (see §20.3)
+```
+
+*   The modal must use the existing Decaf CRUD modal infrastructure (`getNgxModalCrudComponent`).
+*   The operation is `UPDATE` (not `CREATE`) — the form represents an existing node's configuration.
+*   The modal title is the node's display label.
+
+### 20.3 Graph-Aware CRUD Field Component
+
+A new Angular component — `GraphPortFieldComponent` — extends the standard for-angular CRUD field component and adds:
+
+1.  **"Use as port" checkbox** — rendered on the left side of the field, off by default.
+    *   **Off (default):** The field behaves as a normal CRUD input. The user enters a literal value. No graph port is exposed for this property.
+    *   **On:** The field input is hidden/disabled. The property is exposed as a graph input port on the canvas, allowing the user to draw an edge from an upstream output port to this port. The literal value (if any) is kept as a fallback default but is not used when an edge is connected.
+
+2.  **Output port split control** — for output fields (properties decorated with `@output`), the field shows a "split" affordance that allows the user to expose the same output port on multiple distinct handles, so that the single output can be connected to multiple downstream inputs. Each split creates a separate edge in the workflow relations.
+
+```txt
+┌─────────────────────────────────────────┐
+│ ☐  Request brief    [textarea input ]   │  ← "use as port" off → literal
+├─────────────────────────────────────────┤
+│ ☑  Normalized brief  (port: brief)      │  ← "use as port" on → port exposed
+│    [hidden — wired from upstream]        │
+├─────────────────────────────────────────┤
+│ Output: Execution plan  [⊕ split]       │  ← output field with split button
+│   ├ handle 1 → Planning.Draft.plan       │
+│   └ handle 2 → (available for drag)      │
+└─────────────────────────────────────────┘
+```
+
+### 20.4 Serialization & Snapshot Round-Trip
+
+All node-edit modal configuration must be serialized into the existing graph snapshot format so that loading a graph fully restores the state.
+
+**Per-node persisted data:**
+
+| Data | Storage location in snapshot | Format |
+|:-----|:-----------------------------|:-------|
+| Which input fields are "use as port" | `node.inputPorts[]` (or a `portBindings` map on the node) | `Record<property, { mode: 'port' \| 'value'; value?: unknown }>` |
+| Literal values for non-port fields | `nodeValues[property]` in the snapshot | Same as current `graphWorkflowSnapshotInputValuesOf` |
+| Output port splits | `relations[]` — multiple entries with same `source`/`sourcePort`, different `target`/`targetPort` | Standard `GraphWorkflowRelation` entries |
+| Edge connections / precedence | `relations[]` | Standard `GraphWorkflowRelation` entries (unchanged) |
+
+**Round-trip contract:**
+
+1.  **Save:** When the user saves a snapshot (or the snapshot is auto-persisted), the modal configuration is written into `GraphWorkflowSnapshot`:
+    *   Port-mode fields produce port definitions on the node (or are inferred from `@input`/`@output` decorators).
+    *   Literal values are stored in the snapshot's input-values section.
+    *   Output splits produce multiple `GraphWorkflowRelation` entries.
+    *   Edges drawn on the canvas produce `GraphWorkflowRelation` entries (unchanged).
+2.  **Load:** When a snapshot is loaded (`parseGraphRendererSnapshot` → `buildGraphRendererStateFromSnapshot`), the renderer must:
+    *   Reconstruct which fields are in port mode vs literal mode from the node's port bindings.
+    *   Restore literal values into the CRUD form.
+    *   Reconstruct all edges (including output splits) from `relations[]`.
+    *   Render the correct ports on each node based on port-mode fields.
+
+3.  **JSON round-trip:** `graphWorkflowSnapshotToJSON` → `graphWorkflowSnapshotFromJSON` must preserve this data. A snapshot saved after modal configuration must produce an identical graph when loaded: same nodes, same ports, same edges, same literal values, same split outputs.
+
+### 20.5 Constraints
+*   The "use as port" checkbox must not alter the node's `@input`/`@output` decorator metadata — it only controls whether the port is *exposed for connection* on the canvas vs *filled with a literal value* in the form.
+*   Output splitting must produce valid `GraphWorkflowRelation` entries that the planner and engine already support (fan-out is already handled — see §5.7, §11 fan-out tests).
+*   The modal must not introduce a new persistence mechanism — it writes into the same `GraphWorkflowSnapshot` used by the existing save/load snapshot feature.
+*   The graph-aware field component must be reusable and not hardcoded to the demo workflow nodes.
+*   Loading a graph with no saved modal configuration (e.g., an older snapshot) must default all fields to literal mode (checkbox off), preserving backward compatibility.
+
+### 20.6 Implementation Plan
+*   Create `GraphPortFieldComponent` in `for-angular/src/graph/components/graph-port-field/` extending the standard CRUD field.
+*   Update `GraphNodeTemplateComponent` to handle `dblclick` and open the CRUD modal with `GraphPortFieldComponent` as the field renderer.
+*   Extend the snapshot types in `ui-decorators/graph` (if needed) to include per-node port-binding mode (`'port' | 'value'`) alongside existing port definitions.
+*   Update `buildGraphRendererViewModel` and `buildGraphRendererStateFromSnapshot` to read/write port-binding mode and reconstruct the form + canvas accordingly.
+*   Update the snapshot JSON round-trip (`graphWorkflowSnapshotToJSON` / `graphWorkflowSnapshotFromJSON`) to preserve port-binding mode.
