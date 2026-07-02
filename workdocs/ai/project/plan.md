@@ -458,8 +458,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ## DECAF-32 — Decaf Graph Execution Engine
 - **Priority:** High
-- **Goal:** Build a native graph execution engine in `@decaf-ts/integrations/graph` that executes `@decaf-ts/ui-decorators/graph` workflows, emits events through Decaf's `Observable`/`Observer` pipeline, supports explicit `foreach`/`while`/`until` loops, configurable value stores, and pinnable/cacheable nodes with recursive dependency pinning, and integrates with `@decaf-ts/for-angular/graph` via an RxJS bridge.
-- **Status:** Completed — all 14 tasks implemented, tested (88 tests passing: 73 unit + 6 e2e + 9 for-angular), and documented. E2E test validates full for-nest → SSE → for-http production pipeline.
+- **Goal:** Build a native graph execution engine in `@decaf-ts/integrations/graph` that executes `@decaf-ts/ui-decorators/graph` workflows, emits events through Decaf's `Observable`/`Observer` pipeline, supports explicit `foreach`/`while`/`until` loops, configurable value stores, and pinnable/cacheable nodes with recursive dependency pinning, and integrates with `@decaf-ts/for-angular/graph` via an RxJS bridge. Phase 2 adds a working engine on the for-angular graph page (RamAdapter persistence), a NestJS backend module (for-nest supplier), and a full-stack e2e test validating the production pipeline.
+- **Status:** Re-opened — Phase 1 (core engine, 14 tasks) completed with 88 tests passing. Phase 2 (3 tasks: NestJS backend, graph page wiring, full-stack e2e) pending.
 - **Link:** [Specification Details](./specifications/DECAF_32.md)
 - **Tasks:**
   - [x] [TASK-210](./specifications/tasks/TASK_210.md): Core graph scaffolding (constants, types, errors, `GraphExecutionContext` as Decaf `Context`).
@@ -476,6 +476,9 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-221](./specifications/tasks/TASK_221.md): Angular pin UI behavior and event-to-renderer state mapping.
   - [x] [TASK-222](./specifications/tasks/TASK_222.md): Comprehensive tests (planner, execution, loops, store, pinning, observers, Angular bridge).
   - [x] [TASK-223](./specifications/tasks/TASK_223.md): Workdocs for basic workflow, fan-in/fan-out, loops, pinnable nodes, Angular events/pinning UI.
+  - [ ] [TASK-224](./specifications/tasks/TASK_224.md): NestJS Graph Execution Backend — `GraphExecutionModule` for for-nest hosting the engine with RamAdapter persistence.
+  - [ ] [TASK-225](./specifications/tasks/TASK_225.md): for-angular Graph Page Working Execution UI — Run button, real-time node/edge state, RamAdapter persistence.
+  - [ ] [TASK-226](./specifications/tasks/TASK_226.md): Full-Stack E2E Test — boot real for-nest backend, for-http client consumer, validate production pipeline.
 
 ---
 
@@ -516,7 +519,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-29: ⏳ GitHub Actions Inventory, Normalization, and Rule Replication
 - DECAF-30: ✅ BlobStoreService API and Provider Implementations (all providers implemented: memory, local, S3/MinIO/R2, Azure Blob, GCS, IPFS; 105/105 tests passing across 14 suites; lint and build clean)
 - DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
-- DECAF-32: ✅ Decaf Graph Execution Engine (all 14 tasks completed, 88 tests passing — 73 unit + 6 e2e + 9 for-angular, 7 workdocs added)
+- DECAF-32: 🔄 Decaf Graph Execution Engine (Phase 1 completed: 14 tasks, 88 tests. Phase 2 pending: NestJS backend, graph page wiring, full-stack e2e — 3 tasks)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`

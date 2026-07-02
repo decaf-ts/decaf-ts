@@ -1,6 +1,6 @@
 # DECAF-32 — Decaf Graph Execution Engine
 
-**Status:** Completed
+**Status:** Re-opened — Phase 2: Production Integration (Phase 1 core engine completed; graph page wiring and full-stack e2e validation pending)
 **Priority:** High
 **Owner:** decaf-dev
 
@@ -98,6 +98,11 @@ The core engine must **consume** these definitions. It must not duplicate graph 
 *   [ ] Validation through Decaf metadata and `as-zod`.
 *   [ ] Snapshot-compatible execution-state patches.
 *   [ ] Angular/RxJS bridge in `for-angular`.
+*   [ ] Working graph execution engine on the for-angular graph page (Run button, real-time node/edge state, workflow outputs).
+*   [ ] RamAdapter-backed persistence for graph execution results and pinned values.
+*   [ ] NestJS backend module hosting the graph engine (for-nest + integrations) as the supplier.
+*   [ ] for-angular consuming graph execution via the for-http adapter (REST + SSE).
+*   [ ] Full-stack e2e test validating the production communication pipeline.
 *   [ ] Future compatibility with a Mastra compiler/backend.
 
 ## 3. Non-Goals For V1
@@ -126,6 +131,10 @@ RxJS dependency inside core
 *   **US-6:** As a Decaf consumer, I want execution events to flow through Decaf's `Observable`/`Observer` pipeline so that UI adapters (Angular/RxJS) and other consumers can subscribe uniformly.
 *   **US-7:** As an Angular consumer, I want an RxJS bridge and execution service so that graph rendering can display node/edge/loop/cache/pin state in real time.
 *   **US-8:** As a project maintainer, I want the core engine to stay free of Angular, RxJS, and Mastra dependencies so that it remains a portable reference runtime.
+*   **US-9:** As a Decaf consumer, I want the for-angular graph page to have a "Run" button that executes the displayed workflow through the real engine so that I can see live execution results, not just a static renderer.
+*   **US-10:** As a Decaf consumer, I want graph execution results and pinned values to be persisted via RamAdapter so that execution state survives across page reloads within the same session.
+*   **US-11:** As a Decaf maintainer, I want a NestJS module that hosts the graph execution engine server-side so that for-angular can consume graph execution as a real API (REST + SSE), not just an in-process call.
+*   **US-12:** As a Decaf maintainer, I want a dedicated full-stack e2e test that boots the actual for-nest backend with the graph engine and validates that for-angular (via the for-http adapter) can trigger execution and receive events over the network.
 *   **Req-1:** `GraphExecutionContext` must extend or implement Decaf's `Context` abstraction from `@decaf-ts/core`, mirroring the `TaskEngine`/`TaskContext` pattern.
 *   **Req-2:** The engine must not treat arbitrary cycles as executable loops. Each workflow graph (including loop-body workflows) must be acyclic. Loop behaviour is represented by loop nodes that execute nested workflow bodies repeatedly.
 *   **Req-3:** The value store must be configurable via `GraphValueStoreAdapter`. The engine must not be hardcoded to an in-memory map.
@@ -136,6 +145,11 @@ RxJS dependency inside core
 *   **Req-8:** The engine must produce a `GraphExecutionSnapshotPatch` consumable by `ui-decorators/graph` snapshots, rather than replacing the snapshot system.
 *   **Req-9:** Core must have no Angular dependency, no RxJS dependency, and no Mastra dependency.
 *   **Req-10:** The `@pinnable()` decorator and pinning metadata should live in `@decaf-ts/ui-decorators/graph` (preferred). If that is not desirable immediately, a temporary decorator may live in `@decaf-ts/integrations/graph`, but the long-term correct package is `ui-decorators/graph`.
+*   **Req-11:** The for-angular graph page must wire a "Run" button to `GraphExecutionService.execute()`, feed workflow input form values as execution inputs, and display real-time node/edge/loop state via `GraphExecutionStateMapper`.
+*   **Req-12:** Graph execution results and pinned values must be persisted via RamAdapter (the default adapter in the for-angular app). A `GraphExecutionResultRepository` (or equivalent) should store completed run results as Decaf models so they survive page reloads.
+*   **Req-13:** A `GraphExecutionModule` for for-nest must host the `GraphExecutionEngine`, expose `POST /graph/execute` for triggering execution, and expose `GET /graph/events` (SSE) for streaming events. The module must use RamAdapter for server-side persistence.
+*   **Req-14:** The full-stack e2e test must boot a real NestJS application (not mocked), use for-http's `ServerEventConnector` or `AxiosHttpAdapter` as the client, trigger execution via HTTP, and validate that all event types arrive via SSE in the correct order with correct payloads.
+*   **Req-15:** The full-stack e2e test must validate that persisted execution results are retrievable from RamAdapter after execution completes.
 
 ## 5. Architecture & Design
 
@@ -426,6 +440,10 @@ Recommended implementation sequence:
 32. Add Angular pin UI behavior.
 33. Add tests.
 34. Add workdocs.
+35. Add NestJS `GraphExecutionModule` hosting the graph engine (for-nest + integrations + RamAdapter).
+36. Add for-angular graph page "Run" button, real-time node/edge state, workflow outputs.
+37. Add `GraphExecutionResultModel` and `GraphExecutionResultRepository` (RamAdapter persistence).
+38. Add full-stack e2e test booting real NestJS backend with for-http client.
 
 ## 14. Workdocs To Add
 *   `integrations/workdocs/graph/basic-workflow.md` — workflow input -> node -> workflow output.
@@ -441,20 +459,23 @@ This specification is broken down into the following tasks. Each task should be 
 
 | ID | Task Name | Priority | Status | Dependencies |
 |:---|:----------|:---------|:--------|:-------------|
-| TASK-210 | [Core graph scaffolding: constants, types, errors, GraphExecutionContext as Decaf Context](./tasks/TASK_210.md) | High | Pending | - |
-| TASK-211 | [Event observer/emitter/factory and executor interface/registry](./tasks/TASK_211.md) | High | Pending | TASK-210 |
-| TASK-212 | [Configurable value store adapter API + in-memory adapter + runtime wrapper](./tasks/TASK_212.md) | High | Pending | TASK-210 |
-| TASK-213 | [Execution plan types, relation resolver, and Kahn topological planner](./tasks/TASK_213.md) | High | Pending | TASK-210 |
-| TASK-214 | [Basic GraphExecutionEngine with workflow/node I/O routing and observer events](./tasks/TASK_214.md) | High | Pending | TASK-211, TASK-212, TASK-213 |
-| TASK-215 | [Validation: definition validator, as-zod schema resolver, value validator](./tasks/TASK_215.md) | High | Pending | TASK-213 |
-| TASK-216 | [Structured loops: condition evaluator + foreach/while/until executors](./tasks/TASK_216.md) | High | Pending | TASK-214 |
-| TASK-217 | [@pinnable decorator in ui-decorators/graph + pinning metadata reader](./tasks/TASK_217.md) | High | Pending | TASK-210 |
-| TASK-218 | [Pinning policy, dependency resolver, and pinning service with fingerprints](./tasks/TASK_218.md) | High | Pending | TASK-212, TASK-217 |
-| TASK-219 | [Engine cache-hit behavior + pin/unpin API delegation + snapshot patch mapper](./tasks/TASK_219.md) | High | Pending | TASK-214, TASK-218 |
-| TASK-220 | [Angular RxJS bridge, execution service, and execution UI state](./tasks/TASK_220.md) | High | Pending | TASK-214 |
-| TASK-221 | [Angular pin UI behavior and event-to-renderer state mapping](./tasks/TASK_221.md) | High | Pending | TASK-219, TASK-220 |
-| TASK-222 | [Comprehensive tests: planner, execution, loops, store, pinning, observers, Angular bridge](./tasks/TASK_222.md) | High | Pending | TASK-216, TASK-219, TASK-221 |
-| TASK-223 | [Workdocs for basic workflow, fan-in/fan-out, loops, pinnable nodes, Angular events/pinning UI](./tasks/TASK_223.md) | Medium | Pending | TASK-222 |
+| TASK-210 | [Core graph scaffolding: constants, types, errors, GraphExecutionContext as Decaf Context](./tasks/TASK_210.md) | High | Completed | - |
+| TASK-211 | [Event observer/emitter/factory and executor interface/registry](./tasks/TASK_211.md) | High | Completed | TASK-210 |
+| TASK-212 | [Configurable value store adapter API + in-memory adapter + runtime wrapper](./tasks/TASK_212.md) | High | Completed | TASK-210 |
+| TASK-213 | [Execution plan types, relation resolver, and Kahn topological planner](./tasks/TASK_213.md) | High | Completed | TASK-210 |
+| TASK-214 | [Basic GraphExecutionEngine with workflow/node I/O routing and observer events](./tasks/TASK_214.md) | High | Completed | TASK-211, TASK-212, TASK-213 |
+| TASK-215 | [Validation: definition validator, as-zod schema resolver, value validator](./tasks/TASK_215.md) | High | Completed | TASK-213 |
+| TASK-216 | [Structured loops: condition evaluator + foreach/while/until executors](./tasks/TASK_216.md) | High | Completed | TASK-214 |
+| TASK-217 | [@pinnable decorator in ui-decorators/graph + pinning metadata reader](./tasks/TASK_217.md) | High | Completed | TASK-210 |
+| TASK-218 | [Pinning policy, dependency resolver, and pinning service with fingerprints](./tasks/TASK_218.md) | High | Completed | TASK-212, TASK-217 |
+| TASK-219 | [Engine cache-hit behavior + pin/unpin API delegation + snapshot patch mapper](./tasks/TASK_219.md) | High | Completed | TASK-214, TASK-218 |
+| TASK-220 | [Angular RxJS bridge, execution service, and execution UI state](./tasks/TASK_220.md) | High | Completed | TASK-214 |
+| TASK-221 | [Angular pin UI behavior and event-to-renderer state mapping](./tasks/TASK_221.md) | High | Completed | TASK-219, TASK-220 |
+| TASK-222 | [Comprehensive tests: planner, execution, loops, store, pinning, observers, Angular bridge](./tasks/TASK_222.md) | High | Completed | TASK-216, TASK-219, TASK-221 |
+| TASK-223 | [Workdocs for basic workflow, fan-in/fan-out, loops, pinnable nodes, Angular events/pinning UI](./tasks/TASK_223.md) | Medium | Completed | TASK-222 |
+| TASK-224 | [NestJS Graph Execution Backend: GraphExecutionModule for for-nest hosting the engine with RamAdapter persistence](./tasks/TASK_224.md) | High | Pending | TASK-222 |
+| TASK-225 | [for-angular Graph Page Working Execution UI: Run button, real-time node/edge state, RamAdapter persistence](./tasks/TASK_225.md) | High | Pending | TASK-224 |
+| TASK-226 | [Full-Stack E2E Test: boot real for-nest backend, for-http client consumer, validate production pipeline](./tasks/TASK_226.md) | High | Pending | TASK-224, TASK-225 |
 
 ## 16. Open Questions / Risks
 *   Should `@pinnable()` live in `@decaf-ts/ui-decorators/graph` from the start, or temporarily in `@decaf-ts/integrations/graph` until the `ui-decorators` types are extended?
@@ -475,3 +496,86 @@ This specification is broken down into the following tasks. Each task should be 
 *   `for-angular/src/graph/execution` with RxJS bridge and Angular execution service.
 *   Test suites covering planner, execution, loops, store, pinning, observers, and Angular bridge.
 *   Workdocs for basic workflow, fan-in/fan-out, loops, pinnable nodes, and Angular event/pinning UI.
+
+## 18. Phase 2 — Graph Page Working Engine (for-angular + RamAdapter)
+
+### 18.1 Overview
+The for-angular graph page (`src/app/pages/graph/graph.page.ts`) currently renders the workflow definition and input form but does not execute anything — `workflowOutputValue()` returns the static string `'pending run result'`. Phase 2 wires a real execution engine into the page so that users can run the displayed workflow and see live results.
+
+### 18.2 Architecture
+
+```txt
+for-angular graph page
+  ├── GraphRendererComponent (existing — canvas, input form, snapshot)
+  ├── GraphExecutionService (existing — wraps engine, RxJS events)
+  ├── GraphExecutionStateMapper (existing — event → UI state)
+  │
+  ├── NEW: Run button → GraphExecutionService.execute(workflow, inputs)
+  ├── NEW: Real-time node/edge state overlays (status badges, edge values)
+  ├── NEW: Workflow output display (actual results, not "pending run result")
+  └── NEW: RamAdapter persistence (GraphExecutionResultRepository)
+```
+
+### 18.3 RamAdapter Persistence
+*   Define a `GraphExecutionResultModel` (Decaf `Model`) that serializes a `GraphExecutionResult` for storage.
+*   Create a `GraphExecutionResultRepository` (Decaf `Repository`) backed by RamAdapter.
+*   After each successful execution, persist the result via the repository.
+*   On page load, retrieve the most recent execution result for the current workflow and display it.
+*   Pinned values are stored via `GraphValueStoreAdapter` backed by RamAdapter.
+
+### 18.4 UI Changes
+*   Add a "Run workflow" button to the graph page (next to or below the input form).
+*   On click: collect workflow input form values, call `GraphExecutionService.execute()`.
+*   Subscribe to `GraphExecutionService.events$` and feed events to `GraphExecutionStateMapper`.
+*   Display node status badges on the canvas: `running` (spinner), `succeeded` (check), `failed` (error), `cached` (cache icon).
+*   Display edge values (last routed value) as edge labels or tooltips.
+*   Replace `workflowOutputValue()` with actual execution outputs from the persisted result.
+*   Show execution errors (if any) in the outputs panel.
+
+### 18.5 Constraints
+*   No new Angular dependencies in `integrations/src/graph/` — all Angular code stays in `for-angular/`.
+*   The graph page may use `GraphExecutionService` directly (local execution) or via HTTP (remote execution). The default for the demo page is local execution with RamAdapter persistence.
+*   The `GraphExecutionEngineConfig` injection token controls which executors are registered.
+
+## 19. Phase 2 — Full-Stack E2E Test (for-nest → for-http → for-angular)
+
+### 19.1 Overview
+A dedicated e2e test that boots an actual NestJS backend hosting the graph execution engine, uses for-http's HTTP/SSE client to trigger execution and receive events, and validates the complete production communication pipeline.
+
+### 19.2 Architecture
+
+```txt
+NestJS Backend (for-nest + integrations)
+  ├── GraphExecutionModule
+  │   ├── POST /graph/execute → triggers GraphExecutionEngine.execute()
+  │   ├── GET /graph/events (SSE) → streams GraphExecutionEvent via @Sse()
+  │   ├── GET /graph/results/:runId → retrieves persisted result from RamAdapter
+  │   └── GraphExecutionResultRepository (RamAdapter)
+  │
+  └── RamAdapter (server-side persistence)
+
+Client (for-http adapter)
+  ├── AxiosHttpAdapter / ServerEventConnector
+  ├── POST /graph/execute via HTTP → triggers execution
+  ├── GET /graph/events via SSE → receives events
+  └── GET /graph/results/:runId → retrieves persisted result
+```
+
+### 19.3 Test Scenarios
+1. **Execute via HTTP**: POST a workflow + inputs, receive the execution result JSON with correct outputs.
+2. **SSE event sequence**: Subscribe to `/graph/events` before triggering execution; validate all event types arrive in order (`workflow.started` → `workflow.planned` → `node.started` → `node.completed` → `edge.valueRouted` → `workflow.completed`).
+3. **runId propagation**: The `runId` from the HTTP response matches the `runId` in all SSE events.
+4. **Sequence numbers**: SSE events arrive with monotonically incrementing sequence numbers.
+5. **Payload preservation**: The `workflow.completed` event's payload contains the correct output values after JSON serialization through SSE.
+6. **Persistence**: After execution, `GET /graph/results/:runId` returns the full execution result from RamAdapter.
+7. **Error handling**: POST an invalid workflow (e.g., missing executor kind); validate `workflow.failed` event and error payload.
+8. **Multiple runs**: Execute the same workflow twice with different inputs; validate separate runIds, separate persisted results, and correct outputs for each.
+
+### 19.4 Test Location
+*   `integrations/tests/e2e/graph/full-stack.e2e.test.ts` — boots the NestJS app, uses for-http's `ServerEventConnector` and `supertest` as the client.
+
+### 19.5 Constraints
+*   The test must boot a real NestJS application (using `@nestjs/testing` `Test.createTestingModule`), not mock the engine.
+*   The test must use `ServerEventConnector` from `@decaf-ts/for-http` (the same class for-angular uses in production), not a custom SSE client.
+*   RamAdapter must be used for server-side persistence (not a mock adapter).
+*   The test must clean up the NestJS app and SSE connection after all tests complete.
