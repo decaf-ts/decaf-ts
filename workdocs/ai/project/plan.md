@@ -456,6 +456,29 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-32 — Decaf Graph Execution Engine
+- **Priority:** High
+- **Goal:** Build a native graph execution engine in `@decaf-ts/integrations/graph` that executes `@decaf-ts/ui-decorators/graph` workflows, emits events through Decaf's `Observable`/`Observer` pipeline, supports explicit `foreach`/`while`/`until` loops, configurable value stores, and pinnable/cacheable nodes with recursive dependency pinning, and integrates with `@decaf-ts/for-angular/graph` via an RxJS bridge.
+- **Status:** Planned — specification and task breakdown added; implementation pending.
+- **Link:** [Specification Details](./specifications/DECAF_32.md)
+- **Tasks:**
+  - [ ] [TASK-210](./specifications/tasks/TASK_210.md): Core graph scaffolding (constants, types, errors, `GraphExecutionContext` as Decaf `Context`).
+  - [ ] [TASK-211](./specifications/tasks/TASK_211.md): Event observer/emitter/factory and executor interface/registry.
+  - [ ] [TASK-212](./specifications/tasks/TASK_212.md): Configurable value store adapter API + in-memory adapter + runtime wrapper.
+  - [ ] [TASK-213](./specifications/tasks/TASK_213.md): Execution plan types, relation resolver, and Kahn topological planner.
+  - [ ] [TASK-214](./specifications/tasks/TASK_214.md): Basic `GraphExecutionEngine` with workflow/node I/O routing and observer events.
+  - [ ] [TASK-215](./specifications/tasks/TASK_215.md): Validation (definition validator, `as-zod` schema resolver, value validator).
+  - [ ] [TASK-216](./specifications/tasks/TASK_216.md): Structured loops (condition evaluator + foreach/while/until executors).
+  - [ ] [TASK-217](./specifications/tasks/TASK_217.md): `@pinnable` decorator in `ui-decorators/graph` + pinning metadata reader.
+  - [ ] [TASK-218](./specifications/tasks/TASK_218.md): Pinning policy, dependency resolver, and pinning service with fingerprints.
+  - [ ] [TASK-219](./specifications/tasks/TASK_219.md): Engine cache-hit behavior + pin/unpin API delegation + snapshot patch mapper.
+  - [ ] [TASK-220](./specifications/tasks/TASK_220.md): Angular RxJS bridge, execution service, and execution UI state.
+  - [ ] [TASK-221](./specifications/tasks/TASK_221.md): Angular pin UI behavior and event-to-renderer state mapping.
+  - [ ] [TASK-222](./specifications/tasks/TASK_222.md): Comprehensive tests (planner, execution, loops, store, pinning, observers, Angular bridge).
+  - [ ] [TASK-223](./specifications/tasks/TASK_223.md): Workdocs for basic workflow, fan-in/fan-out, loops, pinnable nodes, Angular events/pinning UI.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -493,6 +516,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-29: ⏳ GitHub Actions Inventory, Normalization, and Rule Replication
 - DECAF-30: ✅ BlobStoreService API and Provider Implementations (all providers implemented: memory, local, S3/MinIO/R2, Azure Blob, GCS, IPFS; 105/105 tests passing across 14 suites; lint and build clean)
 - DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
+- DECAF-32: ⏳ Decaf Graph Execution Engine (specification and 14-task breakdown added; implementation pending)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
