@@ -786,10 +786,9 @@ Agent nodes (`core.agent`, §22.2.4) are an exception: they use a **rectangular*
 | Element | DOM class | Source | Behaviour |
 |:---|:---|:---|:---|
 | Root card | `.graph-node` | Static | Rounded-square. Dimensions driven by `--graph-node-size` (default `96px`). Background gradient tinted by `--graph-accent`. |
-| Action buttons | `.graph-node__actions` | Static | Top-right floating row. Always visible. `mousedown` stops propagation so diagram dragging does not intercept clicks. |
-| Delete button | `.graph-node__action` (text `x`) | `deleteNode()` | Removes the node from the diagram via `NgDiagramModelService.deleteNodes([id])`. |
-| Edit button | `.graph-node__action` (text `⚙`) | `openEditor()` | Opens `GraphNodeEditModalComponent` (same as double-click). |
-| Pin button | `.graph-node__action` (text `📌`) | `pinNode()` | Toggles pinned state. Gets `.graph-node__action--pinned` when active. |
+| Action buttons | `.graph-node__actions` | Static | Top-right floating zone containing all action buttons. Grouped in a single flex row so the entire zone can be reoriented for RTL languages (flip `left`/`right` positioning). Buttons appear on hover (opacity transition). `mousedown` stops propagation so diagram dragging does not intercept clicks. |
+| Delete button | `.graph-node__btn--delete` (text `×`) | `deleteNode()` | Removes the node from the diagram via `NgDiagramModelService.deleteNodes([id])`. |
+| Pin button | `.graph-node__btn--pin` (text `📌`) | `pinNode()` | Toggles pinned state. Gets `.graph-node__btn--pinned` when active. |
 | Icon | `.graph-node__icon` | `node().data.icon` | Centered glyph (icon font class or emoji). Sized to be the dominant visual element. Coloured by `--graph-accent`. |
 | Name | `.graph-node__name` | `node().data.title` | **Only rendered when user-defined** (i.e. when the node was renamed from its default generated name). Falls back to `node().data.kind` when no custom name is set. Small, truncated, centered below the icon. |
 | Status badge | `.graph-node__status` | Conditional | Single pill overlaid on the card (bottom-left or bottom-center) when execution state is active. See §21.9. |
@@ -808,6 +807,8 @@ Every node has a **default port** that represents the complete input object (the
 | Visibility | **Always visible** — exempt from the contextual visibility rules in §21.6. |
 
 All other ports (declared via `@input(...)` / `@output(...)` with explicit handles) are **non-default ports** and follow the contextual visibility rules.
+
+**Port ordering rule:** When multiple ports of the same direction are rendered on a node face, the default port (`value` or `default`) is always rendered **last** (bottom-most on vertical faces, right-most on horizontal faces). This ensures that case/branch outputs (e.g. Switch cases, If `then`/`else`) appear above the fallback/default output, matching the natural top-to-bottom reading order.
 
 ### 21.6 Port Visibility Behaviour
 
@@ -854,8 +855,7 @@ A node may have zero or more `@connection()` ports. The `AgentNode` (§22.2.4) i
 
 ```typescript
 class AgentNode {
-  @input() instructions: string;
-  @input() context: string;
+  @input() prompt: string;
   @output() response: string;
   @output() actions: string[];
   @connection({ category: "model" }) model: void;
@@ -989,9 +989,9 @@ The following classes are part of the public rendering contract and must remain 
 .graph-node--cached                 // execution state: cached
 
 // Actions
-.graph-node__actions                // action button row
-.graph-node__action                 // action button
-.graph-node__action--pinned         // pin button active
+.graph-node__actions                // action button zone (top-right)
+.graph-node__btn                    // individual action button
+.graph-node__btn--pinned            // pin button active
 
 // Identity
 .graph-node__icon                   // centered icon
@@ -1117,8 +1117,7 @@ Production declaration: `integrations/src/graph/nodes/agent.ts` (`AgentNode`).
 ```typescript
 @node({ kind: "core.agent", category: "Agent" })  // color/icon omitted → resolved from category
 class AgentNode {
-  @input() instructions: string;
-  @input() context: string;
+  @input() prompt: string;       // supports placeholder syntax (§22.4): {{ $input.foo }}
   @output() response: string;
   @output() actions: string[];
   @connection({ category: "model" }) model: void;
@@ -1126,6 +1125,8 @@ class AgentNode {
   @connection({ category: "workspace" }) workspace: void;
 }
 ```
+
+The `prompt` input is a single string field that accepts placeholder expressions (§22.4) such as `{{ $input.brief }}`, `{{ $node["Research"].output.summary }}`, or `{{ $vars.topic }}`. At execution time, the placeholder compiler resolves these references against the current workflow state before the agent executor receives the final prompt string.
 
 The `Agent` category resolves to colour `#7c3aed` (violet) and icon `ti-robot` from the category style registry (§21.8.2). The three connection ports are coloured by their respective categories (`model` → `#3b82f6`, `memory` → `#10b981`, `workspace` → `#f59e0b`).
 
