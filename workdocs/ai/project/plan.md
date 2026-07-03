@@ -459,7 +459,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-32 — Decaf Graph Execution Engine
 - **Priority:** High
 - **Goal:** Build a native graph execution engine in `@decaf-ts/integrations/graph` that executes `@decaf-ts/ui-decorators/graph` workflows, emits events through Decaf's `Observable`/`Observer` pipeline, supports explicit `foreach`/`while`/`until` loops, configurable value stores, and pinnable/cacheable nodes with recursive dependency pinning, and integrates with `@decaf-ts/for-angular/graph` via an RxJS bridge. Phase 2 adds a working engine on the for-angular graph page (RamAdapter persistence), a NestJS backend module (for-nest supplier), and a full-stack e2e test validating the production pipeline.
-- **Status:** In Progress — Phase 1 (core engine, 14 tasks) completed with 88 tests passing. Phase 2: TASK-225 (graph page UI), TASK-227 (node-edit modal), and TASK-228 (full node kind taxonomy) completed & Playwright-verified; TASK-224 (NestJS backend) and TASK-226 (full-stack e2e) pending.
+- **Status:** In Progress — Phase 1 (core engine, 14 tasks) completed with 88 tests passing. Phase 2: TASK-225 (graph page UI), TASK-227 (node-edit modal), TASK-228 (full node kind taxonomy), and TASK-229 (`@connection()` ports + category colours + Agent node) completed & Playwright-verified; TASK-224 (NestJS backend) and TASK-226 (full-stack e2e) pending.
 - **Link:** [Specification Details](./specifications/DECAF_32.md)
 - **Tasks:**
   - [x] [TASK-210](./specifications/tasks/TASK_210.md): Core graph scaffolding (constants, types, errors, `GraphExecutionContext` as Decaf `Context`).
@@ -481,6 +481,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [ ] [TASK-226](./specifications/tasks/TASK_226.md): Full-Stack E2E Test — boot real for-nest backend, for-http client consumer, validate production pipeline.
   - [x] [TASK-227](./specifications/tasks/TASK_227.md): Node-Edit Modal with Graph-Aware CRUD Fields — `GraphPortFieldComponent`, `GraphNodeEditModalComponent`, `GraphNodeConfigStore`, snapshot round-trip. (Completed & Playwright-verified.)
   - [x] [TASK-228](./specifications/tasks/TASK_228.md): Implement Full DECAF-32 Node Kind Taxonomy — 6 trigger + 10 flow-control production node declarations in `integrations/src/graph/nodes/`, palette wiring, `ConditionExpression` DSL recognition (§22.3). (Completed — 96 graph unit tests passing, Playwright-verified.)
+  - [x] [TASK-229](./specifications/tasks/TASK_229.md): `@connection()` Port Decorator, Category Colour System & Agent Node — `PortDirection.CONNECTION` + `@connection()` decorator in `ui-decorators/graph`, `GraphCategoryStyle` registry with `effectiveColor`/`effectiveIcon` resolution, `AgentNode` (`core.agent`) with model/memory/workspace connection ports, for-angular renderer support for bottom-edge connection ports. (Completed — Playwright-verified: 2 input + 2 output + 3 connection ports visible when selected.)
 
 ---
 

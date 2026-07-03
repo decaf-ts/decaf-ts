@@ -148,6 +148,9 @@ The core engine must **consume** these definitions. It must not duplicate graph 
 *   [ ] Compatibility with ALFRED-7 module-prefixed node IDs (§22.7) — the executor registry treats kind strings as opaque, so `<module>.<kind>` IDs work without engine changes.
 *   [ ] Compatibility with ALFRED-7 reference-based workflow serialization (§22.6) — the engine works with full `GraphWorkflowDefinition` objects; downstream DB-backed node resolution is a layer on top.
 *   [ ] Compatibility with ALFRED-8 Angular node web-components (§22.9) — downstream per-kind components extend the base `GraphNodeTemplateComponent` (§21) without engine changes.
+*   [x] `@connection()` port decorator (§21.6.1) for structural dependencies typed by `category` (model/memory/workspace), rendered on the bottom edge of nodes. (`PortDirection.CONNECTION` in `ui-decorators/graph`; `AgentNode` in `integrations/src/graph/nodes/agent.ts`.)
+*   [x] Category-based colour/icon resolution (§21.8.2): `@node()` `color`/`icon` are optional overrides; when omitted, `effectiveColor`/`effectiveIcon` are resolved from the `GraphCategoryStyle` registry. (`registerGraphCategoryStyle` / `resolveEffectiveColor` / `resolveEffectiveIcon` in `ui-decorators/graph`; built-in categories in `integrations/src/graph/nodes/category-styles.ts`.)
+*   [x] Agent node (`core.agent`) with `@connection` ports for model/memory/workspace, each coloured by category. (`AgentNode` in `integrations/src/graph/nodes/agent.ts`; rendered in for-angular `GraphNodeTemplateComponent`.)
 
 ## 3. Non-Goals For V1
 Do not implement in v1:
@@ -765,6 +768,8 @@ The demo executors (`createDemoExecutorRegistry`) must register the `ForeachGrap
 
 Nodes default to a **square with rounded corners** — small enough that dozens can fit on the canvas without overlap. The only always-visible content is the node identity (icon + colour + optional name) and the action buttons. Ports appear contextually (see §21.6).
 
+Agent nodes (`core.agent`, §22.2.4) are an exception: they use a **rectangular** shape (no border radius) to visually distinguish them as composite entities with structural dependencies. Agent nodes also render `@connection()` ports on their bottom edge (§21.6.1).
+
 ```txt
    ┌───────────────────────────┐
    │  [x] [⚙] [📌]   ← actions  │
@@ -833,6 +838,32 @@ Rules:
 }
 ```
 
+#### 21.6.1 Connection Ports (`@connection()`)
+
+In addition to `@input()` (left side) and `@output()` (right side), nodes may declare `@connection()` ports that render on the **bottom** edge of the node. Connection ports represent structural dependencies — typed by `category` — rather than data-flow edges. They do not carry workflow values; instead they signal that the node requires a particular kind of external resource (e.g. a model, a memory store, a workspace).
+
+| Aspect | `@input()` | `@output()` | `@connection()` |
+|:---|:---|:---|:---|
+| Side | Left | Right | Bottom |
+| Carries data | Yes | Yes | No (structural only) |
+| Typed by | Schema | Schema | `category` string |
+| Colour | Node accent | Node accent | Category colour (§21.8.3) |
+| Visibility | §21.6 | §21.6 | §21.6 (same contextual rules) |
+
+A node may have zero or more `@connection()` ports. The `AgentNode` (§22.2.4) is the canonical example: it declares three connection ports — `model`, `memory`, `workspace` — each coloured by its category.
+
+```typescript
+class AgentNode {
+  @input() instructions: string;
+  @input() context: string;
+  @output() response: string;
+  @output() actions: string[];
+  @connection({ category: "model" }) model: void;
+  @connection({ category: "memory" }) memory: void;
+  @connection({ category: "workspace" }) workspace: void;
+}
+```
+
 ### 21.7 Boundary Value Node
 
 ```txt
@@ -855,9 +886,13 @@ Rules:
 
 ### 21.8 Accent Colour & Kind Mapping
 
-Each node sets a `--graph-accent` CSS custom property from `node().data.color` (falling back to `#5b21b6` when absent). The accent drives the card background gradient, icon colour, border tint, and action-button active state.
+Each node sets a `--graph-accent` CSS custom property from the node's **effective colour** — the explicit `color` on `@node()` if present, otherwise the **category colour** from the `GraphCategoryStyle` registry (§21.8.2), otherwise the default (`#64748b`). The accent drives the card background gradient, icon colour, border tint, and action-button active state.
 
-Canonical kind → colour mapping (defined in `example-nodes.ts`):
+The `color` and `icon` attributes on `@node()` are **optional overrides**. When omitted, the effective colour/icon is resolved from the node's `category` via the category style registry (§21.8.2). This means nodes only need to specify `color`/`icon` when they want to deviate from their category's default style.
+
+#### 21.8.1 Kind → Colour Mapping (Legacy / Demo)
+
+Canonical kind → colour mapping used by the demo nodes (defined in `example-nodes.ts`):
 
 | Kind | Colour | Semantic |
 |:---|:---|:---|
@@ -865,6 +900,32 @@ Canonical kind → colour mapping (defined in `example-nodes.ts`):
 | `pipeline` | `#0ea5e9` (sky) | Intermediate processing pipelines. |
 | `node` | `#8b5cf6` (violet) / `#14b8a6` (teal) | Leaf transformation nodes. |
 | `value` (boundary) | `#0f766e` (teal) | Workflow input value nodes. |
+
+#### 21.8.2 Category Style Registry
+
+The `GraphCategoryStyle` registry (`registerGraphCategoryStyle` / `graphCategoryStyleOf` in `ui-decorators/graph`) maps category names to a default `{ color, icon? }` style. The reader's `graphDefinitionOf()` computes `effectiveColor` and `effectiveIcon` by checking the node's explicit `color`/`icon` first, then falling back to the category style, then the default (`#64748b` / `ti-pointer`).
+
+Built-in categories registered by `integrations/src/graph/nodes/category-styles.ts`:
+
+| Category | Colour | Icon | Used by |
+|:---|:---|:---|:---|
+| `Trigger` | `#3b82f6` | `ti-bolt` | Trigger nodes (§22.2.1) |
+| `Flow Control` | `#f59e0b` | `ti-arrows-split-2` | Flow-control nodes (§22.2.2) |
+| `Utility` | `#0d9488` | `ti-tool` | Utility nodes (§22.2.3) |
+| `Loop` | `#eab308` | `ti-repeat` | Loop nodes (§5.9) |
+| `Workflow` | `#f97316` | `ti-sitemap` | Workflow nodes |
+| `Pipeline` | `#0ea5e9` | `ti-git-merge` | Pipeline nodes |
+| `Node` | `#8b5cf6` | `ti-point-filled` | Leaf processing nodes |
+| `Agent` | `#7c3aed` | `ti-robot` | Agent nodes (§22.2.4) |
+| `model` | `#3b82f6` | `ti-cpu` | `@connection({ category: "model" })` |
+| `memory` | `#10b981` | `ti-database` | `@connection({ category: "memory" })` |
+| `workspace` | `#f59e0b` | `ti-folder` | `@connection({ category: "workspace" })` |
+
+Downstream projects MAY register additional categories via `registerGraphCategoryStyle()`.
+
+#### 21.8.3 Connection Port Colours
+
+`@connection()` ports are coloured by their `category` field, not by the node's accent colour. The renderer reads the category from `port.graph.category` and resolves the colour from the category style registry. This ensures that, e.g., all `model` connections across different node kinds share the same visual colour.
 
 ### 21.9 Execution State Visual Treatment
 
@@ -1042,6 +1103,31 @@ Utility nodes compile into concrete steps. The engine treats them as ordinary ex
 | `flow.humanApproval` | `core.flow.humanApproval` | Suspend until human approves/rejects. |
 | `flow.return` | `core.flow.return` | Define and normalize final workflow output. |
 | `flow.code` | `core.flow.code` | Sandboxed JS/TS code execution (ALFRED-5 §7). |
+
+#### 22.2.4 Agent Nodes
+
+Agent nodes wrap an AI agent (LLM + tools + memory) as a single graph node. They differ from utility nodes in that they declare **connection ports** (§21.6.1) for their structural dependencies — `model`, `memory`, `workspace` — rather than receiving them as regular `@input()` values.
+
+| Kind | Engine kind | Category | Purpose |
+|:---|:---|:---|:---|
+| Agent | `core.agent` | `Agent` | Execute an AI agent with instructions/context; produce response + actions. |
+
+Production declaration: `integrations/src/graph/nodes/agent.ts` (`AgentNode`).
+
+```typescript
+@node({ kind: "core.agent", category: "Agent" })  // color/icon omitted → resolved from category
+class AgentNode {
+  @input() instructions: string;
+  @input() context: string;
+  @output() response: string;
+  @output() actions: string[];
+  @connection({ category: "model" }) model: void;
+  @connection({ category: "memory" }) memory: void;
+  @connection({ category: "workspace" }) workspace: void;
+}
+```
+
+The `Agent` category resolves to colour `#7c3aed` (violet) and icon `ti-robot` from the category style registry (§21.8.2). The three connection ports are coloured by their respective categories (`model` → `#3b82f6`, `memory` → `#10b981`, `workspace` → `#f59e0b`).
 
 ### 22.3 Condition Expression DSL (from ALFRED-5 §8)
 
