@@ -45,6 +45,41 @@ Angular is a UI adapter.
 Mastra or other backends are execution adapters/compilers.
 ```
 
+### 1.1.1 Downstream Consumer — the-alfred-ai
+
+The `the-alfred-ai` project (repo: `/home/tvenceslau/local-workspace/the-alfred-ai`) is the primary downstream consumer of this engine. Its specifications — ALFRED-4, ALFRED-5, ALFRED-6, ALFRED-7, ALFRED-8, and UPSTREAM-1 (in `the-alfred-ai/workdocs/ai/project/specifications/`) — define a Mastra-based workflow editor that compiles Decaf graph snapshots into Mastra workflows.
+
+**Source-of-truth boundary:** This specification (DECAF-32) is the canonical source for all **Mastra-agnostic** graph functionality — graph declaration, metadata, execution engine, loops, pinning, snapshots, and Angular rendering. The ALFRED specs MUST reference this specification for those concerns and MAY NOT re-define or duplicate them. The ALFRED specs own only the **Mastra-specific** compilation layer (compiling Decaf graph snapshots into Mastra `createStep()` / `createWorkflow()` / composition-API calls).
+
+**Mastra-agnostic concepts owned by DECAF-32 (referenced by ALFRED):**
+
+| Concept | DECAF-32 section | ALFRED spec that references it |
+|:---|:---|:---|
+| Graph declaration decorators (`@node`, `@input`, `@output`, `@graph`) | §1.2 | ALFRED-5 §2.7, ALFRED-7 §1, ALFRED-8 §1 |
+| Graph definition readers (`graphDefinitionOf`, `graphWorkflowDefinitionOf`) | §1.2 | ALFRED-7 §4.1 |
+| Graph snapshot types & round-trip | §5.11, §20.4 | ALFRED-7 §4.6, ALFRED-8 §4.5 |
+| Structured loop executors (`foreach`, `while`, `until`) | §5.9 | ALFRED-5 §6.3–6.5 |
+| Node executor registry pattern | §5.8, §10 | ALFRED-5 §4.7 (StepFactory) |
+| Execution plan / topological planner | §5.7 | ALFRED-5 §9 (compilePath) |
+| Angular graph renderer & node templates | §5.12, §21 | ALFRED-8 §4.2–4.3 |
+| Node-edit modal with port-toggle CRUD | §20 | ALFRED-8 §4.2 (PortToggleCrudComponent) |
+| Minimal node visual contract | §21 | ALFRED-8 §4.3 (node web-components) |
+| Pinnable nodes & cache | §5.6 | (no ALFRED equivalent — DECAF-only) |
+
+**Mastra-specific concepts owned by ALFRED (not in DECAF-32):**
+
+| Concept | ALFRED spec | Notes |
+|:---|:---|:---|
+| Mastra workflow compilation (`createStep`, `createWorkflow`, `.branch()`, `.foreach()`, `.dowhile()`, `.dountil()`, `.parallel()`) | ALFRED-5 §9 | Brain-resident; core never imports `@mastra/*`. |
+| `MastraManaged*` primitives (Agent, Workflow, Step, Tool, Model, Prompt) | ALFRED-5 §4.8, ALFRED-4 | Brain wrappers around Mastra core objects. |
+| `Managed*Builder` concrete implementations | ALFRED-5 §4.8, ALFRED-4 | Brain builders returning `MastraManaged*` instances. |
+| `CompileContext` with `StepFactory` / `WorkflowBuilderFactory` / `WorkflowRunner` | ALFRED-5 §4.5 | Bridge between Mastra-agnostic compiler logic and Mastra runtime. |
+| Trigger node compilation (webhook handler, schedule cron, form handler) | ALFRED-5 §5 | Compiles to Mastra runtime route metadata + workflow runner. |
+| Code Node sandbox (`isolated-vm`, `acorn` validation, `typescript` transpilation) | ALFRED-5 §7 | Brain-resident to keep heavy deps out of core. |
+| DB-backed node persistence (`ai_nodes`, `ai_node_categories`) | ALFRED-7 §4.4 | Alfred-specific persistence layer (Decaf `Repository` pattern). |
+| Condition expression DSL (`ConditionExpression`) | ALFRED-5 §8 | Declarative, serializable; ALFRED-8 condition editor renders it. |
+| Module-prefixed node IDs (`core.flow.if`, `core.trigger.manual`) | ALFRED-7 §4.3 | Alfred convention for globally-unique node IDs. |
+
 ### 1.2 Existing Foundation
 
 `@decaf-ts/ui-decorators/graph` already provides graph primitives and metadata:
@@ -107,6 +142,12 @@ The core engine must **consume** these definitions. It must not duplicate graph 
 *   [ ] Graph-aware CRUD field component with a "use as port" checkbox that exposes the matching graph port for connection.
 *   [ ] Output port splitting: a single output port can be connected to multiple input ports.
 *   [ ] Future compatibility with a Mastra compiler/backend.
+*   [x] Recognition of the full ALFRED-5 node kind taxonomy (§22.2): trigger nodes (manual/webhook/schedule/event/form/chat), flow-control nodes (if/switch/parallel/merge/map/delay/errorBoundary/humanApproval/return/code), and the already-implemented loop nodes (foreach/while/until). (TASK-228 — production node declarations in `integrations/src/graph/nodes/`.)
+*   [x] Recognition of the ALFRED-5 ConditionExpression DSL (§22.3) as a `custom` condition payload for `GraphConditionEvaluator`. (TASK-228 — `ConditionExpressionEvaluator` + `op`-field dispatch in `GraphConditionEvaluator`.)
+*   [ ] Recognition of the ALFRED-5 Code Node placeholder syntax (§22.4) for future `core.flow.code` executor integration.
+*   [ ] Compatibility with ALFRED-7 module-prefixed node IDs (§22.7) — the executor registry treats kind strings as opaque, so `<module>.<kind>` IDs work without engine changes.
+*   [ ] Compatibility with ALFRED-7 reference-based workflow serialization (§22.6) — the engine works with full `GraphWorkflowDefinition` objects; downstream DB-backed node resolution is a layer on top.
+*   [ ] Compatibility with ALFRED-8 Angular node web-components (§22.9) — downstream per-kind components extend the base `GraphNodeTemplateComponent` (§21) without engine changes.
 
 ## 3. Non-Goals For V1
 Do not implement in v1:
@@ -305,9 +346,11 @@ The planner resolves workflow nodes and relations, validates IDs/endpoints/ports
 Independent nodes in the same layer may execute in parallel via a small internal worker queue. No external concurrency dependency may be introduced.
 
 ### 5.9 Structured Loops
-Loop metadata includes `body` (a `GraphWorkflowDefinition`), `maxIterations`, `timeoutMs`, `condition`, `concurrency`, and port mappings. Conditions are limited to safe built-in types (`truthy`, `falsy`, `equals`, `notEquals`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `exists`, `custom`). Arbitrary JavaScript expression evaluation is not implemented in core.
+Loop metadata includes `body` (a `GraphWorkflowDefinition`), `maxIterations`, `timeoutMs`, `condition`, `concurrency`, and port mappings. Conditions are limited to safe built-in types (`truthy`, `falsy`, `equals`, `notEquals`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `exists`, `custom`). Arbitrary JavaScript expression evaluation is not implemented in core. The `custom` condition type MAY carry an ALFRED-5 `ConditionExpression` payload (§22.3) — the evaluator dispatches to a `ConditionExpression` evaluator when the condition object has an `op` field.
 
 Loop node kinds: `core.loop.foreach`, `core.loop.while`, `core.loop.until`. Nested loop-body executions set `parentRunId` and `path = [...outerPath, loopNodeId, `iteration:${index}`]`.
+
+These map to ALFRED-5's flow-control kinds (§22.2.2): `flow.foreach` → `core.loop.foreach`, `flow.while` → `core.loop.while`, `flow.doUntil` → `core.loop.until`. ALFRED-5 compiles these into Mastra composition APIs (`builder.foreach()`, `builder.dowhile()`, `builder.dountil()`); the engine's reference interpreter executes them directly via `ForeachGraphNodeExecutor`, `WhileGraphNodeExecutor`, and `UntilGraphNodeExecutor`. The remaining ALFRED-5 flow-control kinds (`flow.if`, `flow.switch`, `flow.parallel`, `flow.merge`, `flow.map`, `flow.delay`, `flow.errorBoundary`, `flow.humanApproval`, `flow.return`, `flow.code`) are recognized by the planner as ordinary executable nodes but have no built-in executor — downstream projects register custom executors or compile them away.
 
 ### 5.10 Validation
 `GraphDefinitionValidator` validates workflow structure, node IDs, relations, ports, required port sources, cycles, loop metadata, loop body acyclicity, and connection rules. `GraphPortSchemaResolver` prefers `decaf-ts/as-zod` and falls back to primitive type mapping. `GraphValueValidator` validates workflow/node inputs and outputs, emitting `VALIDATION_FAILED` and throwing structured errors on failure.
@@ -684,3 +727,420 @@ All node-edit modal configuration must be serialized into the existing graph sna
 *   Extend the snapshot types in `ui-decorators/graph` (if needed) to include per-node port-binding mode (`'port' | 'value'`) alongside existing port definitions.
 *   Update `buildGraphRendererViewModel` and `buildGraphRendererStateFromSnapshot` to read/write port-binding mode and reconstruct the form + canvas accordingly.
 *   Update the snapshot JSON round-trip (`graphWorkflowSnapshotToJSON` / `graphWorkflowSnapshotFromJSON`) to preserve port-binding mode.
+
+## 21. Node Visual & Interaction Contract
+
+### 21.1 Overview
+This section formalizes the appearance, structure, and interaction behaviour of graph nodes rendered on the for-angular canvas. Nodes are intentionally minimal — compact rounded squares that show only an icon, a colour, an optional user-defined name, and the ports that are actively visible. Rich metadata (description, labels, category, all port labels) is deferred to the node-edit modal (§21.11) so the canvas stays uncluttered.
+
+The canonical implementation lives in `for-angular/src/graph/components/graph-node-template/` (member nodes) and `for-angular/src/graph/components/boundary-node-template/` (workflow-input value nodes). Both are consumed by `GraphRendererComponent` through `ng-diagram`'s `nodeTemplateMap`.
+
+### 21.2 Node Variants
+
+| Variant | Component | Selector | CSS Root Class | Distinguishing Trait |
+|:---|:---|:---|:---|:---|
+| Member node | `GraphNodeTemplateComponent` | `app-graph-node-template` | `.graph-node` | Compact rounded-square card; represents a workflow member (`workflow`, `pipeline`, `node`, or `core.loop.*` kind). |
+| Boundary value node | `GraphBoundaryNodeTemplateComponent` | `app-graph-boundary-node-template` | `.graph-boundary` | Compact rounded-square card, output-only; represents a duplicateable workflow input value (`value` kind). |
+
+### 21.2.1 Control Flow Nodes (Required in Demo)
+
+The engine supports three structured loop kinds (see `GRAPH_LOOP_KIND` in `integrations/src/graph/constants.ts`): `core.loop.foreach`, `core.loop.while`, and `core.loop.until`. The demo workflow on the graph page **must include at least one node of each loop kind** so the canvas demonstrates every control-flow primitive the engine supports.
+
+| Loop kind | Demo node class | Icon | Colour | Semantic |
+|:---|:---|:---|:---|:---|
+| `core.loop.foreach` | `GraphForeachLoopNode` | `ti-repeat` | `#eab308` (yellow) | Iterates over an array input, executing the body once per item. |
+| `core.loop.while` | `GraphWhileLoopNode` | `ti-arrows-loop` | `#0891b2` (cyan) | Repeats the body while a condition is true (pre-condition). |
+| `core.loop.until` | `GraphUntilLoopNode` | `ti-player-stop` | `#db2777` (pink) | Repeats the body until a condition is true (post-condition, runs at least once). |
+
+Each loop node:
+*   Is declared with `@node('<tag>', { kind: 'core.loop.<type>', ... metadata: { loop: { body, condition?, maxIterations? } } })` so the engine's loop executors can read the `GraphLoopMetadata` from `context.node.graph.metadata.loop`.
+*   Declares `@input` ports matching the loop executor's expected inputs (`items` for foreach; `state` for while/until) plus the default `value` port.
+*   Declares `@output` ports matching the loop executor's outputs (`results`/`iterations` for foreach; `state`/`iterations` for while/until).
+*   References a body sub-workflow definition (a `GraphWorkflowDefinition` object or a `@graph`-decorated class) via `metadata.loop.body`.
+*   Is wired into the `GraphPublishingWorkflow` `@graph` `nodes` array and connected via `relations` so it participates in the demo diagram alongside the existing publishing-pipeline nodes.
+
+The demo executors (`createDemoExecutorRegistry`) must register the `ForeachGraphNodeExecutor`, `WhileGraphNodeExecutor`, and `UntilGraphNodeExecutor` (from `integrations/src/graph/loops/`) for their respective kinds, constructed with the shared `GraphExecutionEngine` instance so loop bodies execute through the same engine.
+
+### 21.3 Minimal Node Anatomy
+
+Nodes default to a **square with rounded corners** — small enough that dozens can fit on the canvas without overlap. The only always-visible content is the node identity (icon + colour + optional name) and the action buttons. Ports appear contextually (see §21.6).
+
+```txt
+   ┌───────────────────────────┐
+   │  [x] [⚙] [📌]   ← actions  │
+   │                            │
+   │     [icon]                 │
+   │     Node Name              │
+   │                            │
+   │  ○─────────────○           │  ← ports (contextual, see §21.6)
+   └───────────────────────────┘
+```
+
+### 21.4 Member Node Structural Elements
+
+| Element | DOM class | Source | Behaviour |
+|:---|:---|:---|:---|
+| Root card | `.graph-node` | Static | Rounded-square. Dimensions driven by `--graph-node-size` (default `96px`). Background gradient tinted by `--graph-accent`. |
+| Action buttons | `.graph-node__actions` | Static | Top-right floating row. Always visible. `mousedown` stops propagation so diagram dragging does not intercept clicks. |
+| Delete button | `.graph-node__action` (text `x`) | `deleteNode()` | Removes the node from the diagram via `NgDiagramModelService.deleteNodes([id])`. |
+| Edit button | `.graph-node__action` (text `⚙`) | `openEditor()` | Opens `GraphNodeEditModalComponent` (same as double-click). |
+| Pin button | `.graph-node__action` (text `📌`) | `pinNode()` | Toggles pinned state. Gets `.graph-node__action--pinned` when active. |
+| Icon | `.graph-node__icon` | `node().data.icon` | Centered glyph (icon font class or emoji). Sized to be the dominant visual element. Coloured by `--graph-accent`. |
+| Name | `.graph-node__name` | `node().data.title` | **Only rendered when user-defined** (i.e. when the node was renamed from its default generated name). Falls back to `node().data.kind` when no custom name is set. Small, truncated, centered below the icon. |
+| Status badge | `.graph-node__status` | Conditional | Single pill overlaid on the card (bottom-left or bottom-center) when execution state is active. See §21.9. |
+| Ports | `.graph-node__ports` | Contextual | Port handles render on the card edges only when visible per §21.6. No column headings, no label/type copy on the canvas — port labels appear only as hover tooltips or in the edit modal. |
+
+### 21.5 Default Port
+
+Every node has a **default port** that represents the complete input object (the entire model instance as a single typed value). This port is always visible and is the primary connection target for simple wiring.
+
+| Property | Value |
+|:---|:---|
+| Port id | `value` |
+| Direction | `input` (member nodes) / `output` (boundary value nodes) |
+| Label | `value` (or the node's `kind`) |
+| Type | The node's model class |
+| Visibility | **Always visible** — exempt from the contextual visibility rules in §21.6. |
+
+All other ports (declared via `@input(...)` / `@output(...)` with explicit handles) are **non-default ports** and follow the contextual visibility rules.
+
+### 21.6 Port Visibility Behaviour
+
+Non-default ports are hidden by default to keep the canvas minimal. They appear only in one of the following contexts, and animate with a fade-in/fade-out transition.
+
+| Context | Trigger | CSS state |
+|:---|:---|:---|
+| **Node selected** | User clicks the node (diagram selection). | `.graph-node--selected` on the root card; ports container gets `.graph-node__ports--visible`. |
+| **Active connection drag** | User starts dragging a connection from another node's port (the source node and any valid target node reveal their ports). | `.graph-node--connecting` on candidate target nodes; ports fade in. |
+| **Has connection** | The port is the endpoint of an existing edge on the canvas. | Per-port class `.graph-node__port--connected` — that individual port stays visible even when the node is not selected. |
+
+Rules:
+*   There is **no checkbox or toggle** to show/hide individual ports. Port visibility is entirely driven by the three contexts above.
+*   When none of the three contexts are active, non-default ports are fully hidden (`opacity: 0; pointer-events: none`).
+*   The default port (§21.5) is always visible regardless of context.
+*   When a port is both connected and the node is selected, it stays visible (no double-fade).
+*   Ports fade in over `150ms` (`ease-out`) and fade out over `200ms` (`ease-in`).
+
+```scss
+// Transition contract
+.graph-node__ports {
+  transition: opacity 150ms ease-out;
+}
+.graph-node:not(.graph-node--selected):not(.graph-node--connecting) .graph-node__port:not(.graph-node__port--connected):not(.graph-node__port--default) {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-in;
+}
+```
+
+### 21.7 Boundary Value Node
+
+```txt
+   ┌───────────────────────────┐
+   │  [x] [⚙] [📌]   ← actions  │
+   │     [icon]                 │
+   │     Input Name             │
+   │              ○ value       │  ← default output port (always visible)
+   └───────────────────────────┘
+```
+
+*   Compact rounded-square, same shape as member nodes.
+*   Lighter accent (`#0f766e` teal) to distinguish boundary nodes from member nodes.
+*   Icon from `node().data.icon`.
+*   Name from `node().data.title` (always shown for boundary nodes since they represent user-named workflow inputs).
+*   Single default output port (`value`) — always visible.
+*   Pin button is a no-op (`pinNode()` stops propagation without toggling).
+*   Edit opens the standard CRUD modal to change the input value.
+*   No contextual port behaviour — boundary nodes have only one port and it is always visible.
+
+### 21.8 Accent Colour & Kind Mapping
+
+Each node sets a `--graph-accent` CSS custom property from `node().data.color` (falling back to `#5b21b6` when absent). The accent drives the card background gradient, icon colour, border tint, and action-button active state.
+
+Canonical kind → colour mapping (defined in `example-nodes.ts`):
+
+| Kind | Colour | Semantic |
+|:---|:---|:---|
+| `workflow` | `#f97316` (orange) / `#22c55e` (green) | Entry/exit workflows. |
+| `pipeline` | `#0ea5e9` (sky) | Intermediate processing pipelines. |
+| `node` | `#8b5cf6` (violet) / `#14b8a6` (teal) | Leaf transformation nodes. |
+| `value` (boundary) | `#0f766e` (teal) | Workflow input value nodes. |
+
+### 21.9 Execution State Visual Treatment
+
+Member nodes reflect execution state through a single status badge overlaid on the card and a border/glow treatment. The state is read from `graphExecutionState.nodeStates()[nodeId]` via `statusLabel()`.
+
+| State | CSS class | Badge class | Badge label | Border colour | Visual treatment |
+|:---|:---|:---|:---|:---|:---|
+| running | `.graph-node--running` | `.graph-node__status--running` | `running` | `#f59e0b` (amber) | Amber border + glow ring; badge pulses (opacity 1 ↔ 0.6 over 1.2s). |
+| succeeded | `.graph-node--succeeded` | `.graph-node__status--succeeded` | `done` | `#22c55e` (green) | Green border + soft glow. |
+| failed | `.graph-node--failed` | `.graph-node__status--failed` | `failed` | `#ef4444` (red) | Red border + glow. |
+| cached | `.graph-node--cached` | `.graph-node__status--cached` | `cached` | `#6366f1` (indigo) | Indigo border + soft glow. Served from pinned cache. |
+| (pinned) | `.graph-node--pinned` | `.graph-node__status--pinned` | `pinned` | `#a855f7` (purple, dashed) | Opacity 0.55, dashed border, purple glow, 40% grayscale, `pointer-events: none` on the card body (actions remain interactive). |
+
+Rules:
+*   Status badge is a single pill, uppercase, 0.6rem, 700 weight, overlaid at the bottom of the card.
+*   Multiple badges may coexist (e.g. `succeeded` + `pinned`).
+*   The badge renders only when at least one state is active.
+*   Pinned state is applied via direct DOM manipulation in `pinNode()` (toggling classes on `article.graph-node`) because ng-diagram renders node templates outside Angular's change-detection tree — Angular signal updates do not propagate reliably.
+
+### 21.10 Interaction Contract
+
+| Gesture | Target | Action |
+|:---|:---|:---|
+| Click | Node card (not an action button) | Select the node — triggers port visibility (§21.6). |
+| Click | Delete button | Remove node from diagram. |
+| Click | Edit button | Open node-edit modal (UPDATE-style with port modes). |
+| Click | Pin button | Toggle pinned state (member nodes only). |
+| Double-click | Anywhere on `article.graph-node` | Open node-edit modal. |
+| `mousedown` on port handle | Port | Begin connection drag — candidate target nodes reveal their ports (§21.6). |
+| `mousedown` | Any action button | Stop propagation (prevents diagram drag-start). |
+| Click empty canvas | — | Deselect — all contextually-visible ports fade out. |
+
+### 21.11 Node-Edit Modal (Double-Click)
+
+Triggered by double-click or the `⚙` button. Opens `GraphNodeEditModalComponent` via `ModalController.create()` with:
+*   `nodeTitle` — `node().data.title`
+*   `modelClass` — `node().data.modelClass`
+*   `nodeId` — `node().id`
+*   `initialValues` / `initialPortModes` — from `graphNodeConfig.getConfig(nodeId)` if previously edited
+
+The modal is where the full node metadata (description, category, labels, all port labels/types, port-binding modes, literal values, output splits) is inspected and edited. The canvas node itself never displays this rich metadata — it stays minimal.
+
+On `confirm`, the result is applied to the module-level `graphNodeConfig` store (see §20). The modal is an Ionic standalone component using `@Input()` decorators (not Angular signal inputs) because Ionic's `componentProps` binding does not reliably hydrate signal inputs.
+
+### 21.12 CSS Class Contract
+
+The following classes are part of the public rendering contract and must remain stable for downstream styling overrides:
+
+```scss
+// Root card
+.graph-node                         // root card (minimal rounded square)
+.graph-node--selected               // node is selected → ports visible
+.graph-node--connecting             // connection drag in progress → ports visible
+.graph-node--workflow               // kind modifier (workflow)
+.graph-node--pipeline               // kind modifier (pipeline)
+.graph-node--task                   // kind modifier (node kind)
+.graph-node--pinned                 // pinned state
+.graph-node--running                // execution state: running
+.graph-node--succeeded              // execution state: succeeded
+.graph-node--failed                 // execution state: failed
+.graph-node--cached                 // execution state: cached
+
+// Actions
+.graph-node__actions                // action button row
+.graph-node__action                 // action button
+.graph-node__action--pinned         // pin button active
+
+// Identity
+.graph-node__icon                   // centered icon
+.graph-node__name                   // user-defined name (or kind fallback)
+
+// Status
+.graph-node__status                 // status badge overlay
+.graph-node__status--running        // running badge
+.graph-node__status--succeeded      // succeeded badge
+.graph-node__status--failed         // failed badge
+.graph-node__status--cached         // cached badge
+.graph-node__status--pinned         // pinned badge
+
+// Ports
+.graph-node__ports                  // ports container
+.graph-node__ports--visible         // ports forced visible (selected/connecting)
+.graph-node__port                   // individual port handle
+.graph-node__port--default          // default port (always visible)
+.graph-node__port--connected        // port has an edge (always visible)
+.graph-node__port--input            // input port
+.graph-node__port--output           // output port
+```
+
+Boundary value node classes (`.graph-boundary*`) follow the same BEM convention with `--graph-boundary-accent` instead of `--graph-accent`.
+
+### 21.13 Removed / Replaced Behaviour
+The following behaviours from the previous expanded-card design are **removed** in the minimal node design:
+
+| Removed | Replaced by |
+|:---|:---|
+| Expand/collapse button (`▸`/`▾`) and `data.expanded` toggle. | Port expansion is no longer user-toggled. Ports are contextually visible (§21.6). Hierarchical port children are flattened when visible. |
+| Two-column port layout with `Inputs`/`Outputs` headings. | Port handles sit on the card edges (inputs left, outputs right) without headings or label copy. |
+| Always-visible port labels and type hints. | Port labels appear only as hover tooltips on the port handle or in the edit modal. |
+| Kind badge and category badge on the card. | Replaced by the icon + colour. Kind and category are still in the edit modal. |
+| Description text on the card. | Moved to the edit modal only. |
+| Labels row on the card. | Moved to the edit modal only. |
+
+### 21.14 Constraints
+*   All node visual state is driven by CSS classes on the `article` root — no inline styles except `--graph-accent` (set via `[style.--graph-accent]`).
+*   Nodes are compact: default size is a ~96px rounded square. The canvas should comfortably fit 20+ nodes without manual zoom.
+*   Pinning uses direct DOM manipulation (`classList.toggle`) because ng-diagram renders templates outside Angular's injector/change-detection tree. This is intentional and documented in `GraphNodeConfigStore` / `GraphExecutionStateService`.
+*   Status badges and pinned classes are applied both via Angular bindings (for initial render) and via direct DOM manipulation (for pin toggles that bypass change detection).
+*   The node-edit modal must use `@Input()` decorators, not `input()` signal inputs, because Ionic `componentProps` does not hydrate signal inputs reliably.
+*   `pointer-events: none` on `.graph-node--pinned` prevents accidental re-editing of cached nodes; action buttons re-enable `pointer-events: auto` so the node can still be unpinned or deleted.
+*   Port visibility is purely CSS-driven (opacity + pointer-events). The port handles remain in the DOM at all times so that existing connections don't break when a port fades out.
+*   There is no per-port show/hide checkbox anywhere in the UI. Port visibility is non-negotiable and driven only by the three contexts in §21.6.
+
+## 22. Downstream Consumer Reference — the-alfred-ai Specs Integration
+
+### 22.1 Purpose
+
+This section documents the concepts the `the-alfred-ai` project contributes to the graph ecosystem and incorporates them into this specification so that DECAF-32 is the single source of truth for all Mastra-agnostic graph functionality. The ALFRED specs (ALFRED-4/5/6/7/8, UPSTREAM-1) reference this section instead of re-defining these concepts.
+
+The ALFRED specs live at `the-alfred-ai/workdocs/ai/project/specifications/`.
+
+### 22.2 Node Kind Taxonomy (from ALFRED-5)
+
+The reference engine's executor registry (§5.8) is kind-keyed. The following node kinds are defined by ALFRED-5 and recognized by the engine. The Mastra-agnostic **definitions** (the `@node`-decorated classes, their `@input`/`@output` ports, and their metadata) are owned by this specification's declaration layer (§1.2); the Mastra-specific **compilation** of flow-control nodes into Mastra composition APIs is owned by ALFRED-5 §9.
+
+#### 22.2.1 Trigger Nodes (ALFRED-5 §5)
+
+Trigger nodes define how a workflow starts. They are entrypoints and should not compile into regular executable steps — they produce a trigger context that starts the workflow run.
+
+| Kind (ALFRED-5) | Engine kind | Purpose |
+|:---|:---|:---|
+| `trigger.manual` | `core.trigger.manual` | User clicks Run; input form generated from `inputSchema`. |
+| `trigger.webhook` | `core.trigger.webhook` | HTTP request received; path/method/auth/responseMode config. |
+| `trigger.schedule` | `core.trigger.schedule` | Cron-like schedule; timezone + payload config. |
+| `trigger.event` | `core.trigger.event` | Internal event bus topic subscriber. |
+| `trigger.form` | `core.trigger.form` | Generated public/internal form; field definitions. |
+| `trigger.chat` | `core.trigger.chat` | Chat message entrypoint; message/sessionId/userId schema. |
+
+The engine itself (DECAF-32) does not implement trigger handlers — triggers are a compilation concept (ALFRED-5 §5 compile targets). The engine's execution model starts from workflow inputs (§5.8) and treats trigger nodes as metadata-only entrypoints. A future engine revision may add first-class trigger executors.
+
+#### 22.2.2 Flow-Control Nodes (ALFRED-5 §6)
+
+Flow-control nodes are graph-level macros. The engine executes them via registered executors (§5.8). ALFRED-5 compiles them into Mastra composition APIs; the engine's reference interpreter executes them directly.
+
+| Kind (ALFRED-5) | Engine kind | Engine executor | ALFRED-5 compile target |
+|:---|:---|:---|:---|
+| `flow.if` | `core.flow.if` | (future — conditional branch executor) | `builder.branch([...])` |
+| `flow.switch` | `core.flow.switch` | (future — multi-branch executor) | `builder.branch([...])` |
+| `flow.foreach` | `core.loop.foreach` | `ForeachGraphNodeExecutor` (§5.9) | `builder.foreach(body, { concurrency })` |
+| `flow.while` | `core.loop.while` | `WhileGraphNodeExecutor` (§5.9) | `builder.dowhile(body, condition)` |
+| `flow.doUntil` | `core.loop.until` | `UntilGraphNodeExecutor` (§5.9) | `builder.dountil(body, condition)` |
+| `flow.parallel` | `core.flow.parallel` | (future — parallel branch executor) | `builder.parallel(branches)` |
+| `flow.merge` | `core.flow.merge` | (future — merge step executor) | `builder.then(step)` |
+| `flow.map` | `core.flow.map` | (future — transform step executor) | `builder.map(mapper)` |
+| `flow.delay` | `core.flow.delay` | (future — delay step executor) | `builder.then(step)` |
+| `flow.errorBoundary` | `core.flow.errorBoundary` | (future — try/catch/finally executor) | `builder.then(wrappedStep)` |
+| `flow.humanApproval` | `core.flow.humanApproval` | (future — suspend/resume executor) | `builder.then(step)` with `suspend()` |
+| `flow.return` | `core.flow.return` | (future — output normalization executor) | `builder.map(mapper)` |
+| `flow.code` | `core.flow.code` | (future — sandboxed code executor) | `builder.then(compileCodeNode(...))` |
+
+**Currently implemented in the engine:** `core.loop.foreach`, `core.loop.while`, `core.loop.until` (§5.9). The remaining flow-control kinds are recognized by the planner (§5.7) as ordinary executable nodes but have no built-in executor — downstream projects (e.g. ALFRED) register custom executors or compile them away.
+
+**Loop kind mapping:** ALFRED-5's `flow.foreach`/`flow.while`/`flow.doUntil` map to the engine's `core.loop.foreach`/`core.loop.while`/`core.loop.until` (§5.9). The `core.loop.*` prefix is the engine's canonical kind; ALFRED-7 §4.3 defines the module-prefixed ID convention that reconciles the two naming schemes.
+
+#### 22.2.3 Utility Nodes (ALFRED-5 §6.7–6.12, §7)
+
+Utility nodes compile into concrete steps. The engine treats them as ordinary executable nodes with registered executors.
+
+| Kind (ALFRED-5) | Engine kind | Purpose |
+|:---|:---|:---|
+| `flow.merge` | `core.flow.merge` | Normalize branch/parallel outputs into single output. |
+| `flow.map` | `core.flow.map` | Transform current input into a new output object. |
+| `flow.delay` | `core.flow.delay` | Pause execution for a duration. |
+| `flow.errorBoundary` | `core.flow.errorBoundary` | Try/catch/finally workflow behavior. |
+| `flow.humanApproval` | `core.flow.humanApproval` | Suspend until human approves/rejects. |
+| `flow.return` | `core.flow.return` | Define and normalize final workflow output. |
+| `flow.code` | `core.flow.code` | Sandboxed JS/TS code execution (ALFRED-5 §7). |
+
+### 22.3 Condition Expression DSL (from ALFRED-5 §8)
+
+ALFRED-5 §8 defines a declarative, serializable `ConditionExpression` type used by flow-control nodes (`if`, `switch`, `while`, `doUntil`) to evaluate branching and loop conditions without raw JavaScript:
+
+```ts
+export type ConditionExpression =
+  | { op: 'eq'; left: ExprValue; right: ExprValue }
+  | { op: 'neq'; left: ExprValue; right: ExprValue }
+  | { op: 'gt'; left: ExprValue; right: ExprValue }
+  | { op: 'gte'; left: ExprValue; right: ExprValue }
+  | { op: 'lt'; left: ExprValue; right: ExprValue }
+  | { op: 'lte'; left: ExprValue; right: ExprValue }
+  | { op: 'and'; conditions: ConditionExpression[] }
+  | { op: 'or'; conditions: ConditionExpression[] }
+  | { op: 'not'; condition: ConditionExpression }
+  | { op: 'exists'; value: ExprValue };
+
+export type ExprValue =
+  | { const: unknown }
+  | { path: string }
+  | { step: string; path: string };
+```
+
+The engine's `GraphConditionEvaluator` (§5.9) supports a limited set of safe built-in condition types (`truthy`, `falsy`, `equals`, `notEquals`, `greaterThan`, `greaterThanOrEqual`, `lessThan`, `lessThanOrEqual`, `exists`, `custom`). The `ConditionExpression` DSL from ALFRED-5 is a **superset** that the engine should recognize as a `custom` condition payload — the evaluator dispatches to a `ConditionExpression` evaluator when the condition object has an `op` field.
+
+ALFRED-8's condition editor (ALFRED-8 §4.2 `ConditionEditorComponent`) produces `ConditionExpression` values in two modes: code-evaluation (VM-based, reusing the Code Node sandbox) and graphical rule selection (property → operator → value). The editor serializes to this DSL.
+
+### 22.4 Code Node & Placeholder Syntax (from ALFRED-5 §7)
+
+ALFRED-5 §7 defines a Code Node (`flow.code` / `core.flow.code`) that runs user-authored JS/TS in a restricted VM sandbox (`isolated-vm`). The sandbox is Mastra-agnostic — it is a pure data-transformation runtime with no system API access.
+
+**Placeholder syntax** (ALFRED-5 §7.5–7.7) lets the user reference workflow data inside code:
+
+| Placeholder | Meaning |
+|:---|:---|
+| `{{ $input }}` / `{{ $json }}` | Full current input object |
+| `{{ $input.foo }}` | Path inside current input |
+| `{{ $item }}` / `{{ $item.foo }}` | Current foreach loop item |
+| `{{ $index }}` | Current loop index |
+| `{{ $vars.foo }}` | Workflow variable |
+| `{{ $output }}` | Current draft output |
+| `{{ $node["Node Name"].output }}` | Output of another (upstream) node |
+| `{{ $node["Node Name"].output.foo }}` | Path inside another node output |
+
+The placeholder compiler (`compilePlaceholders`), path parser (`parsePath`), safe getter (`safeGet`), and static code validator (`validateSafeCode` using `acorn`) are Mastra-agnostic and live in the downstream project's `modules/core` (ALFRED-6). The `isolated-vm` sandbox runner (`runPureCode`) is also Mastra-agnostic but stays brain-resident to keep the `isolated-vm` dependency out of core.
+
+The engine (DECAF-32) does not implement the Code Node sandbox directly. A future engine executor (`core.flow.code`) may wrap the sandbox contract (ALFRED-5 §7.17 `CodeSandbox` interface) as a pluggable executor.
+
+### 22.5 Port-Toggle CRUD (from ALFRED-8 §4.2)
+
+ALFRED-8 §4.2 defines a `PortToggleCrudComponent` — an Angular CRUD field extension that toggles an `@input` property between "manual" mode (literal value in a form field) and "connected" mode (graph port wired from an upstream output). This is the downstream implementation of the "use as port" checkbox defined in DECAF-32 §20.3 (`GraphPortFieldComponent`).
+
+**Canonical home:** DECAF-32 §20 owns the concept and the `GraphPortFieldComponent` contract. ALFRED-8 §4.2 provides the downstream `PortToggleCrudComponent` as a concrete implementation for the Alfred module's node components. Both serialize the toggle state into the graph snapshot's per-node `data` section (DECAF-32 §20.4, ALFRED-8 §4.5).
+
+**UPSTREAM-1** (released as `@decaf-ts/ui-decorators@0.17.4`) added the `GraphPortGroupMetadata` with `toggle: "single" | "all"` to the upstream graph metadata, enabling the one-vs-all port rendering choice. The per-instance manual-vs-connected toggle (this section) is a separate concern owned by DECAF-32 §20 / ALFRED-8 §4.2.
+
+### 22.6 Reference-Based Workflow Serialization (from ALFRED-7 §4.6)
+
+ALFRED-7 §4.6 defines reference-based workflow serialization: a `GraphNodeSnapshot` references the node by **id** (module-prefixed `NodeModel.kind`) and carries only per-instance config (`data`, `position`), not the full port definitions. Port definitions are resolved from the stored `NodeModel` by id at load time.
+
+This aligns with DECAF-32 §5.11 (Snapshot Integration) — the engine produces `GraphExecutionSnapshotPatch` consumable by `ui-decorators/graph` snapshots. The reference-by-id model is an ALFRED-specific persistence concern (DB-backed `ai_nodes` table); the engine itself works with full `GraphWorkflowDefinition` objects (§5.8) and does not require DB-backed node resolution.
+
+### 22.7 Module-Prefixed Node IDs (from ALFRED-7 §4.3)
+
+ALFRED-7 §4.3 defines a module-prefixed ID convention: every node id is `<module>.<kind>` (e.g. `core.flow.if`, `core.trigger.manual`, `<other_module>.something`). The `@node` `tag` and `kind` both equal the module-prefixed id.
+
+The engine (DECAF-32) uses `core.loop.*` for its built-in loop kinds (§5.9) and treats all other kinds as opaque strings for executor registry lookup (§5.8). The module-prefix convention is a downstream best practice for globally-unique node IDs across contributing modules; the engine does not enforce it but benefits from it.
+
+### 22.8 DB-Backed Node Persistence (from ALFRED-7 §4.4)
+
+ALFRED-7 §4.4 defines a DB-backed node persistence layer: `NodeModel` (`@table("ai_nodes")`) and `NodeCategoryModel` (`@table("ai_node_categories")`) stored via Decaf `Repository` pattern. The DB is the queryable source for the editor; the decorator-derived registry is the seed source.
+
+This is an Alfred-specific persistence concern. The engine (DECAF-32) does not require DB-backed node definitions — it works with in-memory `GraphWorkflowDefinition` objects. Downstream projects MAY add DB-backed node persistence (as ALFRED does) as a layer on top of the engine.
+
+### 22.9 Angular Node Web-Components (from ALFRED-8 §4.3)
+
+ALFRED-8 §4.3 defines one Angular standalone component per built-in node kind in `modules/core/ui/src/lib/components/graph-nodes/`, each implementing `NgDiagramNodeTemplate` and registered in a `NODE_TEMPLATE_MAP` (kind → component). Each component extends/reuses the upstream `GraphNodeTemplateComponent` (from `@decaf-ts/for-angular/graph`, DECAF-32 §21) and customizes the edit modal.
+
+**Canonical home:** DECAF-32 §21 owns the minimal node visual contract (`GraphNodeTemplateComponent`, `GraphBoundaryNodeTemplateComponent`). ALFRED-8 §4.3 provides downstream per-kind components that extend the base template and add CRUD forms with port-toggle fields and condition editors.
+
+### 22.10 Condition Editor Component (from ALFRED-8 §4.2)
+
+ALFRED-8 §4.2 defines a `ConditionEditorComponent` with two modes: code-evaluation (textarea + VM sandbox) and graphical rule selection (property → operator → value tree builder). It serializes to the `ConditionExpression` DSL (§22.3).
+
+The condition editor is an Angular UI component that lives in `@decaf-ts/for-angular/graph` (upstream) per ALFRED-8 §4.2. The code-evaluation mode calls into the Code Node sandbox (`runPureCode`/`VmSandbox`) via an injected evaluator callback — `for-angular` provides the UI, the consumer supplies the evaluator.
+
+### 22.11 ALFRED-6 — Core Package Extraction
+
+ALFRED-6 defines the package boundary between `modules/core` (Mastra-agnostic shared primitives + workflow-node definitions) and `brain` (Mastra-specific compilation). This aligns with DECAF-32 §5.13 (Mastra Compatibility): the core engine stays Mastra-independent; downstream projects provide Mastra-backed adapters.
+
+ALFRED-6's key architectural rule — "`modules/core` MUST NOT import any `@mastra/*` package" — is the downstream enforcement of DECAF-32 Req-9 ("Core must have no Mastra dependency").
+
+### 22.12 ALFRED-4 — Brain Builder/Mastra Wrapper Compatibility
+
+ALFRED-4 defines the `Managed*` wrapper/builder compatibility layer that bridges core's abstract primitives to Mastra runtime objects. This is entirely Mastra-specific and lives in `brain`. The engine (DECAF-32) does not define `Managed*` primitives — it defines `GraphNodeExecutor` (§5.8) as the executor contract. ALFRED-5 §4.8 bridges the two: `StepFactory.createStep()` produces a `ManagedStep` (ALFRED-4) from a `StepDefinition` (ALFRED-5 §4.7), and the engine's executor registry is the Mastra-agnostic analogue.
+
+### 22.13 UPSTREAM-1 — Schema-Flattening & Port-Group Metadata
+
+UPSTREAM-1 (released as `@decaf-ts/ui-decorators@0.17.4`) added schema-flattening to the graph reader: `@input`/`@output` on a Schema-typed (Decaf `Model`) property is recognized as a Schema port group, and the Schema's own `@input`/`@output` properties become the node's ports **flattened** (no `inputSchema.`/`outputSchema.` prefix). It also added `GraphPortGroupMetadata` with `toggle: "single" | "all"` for the one-vs-all rendering choice.
+
+This is already part of the `@decaf-ts/ui-decorators/graph` foundation referenced in DECAF-32 §1.2. The `GraphPortGroupMetadata` type is listed in §1.2's existing metadata inventory.
