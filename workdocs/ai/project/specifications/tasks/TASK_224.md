@@ -3,7 +3,7 @@
 **ID:** TASK-224
 **Specification:** [DECAF-32: Decaf Graph Execution Engine](../DECAF_32.md) — §18/§19
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Create a NestJS module that hosts the `GraphExecutionEngine` server-side, exposes REST endpoints for triggering execution and retrieving persisted results, and streams execution events via SSE. Use RamAdapter for persistence of execution results and pinned values. This module serves as the "supplier" in the production pipeline — for-angular consumes it via the for-http adapter.
@@ -51,4 +51,10 @@ Create a NestJS module that hosts the `GraphExecutionEngine` server-side, expose
 *   The existing `GraphExecutionController` in `tests/e2e/graph/` is a test fixture — this task promotes it to a proper module in `src/nest/graph/`.
 
 ## 6. Execution Log
-*   [pending] - Task created during DECAF-32 Phase 2 specification.
+*   [completed] - Created `integrations/src/nest/graph/` module with `GraphExecutionModule`, `GraphExecutionController`, `GraphExecutionResultModel`, `GraphExecutionResultRepository`, `GraphExecutorRegistryFactory`, and `index.ts`.
+*   [completed] - Controller exposes `POST /graph/execute` (triggers execution + persists result), `GET /graph/events` (SSE streaming), and `GET /graph/results/:runId` (retrieves persisted result).
+*   [completed] - `GraphExecutionResultModel` is a Decaf `@model()` with `@uses(RamFlavour)`, `@table("graph_execution_result")`, `@pk` on `runId`, and `@column` for `workflowId`, `status`, `inputs`, `outputs`, `nodeResults`, `startedAt`, `finishedAt`.
+*   [completed] - `GraphExecutionModule.forRoot()` is a NestJS `DynamicModule` that wires the engine, registry, RamAdapter, and repository as providers.
+*   [completed] - Re-exported from `integrations/src/nest/index.ts`.
+*   [completed] - 5 unit tests in `integrations/tests/unit/nest/graph-execution-module.test.ts`: execute returns correct result, SSE emits events in order, persisted result retrievable via repository, HTTP GET results endpoint, 404 for unknown runId.
+*   [completed] - All 107 graph tests pass (102 original + 5 new). Lint clean.

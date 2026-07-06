@@ -536,11 +536,11 @@ This specification is broken down into the following tasks. Each task should be 
 | TASK-221 | [Angular pin UI behavior and event-to-renderer state mapping](./tasks/TASK_221.md) | High | Completed | TASK-219, TASK-220 |
 | TASK-222 | [Comprehensive tests: planner, execution, loops, store, pinning, observers, Angular bridge](./tasks/TASK_222.md) | High | Completed | TASK-216, TASK-219, TASK-221 |
 | TASK-223 | [Workdocs for basic workflow, fan-in/fan-out, loops, pinnable nodes, Angular events/pinning UI](./tasks/TASK_223.md) | Medium | Completed | TASK-222 |
-| TASK-224 | [NestJS Graph Execution Backend: GraphExecutionModule for for-nest hosting the engine with RamAdapter persistence](./tasks/TASK_224.md) | High | Pending | TASK-222 |
-| TASK-225 | [for-angular Graph Page Working Execution UI: Run button, real-time node/edge state, RamAdapter persistence](./tasks/TASK_225.md) | High | Pending | TASK-224 |
-| TASK-226 | [Full-Stack E2E Test: boot real for-nest backend, for-http client consumer, validate production pipeline](./tasks/TASK_226.md) | High | Pending | TASK-224, TASK-225 |
-| TASK-227 | [Node-Edit Modal: double-click opens CRUD modal with graph-aware port fields and output splitting](./tasks/TASK_227.md) | High | Pending | TASK-225 |
-| TASK-228 | [Graph Snapshot Serialization: persist port-mode, literal values, and output splits so loading restores all connections](./tasks/TASK_228.md) | High | Pending | TASK-227 |
+| TASK-224 | [NestJS Graph Execution Backend: GraphExecutionModule for for-nest hosting the engine with RamAdapter persistence](./tasks/TASK_224.md) | High | Completed | TASK-222 |
+| TASK-225 | [for-angular Graph Page Working Execution UI: Run button, real-time node/edge state, RamAdapter persistence](./tasks/TASK_225.md) | High | Completed | TASK-224 |
+| TASK-226 | [Full-Stack E2E Test: boot real for-nest backend, for-http client consumer, validate production pipeline](./tasks/TASK_226.md) | High | In Progress | TASK-224, TASK-225 |
+| TASK-227 | [Node-Edit Modal: double-click opens CRUD modal with graph-aware port fields and output splitting](./tasks/TASK_227.md) | High | Completed | TASK-225 |
+| TASK-228 | [Graph Snapshot Serialization: persist port-mode, literal values, and output splits so loading restores all connections](./tasks/TASK_228.md) | High | Completed | TASK-227 |
 
 ## 16. Open Questions / Risks
 *   Should `@pinnable()` live in `@decaf-ts/ui-decorators/graph` from the start, or temporarily in `@decaf-ts/integrations/graph` until the `ui-decorators` types are extended?
