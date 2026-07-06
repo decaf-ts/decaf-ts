@@ -538,7 +538,7 @@ This specification is broken down into the following tasks. Each task should be 
 | TASK-223 | [Workdocs for basic workflow, fan-in/fan-out, loops, pinnable nodes, Angular events/pinning UI](./tasks/TASK_223.md) | Medium | Completed | TASK-222 |
 | TASK-224 | [NestJS Graph Execution Backend: GraphExecutionModule for for-nest hosting the engine with RamAdapter persistence](./tasks/TASK_224.md) | High | Completed | TASK-222 |
 | TASK-225 | [for-angular Graph Page Working Execution UI: Run button, real-time node/edge state, RamAdapter persistence](./tasks/TASK_225.md) | High | Completed | TASK-224 |
-| TASK-226 | [Full-Stack E2E Test: boot real for-nest backend, for-http client consumer, validate production pipeline](./tasks/TASK_226.md) | High | In Progress | TASK-224, TASK-225 |
+| TASK-226 | [Full-Stack E2E Test: boot real for-nest backend, for-http client consumer, validate production pipeline](./tasks/TASK_226.md) | High | Completed | TASK-224, TASK-225 |
 | TASK-227 | [Node-Edit Modal: double-click opens CRUD modal with graph-aware port fields and output splitting](./tasks/TASK_227.md) | High | Completed | TASK-225 |
 | TASK-228 | [Graph Snapshot Serialization: persist port-mode, literal values, and output splits so loading restores all connections](./tasks/TASK_228.md) | High | Completed | TASK-227 |
 

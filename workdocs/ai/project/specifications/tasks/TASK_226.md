@@ -3,7 +3,7 @@
 **ID:** TASK-226
 **Specification:** [DECAF-32: Decaf Graph Execution Engine](../DECAF_32.md) — §19
 **Priority:** High
-**Status:** Pending
+**Status:** Completed
 
 ## 1. Description
 Create a dedicated full-stack e2e test that boots an actual NestJS backend (using `@decaf-ts/for-nest` and `@decaf-ts/integrations` graph engine) as the supplier, uses for-http's `ServerEventConnector` as the client consumer, and validates the complete production communication pipeline: HTTP-triggered execution → SSE event streaming → RamAdapter persistence retrieval.
@@ -55,4 +55,17 @@ Create a dedicated full-stack e2e test that boots an actual NestJS backend (usin
 *   The existing `graph-execution.e2e.test.ts` (from Phase 1) will be superseded by this more comprehensive test.
 
 ## 6. Execution Log
-*   [pending] - Task created during DECAF-32 Phase 2 specification.
+*   [completed] - Created `integrations/tests/e2e/graph/full-stack.e2e.test.ts` with 9 test scenarios covering all 13 objectives from §2.
+*   [completed] - Uses `GraphExecutionModule.forRoot()` (from TASK-224) via `@nestjs/testing` — the proper production module, not the test fixture.
+*   [completed] - Uses `ServerEventConnector` from `@decaf-ts/for-http` as the SSE client (same class for-angular uses in production).
+*   [completed] - Uses `supertest` for HTTP POST to trigger execution and GET to retrieve persisted results.
+*   [completed] - Validates: HTTP execute returns `{ runId, status, outputs }` with correct values.
+*   [completed] - Validates: SSE events arrive in correct order (workflow.started → workflow.planned → node.started → node.completed → edge.valueRouted → workflow.completed).
+*   [completed] - Validates: `runId` from HTTP response matches `runId` in all SSE events.
+*   [completed] - Validates: SSE events have monotonically incrementing sequence numbers.
+*   [completed] - Validates: `workflow.completed` event payload contains correct output values after JSON serialization through SSE.
+*   [completed] - Validates: `GET /graph/results/:runId` retrieves the full persisted result from RamAdapter.
+*   [completed] - Validates: error scenario — invalid workflow (missing executor `nonexistent.executor`) produces `workflow.failed` event with error payload containing the executor name.
+*   [completed] - Validates: multiple runs with different inputs produce separate runIds, separate persisted results, and correct outputs.
+*   [completed] - Validates: SSE connection cleanup — no open handles reported by `--detectOpenHandles`.
+*   [completed] - All 116 graph tests pass (102 original + 5 TASK-224 unit tests + 9 TASK-226 e2e tests). Lint clean.
