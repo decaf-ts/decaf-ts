@@ -485,6 +485,16 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-33 — Decaf-TS Org-Based Authorization System
+- **Priority:** High
+- **Goal:** Define a domain-neutral org-based authorization system for Decaf-TS covering tenancy, org hierarchy, resource access, storage bindings, RLS/index migrations, and repository-backed authorization services.
+- **Status:** Completed — specification added; namespace scaffold, model/service exports, SQL artifacts, and targeted tests implemented.
+- **Link:** [Specification Details](./specifications/DECAF_33.md)
+- **Tasks:**
+  - [x] Task breakdown recorded in the specification and implemented in the namespace package.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -523,6 +533,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-30: ✅ BlobStoreService API and Provider Implementations (all providers implemented: memory, local, S3/MinIO/R2, Azure Blob, GCS, IPFS; 105/105 tests passing across 14 suites; lint and build clean)
 - DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
 - DECAF-32: 🔄 Decaf Graph Execution Engine (Phase 1 completed: 14 tasks, 88 tests. Phase 2 pending: NestJS backend, graph page wiring, full-stack e2e — 3 tasks)
+- DECAF-33: ✅ Decaf-TS Org-Based Authorization System (specification added; namespace, SQL, and targeted tests implemented)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
