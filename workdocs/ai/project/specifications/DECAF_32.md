@@ -1,6 +1,6 @@
 # DECAF-32 — Decaf Graph Execution Engine
 
-**Status:** Re-opened — Phase 2: Production Integration (Phase 1 core engine completed; graph page wiring and full-stack e2e validation pending)
+**Status:** Completed — Phase 1 (core engine, 14 tasks) and Phase 2 (graph page UI, node-edit modal, node taxonomy, @connection ports, NestJS backend, full-stack e2e) all completed. 116 graph tests passing.
 **Priority:** High
 **Owner:** decaf-dev
 
@@ -541,6 +541,7 @@ This specification is broken down into the following tasks. Each task should be 
 | TASK-226 | [Full-Stack E2E Test: boot real for-nest backend, for-http client consumer, validate production pipeline](./tasks/TASK_226.md) | High | Completed | TASK-224, TASK-225 |
 | TASK-227 | [Node-Edit Modal: double-click opens CRUD modal with graph-aware port fields and output splitting](./tasks/TASK_227.md) | High | Completed | TASK-225 |
 | TASK-228 | [Graph Snapshot Serialization: persist port-mode, literal values, and output splits so loading restores all connections](./tasks/TASK_228.md) | High | Completed | TASK-227 |
+| TASK-229 | [`@connection()` Port Decorator, Category Colour System & Agent Node](./tasks/TASK_229.md) | High | Completed | TASK-228 |
 
 ## 16. Open Questions / Risks
 *   Should `@pinnable()` live in `@decaf-ts/ui-decorators/graph` from the start, or temporarily in `@decaf-ts/integrations/graph` until the `ui-decorators` types are extended?

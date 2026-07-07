@@ -415,7 +415,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-29 — GitHub Actions Inventory, Normalization, and Rule Replication
 - **Priority:** High
 - **Goal:** Audit every GitHub Actions workflow in the workspace, identify the reusable candidates that still need to be extracted or generalized, and replicate each workflow's trigger rules and guard conditions consistently across the consuming repositories.
-- **Status:** Planned
+- **Status:** Completed — all 5 tasks completed.
 - **Link:** [Specification Details](./specifications/DECAF_29.md)
 - **Tasks:**
   - [x] [TASK-190](./specifications/tasks/TASK_190.md): Inventory all workflow files and classify them by reuse potential.
@@ -516,7 +516,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-11: ✅ Property-Scoped Persistent Sequences (property-scoped sequence support implemented and verified)
 - DECAF-12: ✅ TaskEngine Runtime Orchestration Controls (runtime composite insertion, dependencies, locks, and handler catch completed with core verification)
 - DECAF-13: ✅ for-http HttpAdapter Simple REST Helpers (simple helpers and typed options implemented with tests/docs updates)
-- DECAF-14: ⏳ Cross-Adapter Migration Engine Hardening (implementation complete; live `for-nest` rerun is currently blocked because the Nano/Postgres integration infra is unavailable in this workspace).
+- DECAF-14: ✅ Cross-Adapter Migration Engine Hardening (all 7 tasks completed; live `for-nest` rerun blocked by Nano/Postgres infra unavailability but implementation is done).
 - DECAF-15: ✅ Webhook Signature Verification Middleware (middleware implemented, all tests passing, documentation complete).
 - DECAF-16: ✅ Jira Ticket Template Resources & Guided Creation (custom-field-aware template work added; one inspector CLI transport check remains flaky but non-blocking)
 - DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (progress notifications and manager relay merged into this spec; implementation in progress, handshake validation pending)
@@ -527,9 +527,9 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-23: ✅ @throttle() Decorator Formalization (ThrottleMode, splitByCount/splitBySize, typed overloads, 20 tests passing)
 - DECAF-24: ✅ Graph Metadata Layer and Angular Graph Adapter (canonical `ui-decorators` graph layer, Angular/ngDiagram adapter, workflow-root renderer, and workflow serialization/restoration completed)
 - DECAF-25: ⏳ Webpage Refactor to Full Decaf Convention
-- DECAF-26: ⏳ SecretService API and Provider Implementations (core contracts, memory/model services, and provider implementations complete; error handling and logging updates pending full compliance; DECAF-26-7 test coverage pending)
+- DECAF-26: ✅ SecretService API and Provider Implementations (all 7 tasks completed — core contracts, memory/model services, provider implementations, error handling, logging, and test coverage)
 - DECAF-27: ✅ Reusable GitHub Actions Repository
-- DECAF-29: ⏳ GitHub Actions Inventory, Normalization, and Rule Replication
+- DECAF-29: ✅ GitHub Actions Inventory, Normalization, and Rule Replication (all 5 tasks completed)
 - DECAF-30: ✅ BlobStoreService API and Provider Implementations (all providers implemented: memory, local, S3/MinIO/R2, Azure Blob, GCS, IPFS; 105/105 tests passing across 14 suites; lint and build clean)
 - DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
 - DECAF-32: ✅ Decaf Graph Execution Engine (Phase 1: 14 tasks, 88 tests. Phase 2: graph page UI, node-edit modal, node taxonomy, @connection ports, NestJS backend, full-stack e2e — all completed; 116 graph tests passing)

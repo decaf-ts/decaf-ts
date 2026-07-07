@@ -119,8 +119,8 @@ class MyService {
 
 | ID       | Task Name                                              | Priority | Status  | Dependencies |
 |:---------|:-------------------------------------------------------|:---------|:--------|:-------------|
-| TASK-152 | [Redesign and implement @throttle() API](./tasks/TASK_152.md) | High | Pending | -     |
-| TASK-153 | [Add comprehensive @throttle() tests](./tasks/TASK_153.md)    | High | Pending | TASK-152 |
+| TASK-152 | [Redesign and implement @throttle() API](./tasks/TASK_152.md) | High | Completed | -     |
+| TASK-153 | [Add comprehensive @throttle() tests](./tasks/TASK_153.md)    | High | Completed | TASK-152 |
 
 ---
 

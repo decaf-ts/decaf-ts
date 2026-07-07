@@ -1,6 +1,6 @@
 # DECAF-30 — BlobStoreService API and Provider Implementations for @decaf-ts/integrations
 
-**Status:** Planned
+**Status:** Completed
 **Priority:** High
 **Owner:** decaf-dev
 

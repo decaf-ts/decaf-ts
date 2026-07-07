@@ -1,6 +1,6 @@
 # DECAF-26 — SecretService API and Provider Implementations for @decaf-ts/integrations
 
-**Status:** Planned
+**Status:** Completed
 **Priority:** High
 **Owner:** decaf-dev
 
@@ -352,13 +352,13 @@ This specification is broken down into the following tasks. Each task should be 
 
 | ID | Task Name | Priority | Status | Dependencies |
 |:--|:--|:--|:--|:--|
-| DECAF-26-1 | Define the secret core contracts, name policy, serializer, and error model | High | Pending | - |
-| DECAF-26-2 | Implement the memory service and the model-backed encrypted-at-rest service, including proper error handling with InternalError and logging via logCtx | High | Pending | DECAF-26-1 |
-| DECAF-26-3 | Add provider subpaths for AWS, Azure, GCP, and HashiCorp Vault with parseError() methods, Decaf error handling, and logging via logCtx | High | Pending | DECAF-26-1 |
-| DECAF-26-4 | Add the 1Password provider implementation and document its support limits | High | Pending | DECAF-26-1 |
-| DECAF-26-5 | Update package exports, dependency metadata, and root import safety | High | Pending | DECAF-26-1 |
-| DECAF-26-6 | Add contract tests, encryption tests, bundling tests, and docs | High | Pending | DECAF-26-2 |
-| DECAF-26-7 | Add unit tests for error parsing in each provider, verify all errors extend from InternalError/BaseError, and test logging behavior | High | Pending | DECAF-26-3 |
+| DECAF-26-1 | Define the secret core contracts, name policy, serializer, and error model | High | Completed | - |
+| DECAF-26-2 | Implement the memory service and the model-backed encrypted-at-rest service, including proper error handling with InternalError and logging via logCtx | High | Completed | DECAF-26-1 |
+| DECAF-26-3 | Add provider subpaths for AWS, Azure, GCP, and HashiCorp Vault with parseError() methods, Decaf error handling, and logging via logCtx | High | Completed | DECAF-26-1 |
+| DECAF-26-4 | Add the 1Password provider implementation and document its support limits | High | Completed | DECAF-26-1 |
+| DECAF-26-5 | Update package exports, dependency metadata, and root import safety | High | Completed | DECAF-26-1 |
+| DECAF-26-6 | Add contract tests, encryption tests, bundling tests, and docs | High | Completed | DECAF-26-2 |
+| DECAF-26-7 | Add unit tests for error parsing in each provider, verify all errors extend from InternalError/BaseError, and test logging behavior | High | Completed | DECAF-26-3 |
 
 ## 6. Open Questions / Risks
 *   Should the local model-backed implementation expose a dedicated `Secret` model export for consumers, or keep it internal and only expose the service?
