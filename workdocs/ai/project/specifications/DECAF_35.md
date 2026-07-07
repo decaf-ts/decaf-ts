@@ -165,38 +165,98 @@ The decaf pattern is already established:
 - `Injectables.services()` (`injectable-decorators/src/Injectables.ts`) returns all registered injectable services.
 - `Metadata.registeredFlavour(model): string | undefined` (`decoration/src/metadata/Metadata.ts:234`) reverse-looks-up a class.
 
-This spec follows the same pattern for graph nodes **and** workflow roots:
+This spec follows the same pattern for graph nodes **and** workflow roots. All graph-related override code lives exclusively under `ui-decorators/src/graph/overrides/` (graph code stays in the graph folder; the existing `ui-decorators/src/overrides/` is for model/UI overrides, not graph).
 
-1. **The `@node` decorator** (`ui-decorators/src/graph/decorators.ts:13-38`) currently stores per-class metadata under `GraphKeys.NODE` via `metadata(GraphKeys.NODE, meta)`. It gains a **registry side-effect**: after setting per-class metadata, it also appends the constructor to a node registry keyed by `GraphKeys.NODE` in the `Metadata` store (mirroring how `@flavour` populates the flavour registry). The decorator's call signature is unchanged.
+#### 4.4.1 Registry module
 
-2. **The `@graph` decorator** (`ui-decorators/src/graph/decorators.ts:40-75`) currently stores per-class metadata under `GraphKeys.GRAPH` via `metadata(GraphKeys.GRAPH, meta)`. It gains an **analogous registry side-effect**: after setting per-class metadata, it appends the constructor to a workflow registry keyed by `GraphKeys.GRAPH`. Same mechanism as `@node`; call signature unchanged. This lets consumers discover all workflow-root classes (e.g. to populate a workflow picker, validate uniqueness, or serialize the workflow definition) without a hand-maintained array.
+A new module-level registry `ui-decorators/src/graph/registry.ts` maintains two `Set<Constructor>` buckets (one for nodes, one for workflows). The `@node` and `@graph` decorators call `registerNode(target)` / `registerWorkflow(target)` as a side-effect after setting per-class metadata. The registry exposes `graphNodes()` / `graphWorkflows()` accessors (returning fresh arrays) and a `resetGraphRegistries()` helper for tests. Idempotent — re-decorating the same class does not duplicate the entry.
 
-3. **`Metadata.nodes(): Constructor[]` and `Metadata.workflows(): Constructor[]` accessors** are added via the `ui-decorators` override mechanism. The override file `ui-decorators/src/overrides/Metadata.ts` (new) extends the base `Metadata` class with:
+#### 4.4.2 `@node` / `@graph` decorator side-effects
 
-   ```ts
-   import { Metadata as Base } from "@decaf-ts/decoration";
-   import { GraphKeys } from "../graph/constants";
+The `@node` decorator (`ui-decorators/src/graph/decorators.ts`) gains a `registerNode(target as Constructor)` call inside `innerNode` after the existing `apply(...)`; the `@graph` decorator gains a `registerWorkflow(target as Constructor)` call inside `innerGraph` after the existing `apply(...)`. Decorator call signatures are unchanged.
 
-   export class Metadata extends Base {
-     static nodes(): Constructor[] {
-       return this.innerGet(Symbol.for(GraphKeys.NODE)) || [];
-     }
+#### 4.4.3 `Metadata.nodes()` / `Metadata.workflows()` via declaration merging
 
-     static workflows(): Constructor[] {
-       return this.innerGet(Symbol.for(GraphKeys.GRAPH)) || [];
-     }
-   }
-   ```
+The `Metadata` class in `@decaf-ts/decoration` has a `private constructor()`, so it **cannot be subclassed**. The decaf override pattern (used by `core`, `decorator-validation`, `transactional-decorators`) is TypeScript **declaration merging** + runtime attachment:
 
-   `Metadata.nodes()` returns every `@node`-decorated constructor; `Metadata.workflows()` returns every `@graph`-decorated constructor. The existing `ui-decorators/src/overrides/index.ts` re-exports the override so consumers import `Metadata` from `@decaf-ts/ui-decorators` and get the extended class.
+**`ui-decorators/src/graph/overrides/Metadata.ts`** — namespace augmentation declaring the new static methods:
 
-4. **No `ALL_GRAPH_NODES` / `ALL_GRAPH_WORKFLOWS` constants.** The frontend builds the palette, `NODE_TEMPLATE_MAP` (kind → component), and CRUD form schemas by calling `Metadata.nodes()` and `graphDefinitionOf()` (from `@decaf-ts/ui-decorators/graph`) on each constructor. Workflow-root discovery uses `Metadata.workflows()` and `graphWorkflowDefinitionOf()`. No engine import, no hand-maintained arrays.
+```ts
+import "@decaf-ts/decoration";
+import type { Constructor } from "@decaf-ts/decoration";
 
-5. **Test coverage.** Unit tests assert that after importing all `@node`-decorated classes from `@decaf-ts/integrations/graph/shared`, `Metadata.nodes()` returns exactly those constructors; and after importing any `@graph`-decorated workflow-root classes, `Metadata.workflows()` returns exactly those constructors. Tests fail if a new node/workflow is added but not decorated, or if the registry side-effect breaks.
+declare module "@decaf-ts/decoration" {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  export namespace Metadata {
+    function nodes(): Constructor[];
+    function workflows(): Constructor[];
+  }
+}
+```
 
-**Why the override mechanism and not a standalone function:** the `Metadata` class is the canonical metadata accessor in decaf. Every module that adds a new metadata category (`db-decorators`, `core`, `transactional-decorators`, `injectable-decorators`) extends it via the override pattern. Adding `Metadata.nodes()` / `Metadata.workflows()` is consistent with `Metadata.flavouredAs()`, `Metadata.registeredFlavour()`, and `Injectables.services()`. Standalone arrays would be a foreign pattern.
+**`ui-decorators/src/graph/overrides/overrides.ts`** — runtime attachment of the implementations (appended to the existing file that already attaches `RenderingEngine.prototype.renderAsNode`):
 
-**Upstream change:** the `@node`/`@graph` decorators and the `Metadata.nodes()`/`Metadata.workflows()` accessors all live in `@decaf-ts/ui-decorators/graph` (already a frontend-safe package). No `integrations` change is needed for this feature — the `shared/` subtree just re-exports `Metadata` from `@decaf-ts/ui-decorators`. The node classes in `shared/nodes/` are decorated with `@node` so they auto-register on import; workflow-root classes decorated with `@graph` auto-register likewise.
+```ts
+import { Metadata } from "@decaf-ts/decoration";
+import { graphNodes, graphWorkflows } from "../registry";
+
+(Metadata as any).nodes = function nodes(): any[] {
+  return graphNodes();
+}.bind(Metadata);
+
+(Metadata as any).workflows = function workflows(): any[] {
+  return graphWorkflows();
+}.bind(Metadata);
+```
+
+**`ui-decorators/src/graph/overrides/index.ts`** — side-effect import + re-export (appended to the existing barrel):
+
+```ts
+import "./Rendering";
+export * from "./overrides";
+export * from "./Metadata";
+```
+
+**`ui-decorators/package.json` `sideEffects`** — the existing array already lists `./lib/esm/graph/overrides/index.js`, `./lib/esm/graph/overrides/overrides.js`, and the CJS equivalents. No change needed — bundlers (webpack, esbuild, vite) preserve the side-effect imports so the runtime attachments run before any consumer code.
+
+#### 4.4.4 Consumer usage
+
+Consumers import `Metadata` from `@decaf-ts/decoration` (or `@decaf-ts/ui-decorators` which re-exports it). Because the graph overrides are side-effect-imported by `ui-decorators/src/graph/index.ts`, any consumer that imports anything from `@decaf-ts/ui-decorators/graph` automatically gets `Metadata.nodes()` / `Metadata.workflows()` available on the class:
+
+```ts
+import { Metadata } from "@decaf-ts/decoration";
+import "@decaf-ts/ui-decorators/graph"; // side-effect: attaches nodes()/workflows()
+
+const allNodes = Metadata.nodes();        // all @node-decorated constructors
+const allWorkflows = Metadata.workflows(); // all @graph-decorated constructors
+```
+
+No `ALL_GRAPH_NODES` / `ALL_GRAPH_WORKFLOWS` constants. The frontend builds the palette, `NODE_TEMPLATE_MAP` (kind → component), and CRUD form schemas by calling `Metadata.nodes()` and `graphDefinitionOf()` (from `@decaf-ts/ui-decorators/graph`) on each constructor. Workflow-root discovery uses `Metadata.workflows()` and `graphWorkflowDefinitionOf()`. No engine import, no hand-maintained arrays.
+
+#### 4.4.5 Test coverage
+
+Unit tests in `ui-decorators/tests/unit/graph.test.ts` assert:
+- `Metadata.nodes()` returns all `@node`-decorated constructors after import.
+- `Metadata.workflows()` returns all `@graph`-decorated constructors after import.
+- Re-decorating the same class does not duplicate registry entries.
+- Each returned entry is a constructor function.
+
+Tests fail if a new node/workflow is added but not decorated, or if the registry side-effect breaks.
+
+#### 4.4.6 Why this pattern
+
+The `Metadata` class is the canonical metadata accessor in decaf. Every module that adds a new metadata category (`db-decorators`, `core`, `transactional-decorators`, `injectable-decorators`) extends it via the declaration-merging + runtime-attachment pattern. Adding `Metadata.nodes()` / `Metadata.workflows()` is consistent with `Metadata.flavouredAs()`, `Metadata.tasks()` (core), `Metadata.validationFor()` (decorator-validation), and `Injectables.services()` (core override). Standalone arrays or subclassing would be foreign patterns (subclassing is impossible — `Metadata` has a private constructor).
+
+#### 4.4.7 Upstream location
+
+All code for this feature lives in `@decaf-ts/ui-decorators/graph` (already a frontend-safe package):
+- `ui-decorators/src/graph/registry.ts` — new registry module.
+- `ui-decorators/src/graph/decorators.ts` — `@node`/`@graph` gain registry side-effects.
+- `ui-decorators/src/graph/overrides/Metadata.ts` — new namespace augmentation.
+- `ui-decorators/src/graph/overrides/overrides.ts` — runtime attachments (appended to existing file).
+- `ui-decorators/src/graph/overrides/index.ts` — re-export (appended to existing barrel).
+
+No `integrations` change is needed for this feature — the `shared/` subtree just re-exports `Metadata` from `@decaf-ts/ui-decorators`. The node classes in `shared/nodes/` are decorated with `@node` so they auto-register on import; workflow-root classes decorated with `@graph` auto-register likewise.
 
 ### 4.5 Backend executor authoring (unchanged)
 
@@ -350,8 +410,10 @@ This specification is broken down into the following tasks.
 ## 7. Results & Artifacts
 
 * `workdocs/ai/project/specifications/DECAF_35.md` — this specification.
+* `ui-decorators/src/graph/registry.ts` — node/workflow registries (new).
 * `ui-decorators/src/graph/decorators.ts` — `@node` and `@graph` decorators gain registry side-effects (call signatures unchanged).
-* `ui-decorators/src/overrides/Metadata.ts` — `Metadata.nodes()` and `Metadata.workflows()` accessors (new override).
+* `ui-decorators/src/graph/overrides/Metadata.ts` — `Metadata.nodes()` / `Metadata.workflows()` namespace augmentation (new).
+* `ui-decorators/src/graph/overrides/overrides.ts` — runtime attachments (appended to existing file).
 * `integrations/src/graph/shared/` — frontend-safe metadata, types, constants, nodes.
 * `integrations/src/graph/engine/` — backend-only engine, executors, registry, store, pinning, validation, NestJS module.
 * `integrations/package.json` — new `./graph/shared` subpath export.

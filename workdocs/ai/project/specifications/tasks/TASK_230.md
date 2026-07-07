@@ -15,9 +15,13 @@ Split `integrations/src/graph/` into `shared/` (frontend-safe metadata, types, c
 * [ ] Partition `graph/constants.ts`: `GraphExecutionStatus`, `GraphExecutionEventType` → `shared/constants.ts`; engine-private constants → `engine/constants.ts`.
 * [ ] Move `graph/decorators.ts` (`@pinnable`) → `engine/decorators.ts`.
 * [ ] Move all engine modules (`execution/`, `registry/`, `store/`, `planning/`, `validation/`, `loops/`, `pinning/`, `snapshots/`, `errors/`, `events/`) → `engine/`.
-* [ ] (Upstream `ui-decorators/graph`) Add registry side-effect to `@node` decorator: after setting per-class `GraphKeys.NODE` metadata, append the constructor to the node registry keyed by `GraphKeys.NODE` (mirroring `@flavour`'s registry population). Call signature unchanged.
-* [ ] (Upstream `ui-decorators/graph`) Add registry side-effect to `@graph` decorator: after setting per-class `GraphKeys.GRAPH` metadata, append the constructor to the workflow registry keyed by `GraphKeys.GRAPH`. Same mechanism as `@node`; call signature unchanged.
-* [ ] (Upstream `ui-decorators/graph`) Create `ui-decorators/src/overrides/Metadata.ts` extending base `Metadata` with `static nodes(): Constructor[]` and `static workflows(): Constructor[]` reading the two registries. Re-export from `ui-decorators/src/overrides/index.ts`.
+* [ ] (Upstream `ui-decorators/graph`) Create `ui-decorators/src/graph/registry.ts` with `registerNode`/`registerWorkflow`/`graphNodes`/`graphWorkflows`/`resetGraphRegistries` (two `Set<Constructor>` buckets, idempotent).
+* [ ] (Upstream `ui-decorators/graph`) Add registry side-effect to `@node` decorator: after `apply(...)`, call `registerNode(target as Constructor)`. Call signature unchanged.
+* [ ] (Upstream `ui-decorators/graph`) Add registry side-effect to `@graph` decorator: after `apply(...)`, call `registerWorkflow(target as Constructor)`. Call signature unchanged.
+* [ ] (Upstream `ui-decorators/graph`) Create `ui-decorators/src/graph/overrides/Metadata.ts` with `declare module "@decaf-ts/decoration"` namespace augmentation declaring `Metadata.nodes()` and `Metadata.workflows()` (declaration merging — NOT subclassing; `Metadata` has a private constructor).
+* [ ] (Upstream `ui-decorators/graph`) Append runtime attachments to `ui-decorators/src/graph/overrides/overrides.ts`: `(Metadata as any).nodes = ...` / `(Metadata as any).workflows = ...` reading from the registry module.
+* [ ] (Upstream `ui-decorators/graph`) Append `export * from "./Metadata"` to `ui-decorators/src/graph/overrides/index.ts` (existing barrel).
+* [ ] (Upstream `ui-decorators/graph`) Verify `ui-decorators/package.json` `sideEffects` array includes the graph overrides entries (already present).
 * [ ] Create `shared/index.ts` re-exporting `./constants`, `./types`, `./nodes`, and re-exporting `Metadata` (with `nodes()` + `workflows()`) from `@decaf-ts/ui-decorators`.
 * [ ] Create `engine/index.ts` barrel file re-exporting `../shared` + all engine modules.
 * [ ] Update `graph/index.ts` to re-export `./engine`.
@@ -36,16 +40,18 @@ Split `integrations/src/graph/` into `shared/` (frontend-safe metadata, types, c
 * Rewrite `graph/index.ts` to `export * from "./engine";`.
 * Add `./graph/shared` to `integrations/package.json` `exports` (mirror existing `./graph` entry).
 * Update import paths in `integrations/src/nest/graph/*` and `integrations/tests/**`.
-* In `ui-decorators/src/graph/decorators.ts`, add registry side-effect to the `@node` decorator's `innerNode` function: after `apply(uimodel(tag, props), metadata(GraphKeys.NODE, meta))(target)`, also append `target` to the `GraphKeys.NODE` registry in the `Metadata` store (mirroring how `@flavour` populates the flavour registry).
-* In the same file, add an analogous registry side-effect to the `@graph` decorator's `innerGraph` function: after `apply(uimodel(tag, props), metadata(GraphKeys.GRAPH, meta))(target)`, append `target` to the `GraphKeys.GRAPH` registry.
-* Create `ui-decorators/src/overrides/Metadata.ts` with `static nodes(): Constructor[]` and `static workflows(): Constructor[]` reading the registries via `this.innerGet(Symbol.for(GraphKeys.NODE))` / `this.innerGet(Symbol.for(GraphKeys.GRAPH))`. Re-export from `ui-decorators/src/overrides/index.ts`.
+* In `ui-decorators/src/graph/decorators.ts`, add `import { registerNode, registerWorkflow } from "./registry"` and `import type { Constructor } from "@decaf-ts/decoration"`. Add `registerNode(target as Constructor)` after the `apply(...)` in `innerNode`; add `registerWorkflow(target as Constructor)` after the `apply(...)` in `innerGraph`.
+* Create `ui-decorators/src/graph/registry.ts` with two `Set<Constructor>` buckets and the five exports.
+* Create `ui-decorators/src/graph/overrides/Metadata.ts` with `declare module "@decaf-ts/decoration"` namespace augmentation (NOT subclassing — `Metadata` has a private constructor).
+* Append runtime attachments to the existing `ui-decorators/src/graph/overrides/overrides.ts` (do NOT create a new file — the existing one already attaches `RenderingEngine.prototype.renderAsNode`).
+* Append `export * from "./Metadata"` to the existing `ui-decorators/src/graph/overrides/index.ts`.
 
 **Technical Details:**
 * Engine types that reference shared types must import from `../shared` (one level up). The reverse (shared importing engine) is forbidden — verify no circular imports with `madge`.
 * `GraphNode.applyMetadata()` stays on the class in `shared/nodes/base.ts` — it is pure computation with no engine dependency.
 * The `./graph/shared` export must resolve to `lib/esm/graph/shared/index.js` and `lib/cjs/graph/shared/index.cjs` after build.
 * The `@node` and `@graph` decorators' call signatures are unchanged — only their internal implementations gain registry side-effects. Existing node/workflow classes do not need re-decoration.
-* `Metadata.nodes()` and `Metadata.workflows()` follow the `Metadata.flavouredAs(flavour): Constructor[]` pattern at `decoration/src/metadata/Metadata.ts:230`.
+* `Metadata.nodes()` and `Metadata.workflows()` use the declaration-merging + runtime-attachment pattern (see `core/src/overrides/overrides.ts`). `Metadata` has a `private constructor()` so it **cannot be subclassed** — do NOT use `class Metadata extends Base`.
 
 ## 4. Verification Plan
 **Automated Tests:**
