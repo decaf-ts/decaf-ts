@@ -41,6 +41,7 @@ The split follows the existing `integrations` subpath convention (`./secrets/aws
 * [ ] All shared types (`SwitchNodeMetadata`, `SwitchCase`, `SwitchCaseCondition`, `ConditionExpression`, `CodeCondition`, `ExprValue`, `NodeMetadataChange`) live in `shared/types.ts`.
 * [ ] All shared enums (`GraphExecutionEventType`, `GraphExecutionStatus`) live in `shared/constants.ts`.
 * [ ] `@node` decorator registers each class in a node registry (alongside its existing per-class `GraphKeys.NODE` metadata); `Metadata.nodes()` accessor added via the `ui-decorators` override so consumers can discover all `@node`-decorated classes without a hand-maintained array. See §4.4.
+* [ ] `@graph` decorator registers each workflow-root class in a workflow registry (alongside its existing per-class `GraphKeys.GRAPH` metadata); `Metadata.workflows()` accessor added via the same override, mirroring `Metadata.nodes()`. See §4.4.
 * [ ] ESLint `no-restricted-imports` rule in for-angular forbidding `@decaf-ts/integrations/graph` (full) and `@decaf-ts/integrations/graph/*` except `./shared`.
 * [ ] All for-angular production imports repointed to `@decaf-ts/integrations/graph/shared`.
 * [ ] In-browser demo executors (`graph-demo-executors.ts`, `GraphExecutionService`, `GraphExecutionEventSubjectObserver`, `GraphExecutionStateMapper.spec.ts`) quarantined to a dev-only entry or migrated to the NestJS SSE backend (TASK-224/226).
@@ -61,6 +62,7 @@ The split follows the existing `integrations` subpath convention (`./secrets/aws
 * **Req-7:** The in-browser demo executors MUST either (a) be removed in favour of the NestJS SSE backend (TASK-224/226), or (b) be quarantined to a dev-only entry that is excluded from the production bundle.
 * **Req-8:** All 116 existing graph tests MUST continue to pass after the split.
 * **Req-9:** The `@node` decorator MUST register each decorated class in a node registry so `Metadata.nodes()` can return all `@node`-decorated constructors without a hand-maintained array. This follows the existing `Metadata.flavouredAs(flavour): Constructor[]` pattern (`decoration/src/metadata/Metadata.ts:230`) and the `Injectables.services()` pattern (`injectable-decorators/src/Injectables.ts`). See §4.4.
+* **Req-10:** The `@graph` decorator MUST register each decorated workflow-root class in a workflow registry so `Metadata.workflows()` can return all `@graph`-decorated constructors. Same pattern as `Metadata.nodes()`. See §4.4.
 
 ## 4. Architecture & Design
 
@@ -153,7 +155,7 @@ The existing `"./graph"` entry stays, pointing at `./lib/.../graph/index.js` whi
 
 - `GRAPH_WORKFLOW_BOUNDARY`, `GRAPH_DEFAULT_CONCURRENCY`, `GRAPH_DEFAULT_MAX_LOOP_ITERATIONS`, `GRAPH_DEFAULT_MAX_FOREACH_ITERATIONS`, `GRAPH_PINNING_METADATA_KEY`, and any other engine-private constants.
 
-### 4.4 Node discovery via `Metadata.nodes()` (no hand-maintained array)
+### 4.4 Node and workflow discovery via `Metadata.nodes()` / `Metadata.workflows()` (no hand-maintained arrays)
 
 The original draft of this spec proposed an `ALL_GRAPH_NODES` constant array in `shared/catalogue.ts`. That was wrong: it would be a second source of truth alongside the `@node` decorator, requiring manual updates every time a node class is added or removed.
 
@@ -163,11 +165,13 @@ The decaf pattern is already established:
 - `Injectables.services()` (`injectable-decorators/src/Injectables.ts`) returns all registered injectable services.
 - `Metadata.registeredFlavour(model): string | undefined` (`decoration/src/metadata/Metadata.ts:234`) reverse-looks-up a class.
 
-This spec follows the same pattern for graph nodes:
+This spec follows the same pattern for graph nodes **and** workflow roots:
 
 1. **The `@node` decorator** (`ui-decorators/src/graph/decorators.ts:13-38`) currently stores per-class metadata under `GraphKeys.NODE` via `metadata(GraphKeys.NODE, meta)`. It gains a **registry side-effect**: after setting per-class metadata, it also appends the constructor to a node registry keyed by `GraphKeys.NODE` in the `Metadata` store (mirroring how `@flavour` populates the flavour registry). The decorator's call signature is unchanged.
 
-2. **A `Metadata.nodes(): Constructor[]` accessor** is added via the `ui-decorators` override mechanism. The override file `ui-decorators/src/overrides/Metadata.ts` (new) extends the base `Metadata` class with:
+2. **The `@graph` decorator** (`ui-decorators/src/graph/decorators.ts:40-75`) currently stores per-class metadata under `GraphKeys.GRAPH` via `metadata(GraphKeys.GRAPH, meta)`. It gains an **analogous registry side-effect**: after setting per-class metadata, it appends the constructor to a workflow registry keyed by `GraphKeys.GRAPH`. Same mechanism as `@node`; call signature unchanged. This lets consumers discover all workflow-root classes (e.g. to populate a workflow picker, validate uniqueness, or serialize the workflow definition) without a hand-maintained array.
+
+3. **`Metadata.nodes(): Constructor[]` and `Metadata.workflows(): Constructor[]` accessors** are added via the `ui-decorators` override mechanism. The override file `ui-decorators/src/overrides/Metadata.ts` (new) extends the base `Metadata` class with:
 
    ```ts
    import { Metadata as Base } from "@decaf-ts/decoration";
@@ -177,18 +181,22 @@ This spec follows the same pattern for graph nodes:
      static nodes(): Constructor[] {
        return this.innerGet(Symbol.for(GraphKeys.NODE)) || [];
      }
+
+     static workflows(): Constructor[] {
+       return this.innerGet(Symbol.for(GraphKeys.GRAPH)) || [];
+     }
    }
    ```
 
-   `Metadata.nodes()` returns every `@node`-decorated constructor. The existing `ui-decorators/src/overrides/index.ts` re-exports the override so consumers import `Metadata` from `@decaf-ts/ui-decorators` and get the extended class.
+   `Metadata.nodes()` returns every `@node`-decorated constructor; `Metadata.workflows()` returns every `@graph`-decorated constructor. The existing `ui-decorators/src/overrides/index.ts` re-exports the override so consumers import `Metadata` from `@decaf-ts/ui-decorators` and get the extended class.
 
-3. **No `ALL_GRAPH_NODES` constant.** The frontend builds the palette, `NODE_TEMPLATE_MAP` (kind → component), and CRUD form schemas by calling `Metadata.nodes()` and `graphDefinitionOf()` (from `@decaf-ts/ui-decorators/graph`) on each constructor. No engine import, no hand-maintained array.
+4. **No `ALL_GRAPH_NODES` / `ALL_GRAPH_WORKFLOWS` constants.** The frontend builds the palette, `NODE_TEMPLATE_MAP` (kind → component), and CRUD form schemas by calling `Metadata.nodes()` and `graphDefinitionOf()` (from `@decaf-ts/ui-decorators/graph`) on each constructor. Workflow-root discovery uses `Metadata.workflows()` and `graphWorkflowDefinitionOf()`. No engine import, no hand-maintained arrays.
 
-4. **Test coverage.** A unit test asserts that after importing all `@node`-decorated classes from `@decaf-ts/integrations/graph/shared`, `Metadata.nodes()` returns exactly those constructors (no more, no less). The test fails if a new node is added but not decorated, or if the registry side-effect breaks.
+5. **Test coverage.** Unit tests assert that after importing all `@node`-decorated classes from `@decaf-ts/integrations/graph/shared`, `Metadata.nodes()` returns exactly those constructors; and after importing any `@graph`-decorated workflow-root classes, `Metadata.workflows()` returns exactly those constructors. Tests fail if a new node/workflow is added but not decorated, or if the registry side-effect breaks.
 
-**Why the override mechanism and not a standalone function:** the `Metadata` class is the canonical metadata accessor in decaf. Every module that adds a new metadata category (`db-decorators`, `core`, `transactional-decorators`, `injectable-decorators`) extends it via the override pattern. Adding `Metadata.nodes()` is consistent with `Metadata.flavouredAs()`, `Metadata.registeredFlavour()`, and `Injectables.services()`. A standalone `ALL_GRAPH_NODES` array would be a foreign pattern.
+**Why the override mechanism and not a standalone function:** the `Metadata` class is the canonical metadata accessor in decaf. Every module that adds a new metadata category (`db-decorators`, `core`, `transactional-decorators`, `injectable-decorators`) extends it via the override pattern. Adding `Metadata.nodes()` / `Metadata.workflows()` is consistent with `Metadata.flavouredAs()`, `Metadata.registeredFlavour()`, and `Injectables.services()`. Standalone arrays would be a foreign pattern.
 
-**Upstream change:** the `@node` decorator and `Metadata.nodes()` accessor both live in `@decaf-ts/ui-decorators/graph` (already a frontend-safe package). No `integrations` change is needed for this feature — the `shared/` subtree just re-exports `Metadata` from `@decaf-ts/ui-decorators`. The node classes in `shared/nodes/` are decorated with `@node` so they auto-register on import.
+**Upstream change:** the `@node`/`@graph` decorators and the `Metadata.nodes()`/`Metadata.workflows()` accessors all live in `@decaf-ts/ui-decorators/graph` (already a frontend-safe package). No `integrations` change is needed for this feature — the `shared/` subtree just re-exports `Metadata` from `@decaf-ts/ui-decorators`. The node classes in `shared/nodes/` are decorated with `@node` so they auto-register on import; workflow-root classes decorated with `@graph` auto-register likewise.
 
 ### 4.5 Backend executor authoring (unchanged)
 
@@ -257,7 +265,7 @@ This specification is broken down into the following tasks.
 
 | ID | Task Name | Priority | Status | Dependencies |
 |:---|:---|:---|:---|:---|
-| TASK-230 | Split `integrations/src/graph/` into `shared/` and `engine/` subtrees, partition types/constants, add `./graph/shared` export. Add `@node` registry side-effect and `Metadata.nodes()` accessor in `ui-decorators/graph` (see §4.4) | High | Pending | — |
+| TASK-230 | Split `integrations/src/graph/` into `shared/` and `engine/` subtrees, partition types/constants, add `./graph/shared` export. Add `@node`/`@graph` registry side-effects and `Metadata.nodes()` / `Metadata.workflows()` accessors in `ui-decorators/graph` (see §4.4) | High | Pending | — |
 | TASK-231 | Add ESLint `no-restricted-imports` boundary in for-angular and repoint all production imports to `@decaf-ts/integrations/graph/shared` | High | Pending | TASK-230 |
 | TASK-232 | Quarantine or migrate the in-browser demo executors (`graph-demo-executors.ts`, `GraphExecutionService`, `GraphExecutionEventSubjectObserver`) out of the production bundle | High | Pending | TASK-231 |
 | TASK-233 | Verify all 116 graph tests pass, lint clean, build clean, for-angular production bundle contains no engine code | Medium | Pending | TASK-232 |
@@ -276,16 +284,17 @@ This specification is broken down into the following tasks.
 5. Move `graph/decorators.ts` (`@pinnable`) → `engine/decorators.ts`.
 6. Move all engine modules: `execution/`, `registry/`, `store/`, `planning/`, `validation/`, `loops/`, `pinning/`, `snapshots/`, `errors/`, `events/` → `engine/` (update internal import paths).
 7. (Upstream `ui-decorators/graph`) Add registry side-effect to `@node` decorator: after setting per-class `GraphKeys.NODE` metadata, append the constructor to the node registry keyed by `GraphKeys.NODE` (mirroring `@flavour`'s registry population). Decorator call signature unchanged.
-8. (Upstream `ui-decorators/graph`) Create `ui-decorators/src/overrides/Metadata.ts` extending base `Metadata` with `static nodes(): Constructor[]` reading the registry. Re-export from `ui-decorators/src/overrides/index.ts`.
-9. Create `shared/index.ts` re-exporting `./constants`, `./types`, `./nodes`, and re-exporting `Metadata` (with the `nodes()` accessor) from `@decaf-ts/ui-decorators`.
-10. Create `engine/index.ts` re-exporting `../shared` plus all engine modules.
-11. Update `graph/index.ts` to re-export `./engine` (which re-exports `./shared`).
-12. Add `"./graph/shared"` entry to `integrations/package.json` `exports`.
-13. Update all internal `integrations` imports (nest module, tests) to use the new paths.
-14. Add unit test asserting `Metadata.nodes()` returns exactly the 17 `@node`-decorated constructors from `shared/nodes/` after importing them. Test fails if a new node is added without `@node` or if the registry side-effect breaks.
-15. Run `npm run build`, `npm run lint`, `npm run test` in `integrations` and `ui-decorators`; fix any broken import paths.
+8. (Upstream `ui-decorators/graph`) Add registry side-effect to `@graph` decorator: after setting per-class `GraphKeys.GRAPH` metadata, append the constructor to the workflow registry keyed by `GraphKeys.GRAPH`. Same mechanism as `@node`; call signature unchanged.
+9. (Upstream `ui-decorators/graph`) Create `ui-decorators/src/overrides/Metadata.ts` extending base `Metadata` with `static nodes(): Constructor[]` and `static workflows(): Constructor[]` reading the two registries. Re-export from `ui-decorators/src/overrides/index.ts`.
+10. Create `shared/index.ts` re-exporting `./constants`, `./types`, `./nodes`, and re-exporting `Metadata` (with `nodes()` + `workflows()`) from `@decaf-ts/ui-decorators`.
+11. Create `engine/index.ts` re-exporting `../shared` plus all engine modules.
+12. Update `graph/index.ts` to re-export `./engine` (which re-exports `./shared`).
+13. Add `"./graph/shared"` entry to `integrations/package.json` `exports`.
+14. Update all internal `integrations` imports (nest module, tests) to use the new paths.
+15. Add unit tests asserting (a) `Metadata.nodes()` returns exactly the `@node`-decorated constructors from `shared/nodes/` after importing them, and (b) `Metadata.workflows()` returns exactly the `@graph`-decorated workflow-root constructors after importing them. Tests fail if a new node/workflow is added without the decorator or if the registry side-effect breaks.
+16. Run `npm run build`, `npm run lint`, `npm run test` in `integrations` and `ui-decorators`; fix any broken import paths.
 
-**Acceptance:** `@decaf-ts/integrations/graph/shared` resolves and exports only node classes, `GraphNode`, category styles, shared types/enums, and `Metadata` (with `nodes()` accessor). `Metadata.nodes()` returns all `@node`-decorated constructors with no hand-maintained array. `@decaf-ts/integrations/graph` re-exports everything (backend convenience). All 116 graph tests pass; ui-decorators tests pass.
+**Acceptance:** `@decaf-ts/integrations/graph/shared` resolves and exports only node classes, `GraphNode`, category styles, shared types/enums, and `Metadata` (with `nodes()` + `workflows()` accessors). `Metadata.nodes()` returns all `@node`-decorated constructors; `Metadata.workflows()` returns all `@graph`-decorated constructors — both with no hand-maintained arrays. `@decaf-ts/integrations/graph` re-exports everything (backend convenience). All 116 graph tests pass; ui-decorators tests pass.
 
 ### TASK-231 — ESLint boundary + repoint for-angular imports
 
@@ -341,8 +350,8 @@ This specification is broken down into the following tasks.
 ## 7. Results & Artifacts
 
 * `workdocs/ai/project/specifications/DECAF_35.md` — this specification.
-* `ui-decorators/src/graph/decorators.ts` — `@node` decorator gains registry side-effect (call signature unchanged).
-* `ui-decorators/src/overrides/Metadata.ts` — `Metadata.nodes()` accessor (new override).
+* `ui-decorators/src/graph/decorators.ts` — `@node` and `@graph` decorators gain registry side-effects (call signatures unchanged).
+* `ui-decorators/src/overrides/Metadata.ts` — `Metadata.nodes()` and `Metadata.workflows()` accessors (new override).
 * `integrations/src/graph/shared/` — frontend-safe metadata, types, constants, nodes.
 * `integrations/src/graph/engine/` — backend-only engine, executors, registry, store, pinning, validation, NestJS module.
 * `integrations/package.json` — new `./graph/shared` subpath export.
