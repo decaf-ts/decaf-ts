@@ -495,6 +495,16 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-34 — Graph Node Type Catalogue
+- **Priority:** Medium
+- **Goal:** Catalogue all 20 graph node types (6 trigger + 10 flow-control/utility + 3 loop + 1 agent) from the Alfred AI specs (ALFRED-5/6/7/8, UPSTREAM-1) and DECAF-32 into a single reference document with per-node identity, functionality, ports (inputs/outputs/connections), UI rendering, and CRUD edit screen details.
+- **Status:** Completed — documentation-only specification; no code tasks. All node declarations already exist in `integrations/src/graph/nodes/` (DECAF-32 TASK-228/TASK-229).
+- **Link:** [Specification Details](./specifications/DECAF_34.md)
+- **Tasks:**
+  - (documentation only — node declarations already exist in DECAF-32 TASK-228/TASK-229)
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -534,6 +544,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
 - DECAF-32: ✅ Decaf Graph Execution Engine (Phase 1: 14 tasks, 88 tests. Phase 2: graph page UI, node-edit modal, node taxonomy, @connection ports, NestJS backend, full-stack e2e — all completed; 116 graph tests passing)
 - DECAF-33: ✅ Decaf-TS Org-Based Authorization System (specification added; namespace, SQL, and targeted tests implemented)
+- DECAF-34: ✅ Graph Node Type Catalogue (documentation-only; 20 node types catalogued with ports, UI, and CRUD details)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
