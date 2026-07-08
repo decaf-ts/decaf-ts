@@ -518,6 +518,24 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-36 — Graph Canvas Save/Auto-Save & Undo/Redo
+- **Priority:** High
+- **Goal:** Add a Save Workflow button, Auto-Save toggle (default off), and Undo/Redo controls to the graph canvas. When auto-save is off, a `@service`-decorated `GraphHistoryService` caches workflow snapshots in memory (configurable limit, default 10) with multi-workflow support. When auto-save is on, mutations trigger debounced backend saves.
+- **Status:** Completed — all 8 tasks implemented. 60 for-angular tests + 172 graph tests pass.
+- **Link:** [Specification Details](./specifications/DECAF_36.md)
+- **Tasks:**
+  - [x] [TASK-234](./specifications/tasks/TASK_234.md): `GraphHistoryService` — in-memory ring buffer with multi-workflow support.
+  - [x] [TASK-235](./specifications/tasks/TASK_235.md): `GraphSaveService` + backend `PUT /graph/workflow/:id` endpoint.
+  - [x] [TASK-236](./specifications/tasks/TASK_236.md): `GraphAutoSaveService` — debounced mutation listener.
+  - [x] [TASK-237](./specifications/tasks/TASK_237.md): `GraphToolbarComponent` — Save, Auto-Save toggle, Undo, Redo buttons.
+  - [x] [TASK-238](./specifications/tasks/TASK_238.md): Mutation detection wiring — connect existing signals/events to auto-save/history.
+  - [x] [TASK-239](./specifications/tasks/TASK_239.md): Keyboard shortcuts (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z) with input-focus guard.
+  - [x] [TASK-240](./specifications/tasks/TASK_240.md): Configuration provider tokens (`GRAPH_HISTORY_LIMIT`, `GRAPH_AUTOSAVE_DEBOUNCE_MS`).
+  - [x] [TASK-241](./specifications/tasks/TASK_241.md): Tests — history service, auto-save debounce, save endpoint, mutation detector.
+  - [x] [TASK-242](./specifications/tasks/TASK_242.md): Backend architecture refactor — adapter-agnostic module, `@service(Model)` services, context propagation, remove injection tokens.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -559,6 +577,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-33: ✅ Decaf-TS Org-Based Authorization System (specification added; namespace, SQL, and targeted tests implemented)
 - DECAF-34: ✅ Graph Node Type Catalogue (documentation-only; 20 node types catalogued with ports, UI, and CRUD details)
 - DECAF-35: ⏳ Graph Metadata/Engine Split for Frontend/Backend Boundary (specification added; 4 tasks pending — split `./graph` into `./graph/shared` + `./graph` with ESLint boundary enforcement)
+- DECAF-36: ✅ Graph Canvas Save/Auto-Save & Undo/Redo (all 8 tasks completed — Save button, Auto-Save toggle, GraphHistoryService ring buffer, Undo/Redo, keyboard shortcuts, backend PUT endpoint; 60 for-angular + 172 graph tests pass)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
