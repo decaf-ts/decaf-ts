@@ -547,6 +547,19 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-38 — Integrations Object Loader Framework
+- **Priority:** High
+- **Goal:** Add a reusable `ObjectLoader` abstraction in `integrations` for dynamically loading TS objects with configurable post-load hooks, plus concrete loaders for models, adapters, repositories, services, controllers, environment objects, Angular components, and graph nodes.
+- **Status:** Completed — loader subtree, export map, docs, and targeted verification are in place.
+- **Link:** [Specification Details](./specifications/DECAF_38.md)
+- **Tasks:**
+  - [x] DECAF-38-1: Define the base `ObjectLoader` contract and post-load hook pipeline.
+  - [x] DECAF-38-2: Implement loaders for models, adapters, repositories, services, and controllers.
+  - [x] DECAF-38-3: Implement loaders for environment objects, Angular components, and graph nodes.
+  - [x] DECAF-38-4: Wire package exports, documentation, and verification coverage for the loader surface.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -590,6 +603,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-35: ⏳ Graph Metadata/Engine Split for Frontend/Backend Boundary (shared/engine split, export map, and for-angular boundary implemented; final verification still depends on live for-nest infra)
 - DECAF-36: ✅ Graph Canvas Save/Auto-Save & Undo/Redo (all 8 tasks completed — Save button, Auto-Save toggle, GraphHistoryService ring buffer, Undo/Redo, keyboard shortcuts, backend PUT endpoint; 60 for-angular + 172 graph tests pass)
 - DECAF-37: ✅ Fabric Mirror Gating (allowMirroring short-circuits mirror behavior; client override whitelist added; unit tests added)
+- DECAF-38: ✅ Integrations Object Loader Framework (base loader, concrete loaders, hook pipeline, export surface, docs, and verification completed)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
