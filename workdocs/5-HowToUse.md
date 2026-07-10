@@ -37,6 +37,7 @@
 ## Integrations
 
 - [`@decaf-ts/integrations`](../integrations/workdocs/Readme.md)
+- [Namespaces service guide](../integrations/workdocs/5-HowToUse.md)
 - [Keycloak service guide](../integrations/workdocs/services/keycloak.md)
 - [Kibana service guide](../integrations/workdocs/services/kibana.md)
 - [Nest service guide](../integrations/workdocs/services/nest.md)

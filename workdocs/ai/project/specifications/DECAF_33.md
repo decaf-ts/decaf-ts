@@ -1,19 +1,19 @@
 # DECAF-33: Decaf-TS Org-Based Authorization System
 
-**Status:** Implemented
+**Status:** Completed
 **Priority:** High
 **Owner:** decaf-dev
 
 ## 1. Overview
 This specification defines a domain-neutral org-based authorization system for Decaf-TS.
-It covers base authorization, tenancy, org hierarchy, resource access, storage bindings, and `ModelService`-backed authorization services.
+It covers base authorization, tenancy, org hierarchy, resource access, storage bindings, namespace-scoped roles, Keycloak auth integration, and `ModelService`-backed authorization services.
 
 The design intentionally avoids product-specific concepts such as `tenantKind`, `userKind`, `requiresGuardianConsent`, or approval/request workflows. Instead, it models authorization with tenants, org units, users, principals, memberships, roles, permissions, grants, and effective permissions.
 
 ### 1.1 Version and Scope
 
 * **Version:** `1.0`
-* **Scope:** base authorization, tenancy, org hierarchy, resource access, storage bindings, and ModelServices
+* **Scope:** base authorization, tenancy, org hierarchy, resource access, storage bindings, namespace-scoped roles, Keycloak auth integration, and ModelServices
 
 ### 1.2 Verified technology assumptions
 
@@ -24,6 +24,9 @@ Use these APIs and conventions:
 * `@decaf-ts/for-typeorm` mirrors TypeORM metadata for table, column, primary key, timestamp, and relation decorators.
 * TypeORM creates foreign keys for relation decorators such as `ManyToOne` and `OneToOne`.
 * Keep Postgres RLS, recursive closure-table triggers, partial/composite indexes, JSONB indexes, and other advanced database controls in migrations outside Decaf model decorators.
+* Namespace authorization can reuse the `@role()` contract through a dedicated `@namespace(...)` decorator, and the Keycloak auth handler must understand those namespace roles.
+* UI visibility wrappers must be able to reuse `@hideOn`/`renderIf` patterns and namespace-aware `@hideFor`/`showFor` controls.
+* for-nest must remain compatible with the new namespace auth metadata and the visibility wrapper flow.
 
 ## 2. Goals
 
@@ -32,6 +35,11 @@ Use these APIs and conventions:
 * Support principals, memberships, roles, permissions, grants, and effective permissions.
 * Support resource visibility and explicit resource grants.
 * Support storage bindings for Postgres, Arango, Qdrant, and object storage.
+* Support namespace-scoped authorization by reusing the existing `@role()` contract through a new `@namespace(...)` decorator.
+* Support Keycloak auth handling that can recognize namespace-scoped roles and translate them into Decaf authorization data.
+* Support authorization segregation by nested org depth and by individual user identity.
+* Support UI visibility wrappers that can drive namespace-based show/hide logic using `@hideOn`/`renderIf` and `@hideFor`/`showFor`.
+* Preserve for-nest compatibility so server-side route, model, and documentation flows can consume the new auth metadata.
 * Define repository-backed service contracts for authorization workflows.
 * Define external SQL enforcement points for constraints, RLS, and indexes.
 * Define Arango and Qdrant authorization payload filters.
@@ -110,6 +118,39 @@ A principal can perform action `P` on resource `R` only if:
 6. access is logged by the caller/audit layer
 ```
 
+#### Segregation granularity
+
+Authorization must be granular enough to separate access by:
+
+* any nested org level, including direct child, descendant, subtree, and tenant-wide inheritance boundaries
+* a single user identity, even when the surrounding org structure is shared
+
+Namespace-scoped enforcement must therefore support both hierarchical inheritance and direct user-level exceptions without collapsing the tree into a single coarse tenant rule.
+
+#### Namespace decorator contract
+
+The existing `@role()` contract must be reusable for namespace enforcement through a new `@namespace(...)` decorator.
+
+That decorator should apply the same enforcement logic as role-based checks while attaching namespace-aware metadata that downstream services and auth handlers can consume.
+
+#### Keycloak auth translation
+
+The existing `KeycloakAuthHandler` must recognize namespace-scoped roles in addition to the current role extraction flow.
+
+It should translate those roles into the same Decaf auth data shape used by the namespace authorization services so route-level and model-level checks remain consistent.
+
+#### UI visibility wrappers
+
+Namespace authorization must also expose UI visibility wrappers that can be used to control rendering by namespace.
+
+The wrappers should reuse the existing `@hideOn` / `renderIf` style behavior where applicable and provide namespace-aware `@hideFor` / `showFor` semantics for screens that need to hide or reveal fields and components based on namespace membership or scope.
+
+#### for-nest compatibility
+
+The namespace auth system must remain compatible with `for-nest` so server-side controllers, guards, and documentation flows can consume the new namespace metadata without bespoke adapter code.
+
+That includes preserving the ability to resolve auth context from Keycloak payloads, project namespace-aware role metadata into route checks, and keep visibility semantics aligned between server rendering and model metadata.
+
 #### Database split
 
 Postgres:
@@ -172,6 +213,10 @@ src/
     bootstrap.service.ts
     system-management.service.ts
     index.ts
+  nest/
+    keycloakAuthHandler.ts
+  ui/
+    namespace-visibility.ts
 sql/
   001_constraints.sql
   002_rls.sql
@@ -1253,6 +1298,11 @@ This specification is intentionally written as a handoff document for an impleme
 | DECAF-33-6 | Add Arango and Qdrant authorization enforcement layers | Medium | Completed | DECAF-33-4 |
 | DECAF-33-7 | Add bootstrap and system management flows | Medium | Completed | DECAF-33-2 |
 | DECAF-33-8 | Add integration and service tests for authorization scenarios | High | Completed | DECAF-33-2 |
+| DECAF-33-9 | Add namespace-scoped role decorator support via `@namespace(...)` | High | Completed | DECAF-33-1 |
+| DECAF-33-10 | Extend `KeycloakAuthHandler` to recognize namespace roles | High | Completed | DECAF-33-9 |
+| DECAF-33-11 | Add granular nested-org and single-user segregation coverage | High | Completed | DECAF-33-3, DECAF-33-9, DECAF-33-10 |
+| DECAF-33-12 | Add UI visibility wrappers for namespace-aware `@hideOn`/`renderIf` and `@hideFor`/`showFor` | High | Completed | DECAF-33-9, DECAF-33-10, DECAF-33-11 |
+| DECAF-33-13 | Preserve for-nest compatibility with namespace auth metadata and visibility wrappers | High | Completed | DECAF-33-9, DECAF-33-10, DECAF-33-12 |
 
 ## 6. Open Questions / Risks
 

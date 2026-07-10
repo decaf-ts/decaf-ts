@@ -487,8 +487,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ## DECAF-33 — Decaf-TS Org-Based Authorization System
 - **Priority:** High
-- **Goal:** Define a domain-neutral org-based authorization system for Decaf-TS covering tenancy, org hierarchy, resource access, storage bindings, RLS/index migrations, and repository-backed authorization services.
-- **Status:** Completed — specification added; namespace scaffold, model/service exports, SQL artifacts, and targeted tests implemented.
+- **Goal:** Define a domain-neutral org-based authorization system for Decaf-TS covering tenancy, org hierarchy, resource access, storage bindings, namespace-scoped roles, UI visibility wrappers, Keycloak auth integration, for-nest compatibility, RLS/index migrations, and repository-backed authorization services.
+- **Status:** Completed — base namespace scaffold, model/service exports, SQL artifacts, targeted tests, namespace decorators, UI visibility wrappers, Keycloak auth recognition, for-nest compatibility, and finer-grained org/user segregation coverage are implemented and verified.
 - **Link:** [Specification Details](./specifications/DECAF_33.md)
 - **Tasks:**
   - [x] Task breakdown recorded in the specification and implemented in the namespace package.
@@ -598,7 +598,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-30: ✅ BlobStoreService API and Provider Implementations (all providers implemented: memory, local, S3/MinIO/R2, Azure Blob, GCS, IPFS; 105/105 tests passing across 14 suites; lint and build clean)
 - DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
 - DECAF-32: ✅ Decaf Graph Execution Engine (Phase 1: 14 tasks, 88 tests. Phase 2: graph page UI, node-edit modal, node taxonomy, @connection ports, NestJS backend, full-stack e2e — all completed; 116 graph tests passing)
-- DECAF-33: ✅ Decaf-TS Org-Based Authorization System (specification added; namespace, SQL, and targeted tests implemented)
+- DECAF-33: ✅ Decaf-TS Org-Based Authorization System (namespace auth, UI wrappers, Keycloak support, and for-nest compatibility implemented and verified)
 - DECAF-34: ✅ Graph Node Type Catalogue (documentation-only; 20 node types catalogued with ports, UI, and CRUD details)
 - DECAF-35: ⏳ Graph Metadata/Engine Split for Frontend/Backend Boundary (shared/engine split, export map, and for-angular boundary implemented; final verification still depends on live for-nest infra)
 - DECAF-36: ✅ Graph Canvas Save/Auto-Save & Undo/Redo (all 8 tasks completed — Save button, Auto-Save toggle, GraphHistoryService ring buffer, Undo/Redo, keyboard shortcuts, backend PUT endpoint; 60 for-angular + 172 graph tests pass)
