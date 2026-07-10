@@ -3,17 +3,17 @@
 **ID:** TASK-231
 **Specification:** [DECAF-35](../DECAF_35.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Done
 
 ## 1. Description
 Add an ESLint `no-restricted-imports` rule in for-angular that forbids importing `@decaf-ts/integrations/graph` (bare) and any `@decaf-ts/integrations/graph/*` subpath except `./shared`. Repoint all for-angular production imports that currently use `@decaf-ts/integrations/graph` to `@decaf-ts/integrations/graph/shared`. Leave the in-browser demo executor files (handled by TASK-232) with a temporary ESLint override.
 
 ## 2. Objectives
-* [ ] Add `no-restricted-imports` rule to for-angular ESLint config: block `@decaf-ts/integrations/graph` (bare) and `@decaf-ts/integrations/graph/*` pattern, allow `@decaf-ts/integrations/graph/shared`.
-* [ ] Repoint production imports: `SwitchNodeMetadata`, `SwitchCase`, `SwitchCaseCondition`, `ConditionExpression`, `CodeCondition`, `ExprValue`, `NodeMetadataChange` → `@decaf-ts/integrations/graph/shared`.
-* [ ] Repoint `GraphExecutionEventType` (used by `GraphExecutionStateMapper`) → `@decaf-ts/integrations/graph/shared`.
-* [ ] Add a temporary ESLint override for the demo executor files (`graph-demo-executors.ts`, `GraphExecutionService.ts`, `GraphExecutionEventSubjectObserver.ts`, `GraphExecutionStateMapper.spec.ts`) allowing `@decaf-ts/integrations/graph` until TASK-232 lands.
-* [ ] `npm run lint`, `npm run build`, `npm run test` in for-angular all pass.
+* [x] Add `no-restricted-imports` rule to for-angular ESLint config: block `@decaf-ts/integrations/graph` (bare) and `@decaf-ts/integrations/graph/*` pattern, allow `@decaf-ts/integrations/graph/shared`.
+* [x] Repoint production imports: `SwitchNodeMetadata`, `SwitchCase`, `SwitchCaseCondition`, `ConditionExpression`, `CodeCondition`, `ExprValue`, `NodeMetadataChange` → `@decaf-ts/integrations/graph/shared`.
+* [x] Repoint `GraphExecutionEventType` (used by `GraphExecutionStateMapper`) → `@decaf-ts/integrations/graph/shared`.
+* [x] Add a temporary ESLint override for the demo executor files (`graph-demo-executors.ts`, `GraphExecutionService.ts`, `GraphExecutionEventSubjectObserver.ts`, `GraphExecutionStateMapper.spec.ts`) allowing `@decaf-ts/integrations/graph` until TASK-232 lands.
+* [x] `npm run lint`, `npm run build`, `npm run test` in for-angular all pass.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -33,9 +33,9 @@ Add an ESLint `no-restricted-imports` rule in for-angular that forbids importing
 
 ## 4. Verification Plan
 **Automated Tests:**
-* [ ] `npm run lint` in for-angular — 0 errors (production code clean, demo files exempt).
-* [ ] `npm run build` in for-angular — production build succeeds.
-* [ ] `npm run test` in for-angular — 42 tests pass.
+* [x] `npm run lint` in for-angular — 0 errors (production code clean, demo files exempt).
+* [x] `npm run build` in for-angular — production build succeeds.
+* [x] `npm run test` in for-angular — 42 tests pass.
 
 **Manual Verification:**
 * Temporarily change a production import back to `@decaf-ts/integrations/graph` and confirm lint fails.

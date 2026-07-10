@@ -337,7 +337,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-21 — Fabric Channel Manager Service
 - **Priority:** High
 - **Goal:** Add a reusable `ChannelManager` service in `for-fabric` for granular peer- and organization-level channel membership operations that infra consumers can import and extend.
-- **Status:** Planned
+- **Status:** REJECTED — deferred / not pursued in this workspace.
 - **Link:** [Specification Details](./specifications/DECAF_21.md)
 - **Tasks:**
   - [ ] [TASK-147](./specifications/tasks/TASK_147.md): Define the ChannelManager contract and map the Fabric channel-management flows.
@@ -508,12 +508,12 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-35 — Graph Metadata/Engine Split for Frontend/Backend Boundary
 - **Priority:** High
 - **Goal:** Split `integrations/src/graph/` into `shared/` (frontend-safe metadata, types, constants, node catalogue) and `engine/` (backend-only execution engine, executors, registry, store, pinning, validation, NestJS module) with two subpath exports: `@decaf-ts/integrations/graph/shared` (frontend) and `@decaf-ts/integrations/graph` (backend, re-exports shared + engine). Enforce the boundary via ESLint `no-restricted-imports` in for-angular.
-- **Status:** Planned — specification added; 4 tasks pending.
+- **Status:** In Progress — the shared/engine split, export map, and for-angular boundary are implemented; final verification still depends on live for-nest infrastructure.
 - **Link:** [Specification Details](./specifications/DECAF_35.md)
 - **Tasks:**
-  - [ ] [TASK-230](./specifications/tasks/TASK_230.md): Split `integrations/src/graph/` into `shared/` and `engine/` subtrees, partition types/constants, add `./graph/shared` export and `ALL_GRAPH_NODES` catalogue.
-  - [ ] [TASK-231](./specifications/tasks/TASK_231.md): Add ESLint `no-restricted-imports` boundary in for-angular and repoint all production imports to `@decaf-ts/integrations/graph/shared`.
-  - [ ] [TASK-232](./specifications/tasks/TASK_232.md): Quarantine or migrate the in-browser demo executors out of the production bundle (SSE backend migration preferred).
+  - [x] [TASK-230](./specifications/tasks/TASK_230.md): Split `integrations/src/graph/` into `shared/` and `engine/` subtrees, partition types/constants, add `./graph/shared` export and `ALL_GRAPH_NODES` catalogue.
+  - [x] [TASK-231](./specifications/tasks/TASK_231.md): Add ESLint `no-restricted-imports` boundary in for-angular and repoint all production imports to `@decaf-ts/integrations/graph/shared`.
+  - [x] [TASK-232](./specifications/tasks/TASK_232.md): Quarantine or migrate the in-browser demo executors out of the production bundle (SSE backend migration preferred).
   - [ ] [TASK-233](./specifications/tasks/TASK_233.md): Final verification — all builds/lints/tests green, production bundle has no engine code, no circular imports.
 
 ---
@@ -533,6 +533,17 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-240](./specifications/tasks/TASK_240.md): Configuration provider tokens (`GRAPH_HISTORY_LIMIT`, `GRAPH_AUTOSAVE_DEBOUNCE_MS`).
   - [x] [TASK-241](./specifications/tasks/TASK_241.md): Tests — history service, auto-save debounce, save endpoint, mutation detector.
   - [x] [TASK-242](./specifications/tasks/TASK_242.md): Backend architecture refactor — adapter-agnostic module, `@service(Model)` services, context propagation, remove injection tokens.
+
+---
+
+## DECAF-37 — Fabric Mirror Gating
+- **Priority:** High
+- **Goal:** Make `@mirror()` metadata-only when `allowMirroring` is disabled, while preserving the existing `allowGatewayOverride` gate for legacy gateway submission and whitelisting `allowMirroring` for client-side override propagation.
+- **Status:** Completed — mirror handlers, contract adapter gates, client promotion, and override whitelisting are implemented and covered by unit tests.
+- **Link:** [Specification Details](./specifications/DECAF_37.md)
+- **Tasks:**
+  - [x] TASK-243: Gate contract-side mirror handlers and adapter paths behind `allowMirroring`.
+  - [x] TASK-244: Whitelist `allowMirroring` on the client side and add unit coverage.
 
 ---
 
@@ -563,7 +574,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (progress notifications and manager relay merged into this spec; implementation in progress, handshake validation pending)
 - DECAF-18: ⏳ Context Transition Semantics for `ContextualLoggedClass` (new spec added; implementation pending)
 - DECAF-19: ✅ Configurable Agent Execution Mode
-- DECAF-21: ⏳ Fabric Channel Manager Service
+- DECAF-21: ❌ Fabric Channel Manager Service (rejected / not pursued)
 - DECAF-22: ✅ TaskEngine Step Insertion & Per-Step Retry (atEnd, required ctx, per-step maxAttempts/backoff, 4 new tests)
 - DECAF-23: ✅ @throttle() Decorator Formalization (ThrottleMode, splitByCount/splitBySize, typed overloads, 20 tests passing)
 - DECAF-24: ✅ Graph Metadata Layer and Angular Graph Adapter (canonical `ui-decorators` graph layer, Angular/ngDiagram adapter, workflow-root renderer, and workflow serialization/restoration completed)
@@ -576,8 +587,9 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-32: ✅ Decaf Graph Execution Engine (Phase 1: 14 tasks, 88 tests. Phase 2: graph page UI, node-edit modal, node taxonomy, @connection ports, NestJS backend, full-stack e2e — all completed; 116 graph tests passing)
 - DECAF-33: ✅ Decaf-TS Org-Based Authorization System (specification added; namespace, SQL, and targeted tests implemented)
 - DECAF-34: ✅ Graph Node Type Catalogue (documentation-only; 20 node types catalogued with ports, UI, and CRUD details)
-- DECAF-35: ⏳ Graph Metadata/Engine Split for Frontend/Backend Boundary (specification added; 4 tasks pending — split `./graph` into `./graph/shared` + `./graph` with ESLint boundary enforcement)
+- DECAF-35: ⏳ Graph Metadata/Engine Split for Frontend/Backend Boundary (shared/engine split, export map, and for-angular boundary implemented; final verification still depends on live for-nest infra)
 - DECAF-36: ✅ Graph Canvas Save/Auto-Save & Undo/Redo (all 8 tasks completed — Save button, Auto-Save toggle, GraphHistoryService ring buffer, Undo/Redo, keyboard shortcuts, backend PUT endpoint; 60 for-angular + 172 graph tests pass)
+- DECAF-37: ✅ Fabric Mirror Gating (allowMirroring short-circuits mirror behavior; client override whitelist added; unit tests added)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`

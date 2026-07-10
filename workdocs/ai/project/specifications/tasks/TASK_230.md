@@ -3,32 +3,32 @@
 **ID:** TASK-230
 **Specification:** [DECAF-35](../DECAF_35.md)
 **Priority:** High
-**Status:** Pending
+**Status:** Done
 
 ## 1. Description
 Split `integrations/src/graph/` into `shared/` (frontend-safe metadata, types, constants, nodes) and `engine/` (backend-only execution engine, executors, registry, store, pinning, validation, NestJS module). Add `@decaf-ts/integrations/graph/shared` subpath export. Partition `types.ts` and `constants.ts` into shared vs engine-private parts. Add registry side-effects to the `@node` and `@graph` decorators (in `ui-decorators/graph`) and `Metadata.nodes(): Constructor[]` / `Metadata.workflows(): Constructor[]` accessors (in `ui-decorators/src/overrides/Metadata.ts`) so consumers discover `@node`/`@graph`-decorated classes via the metadata store instead of hand-maintained arrays. Backend convenience export (`./graph`) re-exports both.
 
 ## 2. Objectives
-* [ ] Create `integrations/src/graph/shared/` and `integrations/src/graph/engine/` directories.
-* [ ] Move `graph/nodes/` → `graph/shared/nodes/` (source unchanged; update internal import paths).
-* [ ] Partition `graph/types.ts`: shared types (`ExprValue`, `ConditionExpression`, `CodeCondition`, `SwitchCaseCondition`, `SwitchCase`, `SwitchNodeMetadata`, `NodeMetadataChange`) → `shared/types.ts`; engine-private types → `engine/types.ts`.
-* [ ] Partition `graph/constants.ts`: `GraphExecutionStatus`, `GraphExecutionEventType` → `shared/constants.ts`; engine-private constants → `engine/constants.ts`.
-* [ ] Move `graph/decorators.ts` (`@pinnable`) → `engine/decorators.ts`.
-* [ ] Move all engine modules (`execution/`, `registry/`, `store/`, `planning/`, `validation/`, `loops/`, `pinning/`, `snapshots/`, `errors/`, `events/`) → `engine/`.
-* [ ] (Upstream `ui-decorators/graph`) Create `ui-decorators/src/graph/registry.ts` with `registerNode`/`registerWorkflow`/`graphNodes`/`graphWorkflows`/`resetGraphRegistries` (two `Set<Constructor>` buckets, idempotent).
-* [ ] (Upstream `ui-decorators/graph`) Add registry side-effect to `@node` decorator: after `apply(...)`, call `registerNode(target as Constructor)`. Call signature unchanged.
-* [ ] (Upstream `ui-decorators/graph`) Add registry side-effect to `@graph` decorator: after `apply(...)`, call `registerWorkflow(target as Constructor)`. Call signature unchanged.
-* [ ] (Upstream `ui-decorators/graph`) Create `ui-decorators/src/graph/overrides/Metadata.ts` with `declare module "@decaf-ts/decoration"` namespace augmentation declaring `Metadata.nodes()` and `Metadata.workflows()` (declaration merging — NOT subclassing; `Metadata` has a private constructor).
-* [ ] (Upstream `ui-decorators/graph`) Append runtime attachments to `ui-decorators/src/graph/overrides/overrides.ts`: `(Metadata as any).nodes = ...` / `(Metadata as any).workflows = ...` reading from the registry module.
-* [ ] (Upstream `ui-decorators/graph`) Append `export * from "./Metadata"` to `ui-decorators/src/graph/overrides/index.ts` (existing barrel).
-* [ ] (Upstream `ui-decorators/graph`) Verify `ui-decorators/package.json` `sideEffects` array includes the graph overrides entries (already present).
-* [ ] Create `shared/index.ts` re-exporting `./constants`, `./types`, `./nodes`, and re-exporting `Metadata` (with `nodes()` + `workflows()`) from `@decaf-ts/ui-decorators`.
-* [ ] Create `engine/index.ts` barrel file re-exporting `../shared` + all engine modules.
-* [ ] Update `graph/index.ts` to re-export `./engine`.
-* [ ] Add `"./graph/shared"` entry to `integrations/package.json` `exports`.
-* [ ] Update internal `integrations` imports (nest module, tests) to new paths.
-* [ ] Add unit tests: (a) `Metadata.nodes()` returns exactly the `@node`-decorated constructors from `shared/nodes/` after importing them; (b) `Metadata.workflows()` returns exactly the `@graph`-decorated workflow-root constructors after importing them.
-* [ ] All 116 graph tests pass; ui-decorators tests pass; lint clean; build clean.
+* [x] Create `integrations/src/graph/shared/` and `integrations/src/graph/engine/` directories.
+* [x] Move `graph/nodes/` → `graph/shared/nodes/` (source unchanged; update internal import paths).
+* [x] Partition `graph/types.ts`: shared types (`ExprValue`, `ConditionExpression`, `CodeCondition`, `SwitchCaseCondition`, `SwitchCase`, `SwitchNodeMetadata`, `NodeMetadataChange`) → `shared/types.ts`; engine-private types → `engine/types.ts`.
+* [x] Partition `graph/constants.ts`: `GraphExecutionStatus`, `GraphExecutionEventType` → `shared/constants.ts`; engine-private constants → `engine/constants.ts`.
+* [x] Move `graph/decorators.ts` (`@pinnable`) → `engine/decorators.ts`.
+* [x] Move all engine modules (`execution/`, `registry/`, `store/`, `planning/`, `validation/`, `loops/`, `pinning/`, `snapshots/`, `errors/`, `events/`) → `engine/`.
+* [x] (Upstream `ui-decorators/graph`) Create `ui-decorators/src/graph/registry.ts` with `registerNode`/`registerWorkflow`/`graphNodes`/`graphWorkflows`/`resetGraphRegistries` (two `Set<Constructor>` buckets, idempotent).
+* [x] (Upstream `ui-decorators/graph`) Add registry side-effect to `@node` decorator: after `apply(...)`, call `registerNode(target as Constructor)`. Call signature unchanged.
+* [x] (Upstream `ui-decorators/graph`) Add registry side-effect to `@graph` decorator: after `apply(...)`, call `registerWorkflow(target as Constructor)`. Call signature unchanged.
+* [x] (Upstream `ui-decorators/graph`) Create `ui-decorators/src/graph/overrides/Metadata.ts` with `declare module "@decaf-ts/decoration"` namespace augmentation declaring `Metadata.nodes()` and `Metadata.workflows()` (declaration merging — NOT subclassing; `Metadata` has a private constructor).
+* [x] (Upstream `ui-decorators/graph`) Append runtime attachments to `ui-decorators/src/graph/overrides/overrides.ts`: `(Metadata as any).nodes = ...` / `(Metadata as any).workflows = ...` reading from the registry module.
+* [x] (Upstream `ui-decorators/graph`) Append `export * from "./Metadata"` to `ui-decorators/src/graph/overrides/index.ts` (existing barrel).
+* [x] (Upstream `ui-decorators/graph`) Verify `ui-decorators/package.json` `sideEffects` array includes the graph overrides entries (already present).
+* [x] Create `shared/index.ts` re-exporting `./constants`, `./types`, `./nodes`, and re-exporting `Metadata` (with `nodes()` + `workflows()`) from `@decaf-ts/ui-decorators`.
+* [x] Create `engine/index.ts` barrel file re-exporting `../shared` + all engine modules.
+* [x] Update `graph/index.ts` to re-export `./engine`.
+* [x] Add `"./graph/shared"` entry to `integrations/package.json` `exports`.
+* [x] Update internal `integrations` imports (nest module, tests) to new paths.
+* [x] Add unit tests: (a) `Metadata.nodes()` returns exactly the `@node`-decorated constructors from `shared/nodes/` after importing them; (b) `Metadata.workflows()` returns exactly the `@graph`-decorated workflow-root constructors after importing them.
+* [x] All 116 graph tests pass; ui-decorators tests pass; lint clean; build clean.
 
 ## 3. Implementation Plan
 **Proposed Changes:**
@@ -55,9 +55,9 @@ Split `integrations/src/graph/` into `shared/` (frontend-safe metadata, types, c
 
 ## 4. Verification Plan
 **Automated Tests:**
-* [ ] `npm run build` in `integrations` — both `./graph` and `./graph/shared` resolve.
-* [ ] `npm run lint` in `integrations` — 0 errors.
-* [ ] `npm run test` in `integrations` — 116 graph tests pass.
+* [x] `npm run build` in `integrations` — both `./graph` and `./graph/shared` resolve.
+* [x] `npm run lint` in `integrations` — 0 errors.
+* [x] `npm run test` in `integrations` — 116 graph tests pass.
 
 **Manual Verification:**
 * `node -e "require('@decaf-ts/integrations/graph/shared')"` resolves and exports `Metadata` (with `nodes()` + `workflows()`), `AgentNode`, `SwitchFlowNode`, `GraphExecutionEventType`.

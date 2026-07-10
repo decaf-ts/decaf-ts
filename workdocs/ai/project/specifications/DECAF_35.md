@@ -1,6 +1,6 @@
 # DECAF-35: Graph Metadata/Engine Split for Frontend/Backend Boundary
 
-**Status:** Planned
+**Status:** In Progress — the shared/engine split, export map, and for-angular boundary are implemented; final verification still depends on live for-nest infrastructure.
 **Priority:** High
 **Owner:** decaf-dev
 
@@ -35,16 +35,16 @@ The split follows the existing `integrations` subpath convention (`./secrets/aws
 
 ## 2. Goals
 
-* [ ] Split `integrations/src/graph/` into `shared/` (frontend-safe) and `engine/` (backend-only) subtrees.
-* [ ] Add `@decaf-ts/integrations/graph/shared` subpath export in `integrations/package.json`.
-* [ ] `@decaf-ts/integrations/graph` re-exports `./shared` plus the engine (backend convenience unchanged).
-* [ ] All shared types (`SwitchNodeMetadata`, `SwitchCase`, `SwitchCaseCondition`, `ConditionExpression`, `CodeCondition`, `ExprValue`, `NodeMetadataChange`) live in `shared/types.ts`.
-* [ ] All shared enums (`GraphExecutionEventType`, `GraphExecutionStatus`) live in `shared/constants.ts`.
-* [ ] `@node` decorator registers each class in a node registry (alongside its existing per-class `GraphKeys.NODE` metadata); `Metadata.nodes()` accessor added via the `ui-decorators` override so consumers can discover all `@node`-decorated classes without a hand-maintained array. See §4.4.
-* [ ] `@graph` decorator registers each workflow-root class in a workflow registry (alongside its existing per-class `GraphKeys.GRAPH` metadata); `Metadata.workflows()` accessor added via the same override, mirroring `Metadata.nodes()`. See §4.4.
-* [ ] ESLint `no-restricted-imports` rule in for-angular forbidding `@decaf-ts/integrations/graph` (full) and `@decaf-ts/integrations/graph/*` except `./shared`.
-* [ ] All for-angular production imports repointed to `@decaf-ts/integrations/graph/shared`.
-* [ ] In-browser demo executors (`graph-demo-executors.ts`, `GraphExecutionService`, `GraphExecutionEventSubjectObserver`, `GraphExecutionStateMapper.spec.ts`) quarantined to a dev-only entry or migrated to the NestJS SSE backend (TASK-224/226).
+* [x] Split `integrations/src/graph/` into `shared/` (frontend-safe) and `engine/` (backend-only) subtrees.
+* [x] Add `@decaf-ts/integrations/graph/shared` subpath export in `integrations/package.json`.
+* [x] `@decaf-ts/integrations/graph` re-exports `./shared` plus the engine (backend convenience unchanged).
+* [x] All shared types (`SwitchNodeMetadata`, `SwitchCase`, `SwitchCaseCondition`, `ConditionExpression`, `CodeCondition`, `ExprValue`, `NodeMetadataChange`) live in `shared/types.ts`.
+* [x] All shared enums (`GraphExecutionEventType`, `GraphExecutionStatus`) live in `shared/constants.ts`.
+* [x] `@node` decorator registers each class in a node registry (alongside its existing per-class `GraphKeys.NODE` metadata); `Metadata.nodes()` accessor added via the `ui-decorators` override so consumers can discover all `@node`-decorated classes without a hand-maintained array. See §4.4.
+* [x] `@graph` decorator registers each workflow-root class in a workflow registry (alongside its existing per-class `GraphKeys.GRAPH` metadata); `Metadata.workflows()` accessor added via the same override, mirroring `Metadata.nodes()`. See §4.4.
+* [x] ESLint `no-restricted-imports` rule in for-angular forbidding `@decaf-ts/integrations/graph` (full) and `@decaf-ts/integrations/graph/*` except `./shared`.
+* [x] All for-angular production imports repointed to `@decaf-ts/integrations/graph/shared`.
+* [x] In-browser demo executors (`graph-demo-executors.ts`, `GraphExecutionService`, `GraphExecutionEventSubjectObserver`, `GraphExecutionStateMapper.spec.ts`) quarantined to a dev-only entry or migrated to the NestJS SSE backend (TASK-224/226).
 * [ ] All existing graph tests (116) continue to pass; lint clean; build clean.
 
 ## 3. User Stories / Requirements
@@ -325,9 +325,9 @@ This specification is broken down into the following tasks.
 
 | ID | Task Name | Priority | Status | Dependencies |
 |:---|:---|:---|:---|:---|
-| TASK-230 | Split `integrations/src/graph/` into `shared/` and `engine/` subtrees, partition types/constants, add `./graph/shared` export. Add `@node`/`@graph` registry side-effects and `Metadata.nodes()` / `Metadata.workflows()` accessors in `ui-decorators/graph` (see §4.4) | High | Pending | — |
-| TASK-231 | Add ESLint `no-restricted-imports` boundary in for-angular and repoint all production imports to `@decaf-ts/integrations/graph/shared` | High | Pending | TASK-230 |
-| TASK-232 | Quarantine or migrate the in-browser demo executors (`graph-demo-executors.ts`, `GraphExecutionService`, `GraphExecutionEventSubjectObserver`) out of the production bundle | High | Pending | TASK-231 |
+| TASK-230 | Split `integrations/src/graph/` into `shared/` and `engine/` subtrees, partition types/constants, add `./graph/shared` export. Add `@node`/`@graph` registry side-effects and `Metadata.nodes()` / `Metadata.workflows()` accessors in `ui-decorators/graph` (see §4.4) | High | Done | — |
+| TASK-231 | Add ESLint `no-restricted-imports` boundary in for-angular and repoint all production imports to `@decaf-ts/integrations/graph/shared` | High | Done | TASK-230 |
+| TASK-232 | Quarantine or migrate the in-browser demo executors (`graph-demo-executors.ts`, `GraphExecutionService`, `GraphExecutionEventSubjectObserver`) out of the production bundle | High | Done | TASK-231 |
 | TASK-233 | Verify all 116 graph tests pass, lint clean, build clean, for-angular production bundle contains no engine code | Medium | Pending | TASK-232 |
 
 ### TASK-230 — Split graph package into `shared/` and `engine/`

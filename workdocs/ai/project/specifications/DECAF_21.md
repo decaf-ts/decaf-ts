@@ -1,6 +1,6 @@
 # DECAF-21 — Fabric Channel Manager Service
 
-**Status:** Planned
+**Status:** Rejected — deferred / not pursued in this workspace.
 **Priority:** High
 **Owner:** Codex
 
