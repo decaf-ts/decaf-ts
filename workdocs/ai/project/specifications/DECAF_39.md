@@ -10,12 +10,15 @@ This specification defines a feature-flag system for Decaf-TS that is exposed fr
 
 The goal is to let application developers control exactly which features are available at runtime and at render time. The system must support persisted feature configuration, feature-aware model decoration, feature-aware endpoint exposure, and feature-aware UI visibility controls.
 
-The design should reuse the existing Decaf patterns for model decoration, repository-backed persistence, and service orchestration so feature flags behave like a first-class Decaf capability rather than an ad hoc application concern.
+The design should reuse the existing Decaf patterns for model decoration, repository-backed persistence, environment-driven configuration, and service orchestration so feature flags behave like a first-class Decaf capability rather than an ad hoc application concern.
 
 ## 2. Goals
 
-*   Define a persisted feature-configuration model and the repositories/services needed to manage it.
+*   Define a persisted feature-configuration model, plus persisted feature-access assignments, and the repositories/services needed to manage them.
 *   Expose a named `feature-flags` export from `@decaf-ts/integrations`.
+*   Load feature configuration from Decaf's `Environment` object so different containers can enable different feature sets.
+*   Read feature configuration through an async, swappable reader abstraction so the service can load flags from `Environment` by default or from another source when configured.
+*   Cache the fully resolved feature-flag registry after initialization so enabled/disabled checks can run synchronously.
 *   Provide feature-scoped model decorators analogous to `@roles` and `@namespace`.
 *   Provide feature-scoped endpoint decorators analogous to `@auth()` and `@blockOperations`.
 *   Provide feature-scoped UI decorators analogous to `@renderIf` and `@hideOn`.
@@ -29,11 +32,16 @@ The design should reuse the existing Decaf patterns for model decoration, reposi
 *   **US-3:** As a frontend developer, I want UI elements to render only when their feature is enabled so that the user interface matches server-side availability.
 *   **US-4:** As a platform maintainer, I want feature configuration persisted in Decaf models and accessed through repositories/services so that feature state is queryable, testable, and reusable.
 *   **Req-1:** `@decaf-ts/integrations` must expose a named `feature-flags` export surface for consumers.
-*   **Req-2:** Feature configuration must be persisted through Decaf model-backed storage rather than only in process memory.
-*   **Req-3:** Feature-scoped model decoration must support assigning specific models to specific features.
-*   **Req-4:** Feature-scoped endpoint decoration must support exposing or hiding operations in a way analogous to `@auth()` and `@blockOperations`.
-*   **Req-5:** Feature-scoped UI decoration must support rendering or hiding elements in a way analogous to `@renderIf` and `@hideOn`.
-*   **Req-6:** Feature checks must be available to repositories and services so availability can be enforced before business logic runs.
+*   **Req-2:** Feature configuration must be loaded from Decaf's `Environment` object using `FEATURE_FLAG__FEATURE_NAME__*` keys, where the normalized JavaScript `Environment` shape is `featureFlag: { featureName: { ...feature configs } }`.
+*   **Req-3:** The presence of `featureFlag.featureName = true` or `featureFlag.featureName = { ...config }` must indicate that the feature is enabled.
+*   **Req-4:** Feature reads must be performed through an async reader abstraction, defaulting to `EnvironmeFlagReader`, so sources beyond `Environment` can be supported later.
+*   **Req-5:** The reader abstraction must be swappable through the feature-flag service initialization configuration.
+*   **Req-6:** The service must resolve the full feature-flag registry once, cache it, and then support synchronous enabled/disabled checks against that cache.
+*   **Req-7:** Feature configuration must also be persisted through Decaf model-backed storage rather than only in process memory.
+*   **Req-8:** Feature-scoped model decoration must support assigning specific models to specific features.
+*   **Req-9:** Feature-scoped endpoint decoration must support exposing or hiding operations in a way analogous to `@auth()` and `@blockOperations`.
+*   **Req-10:** Feature-scoped UI decoration must support rendering or hiding elements in a way analogous to `@renderIf` and `@hideOn`.
+*   **Req-11:** Feature checks must be available to repositories and services so availability can be enforced before business logic runs.
 
 ## 4. Architecture & Design
 
@@ -61,9 +69,36 @@ The model layer should support at least:
 *   an enabled/disabled state
 *   optional metadata describing rollout intent
 *   optional scoping information for tenant, namespace, or environment use cases
-*   optional assignment rules for models, routes, or UI targets
+*   optional assignment rules for models, routes, UI targets, users, accounts, or namespaces
 
 The exact schema can be refined during implementation, but the spec requires a persistent source of truth for feature state.
+
+### 4.2.1 Environment mapping
+
+Feature flag loading must originate from Decaf's `Environment` object so each container can supply its own feature configuration.
+
+The required environment variable naming convention is:
+
+```text
+FEATURE_FLAG__FEATURE_NAME__*
+```
+
+The resulting JavaScript `Environment` shape must normalize to:
+
+```ts
+featureFlag: {
+  featureName: {
+    ...featureConfigs
+  }
+}
+```
+
+The feature is considered enabled when the resolved `featureFlag.featureName` entry exists and is either:
+
+*   `true`, or
+*   a configuration object containing feature settings
+
+This keeps the runtime rule simple: presence means on.
 
 ### 4.3 Repository and service layer
 
@@ -73,11 +108,21 @@ The repository/service layer should support:
 
 *   creating and updating feature definitions
 *   enabling and disabling features
-*   querying feature state by key or scope
+*   querying feature state by key or scope using actual repository predicates
+*   persisting access assignments for users, accounts, namespaces, and models
+*   querying which users/accounts/namespaces/models can access which features without full-table scans
 *   resolving whether a feature is active for a given execution context
 *   applying feature checks in backend workflows before actions proceed
 
 This layer should be the single place where feature resolution policy lives.
+
+Feature resolution must not read `Environment` directly inside service methods. Instead, the feature-flag service must depend on an async reader abstraction that can be injected or selected at initialization time.
+
+The default reader should be `EnvironmeFlagReader`, which resolves from Decaf's `Environment` object, but the service `initialize()` contract must allow a different reader implementation to be supplied through config.
+
+The reader API must be asynchronous so alternate sources can be supported without changing the service contract later.
+
+The feature-flag service should resolve the full registry during initialization, merge any persisted feature rows into that registry, cache the final object, and use the cache for sync checks like `isEnabled()`. The persistence-facing service remains a `ModelService` over the `FeatureFlag` model so adapter-bound consumers can use the normal CRUD/query API. Feature-access assignments should be stored in their own persisted model and resolved with `select().where(...).execute()` predicates rather than full scans.
 
 ### 4.4 Model decoration
 
@@ -148,6 +193,7 @@ This specification is broken down into the following tasks. Each task should be 
 *   Should endpoint decorators suppress route registration entirely, or should they register the route and return an access-denied response?
 *   Should UI decorators omit the element from the metadata tree entirely, or keep it present but hidden for introspection and tooling?
 *   Do feature assignments need priority and conflict resolution when multiple scopes apply to the same model or route?
+*   Are feature-access assignments allowlists only, or should they also support explicit deny rules per subject?
 
 ## 7. Results & Artifacts
 

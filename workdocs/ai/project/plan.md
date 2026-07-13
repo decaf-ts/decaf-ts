@@ -560,6 +560,41 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-40 — BI Dashboard Embed Plugins (Kibana & Superset)
+- **Priority:** High
+- **Goal:** Add two dedicated plugin subtrees under `integrations/src/plugins/` (kibana + superset) with corresponding named exports. Both implement the exact same `DashboardEmbedPlugin` API. Kibana = generated plugin source + installer (write + optional build). Superset = patch-and-build strategy (patches Superset's internal embedded frontend + SDK source, builds SDK + frontend + optionally Docker image). Both are org-agnostic (no space switching).
+- **Status:** Completed — shared contract, Kibana plugin (manifest, templates, installer, host helpers), Superset plugin (manifest, patch/build templates, installer with clone+patch+build, host helpers), package exports, README, 59 unit tests passing, Playwright e2e visual test scaffolding created. Lint and build clean.
+- **Link:** [Specification Details](./specifications/DECAF_40.md)
+- **Tasks:**
+  - [x] [DECAF-40-1](./specifications/tasks/TASK_40_1.md): Define the shared DOM-free `DashboardEmbedPlugin` contract and message protocol.
+  - [x] [DECAF-40-2](./specifications/tasks/TASK_40_2.md): Implement the Kibana plugin (manifest, templates, installer with install/build API, host helpers).
+  - [x] [DECAF-40-3](./specifications/tasks/TASK_40_3.md): Implement the Superset plugin (patch scripts, build scripts, installer with clone+patch+build, host helpers) — same API as Kibana.
+  - [x] [DECAF-40-4](./specifications/tasks/TASK_40_4.md): Wire package subpath exports, README, unit tests, and Playwright e2e visual test scaffolding for both plugins.
+
+---
+
+## DECAF-41 — Kibana Index Pattern Builder
+- **Priority:** High
+- **Goal:** Add a fluent `KibanaIndexBuilder` (and `KibanaIndexBuilderCollection`) to `integrations/src/kibana/builders/` following the project Builder Pattern. Supports three matching modes: exact match, prefix/glob, and logger-generated (deriving index name segments from `LogParameterRegistry` custom properties). Produces `KibanaDataViewConfig` objects directly consumable by `KibanaDataViewService`.
+- **Status:** Completed — `KibanaIndexBuilder` with 3 matching modes (EXACT, PREFIX, LOGGER_GENERATED), `KibanaIndexBuilderCollection`, helpers refactored to use builder, exports wired, README updated, 21 unit tests passing, lint and build clean.
+- **Link:** [Specification Details](./specifications/DECAF_41.md)
+- **Tasks:**
+  - [x] [DECAF-41-1](./specifications/tasks/TASK_41_1.md): Define `KibanaIndexMatchMode` enum, builder option types, and add `KibanaIndexBuilder` class with all three matching strategies.
+  - [x] [DECAF-41-2](./specifications/tasks/TASK_41_2.md): Add `KibanaIndexBuilderCollection` for multi-builder chains and refactor `createDefaultKibanaDataViewConfigs` to use the builder.
+  - [x] [DECAF-41-3](./specifications/tasks/TASK_41_3.md): Wire exports, update README, add unit tests (all three modes, validation, collection, service integration).
+
+## DECAF-42 — Controlled SSE Subscriptions for for-http and for-nest
+- **Priority:** High
+- **Goal:** Keep the current broadcast SSE behavior as the default, but add an opt-in subscription mode where `for-http` explicitly subscribes/unsubscribes and `for-nest` filters events per subscriber. This should support private frontend event delivery without breaking existing observable consumers.
+- **Status:** Completed — broadcast mode retained, opt-in subscription mode implemented, and live tests pass with 5+ concurrent consumers.
+- **Link:** [Specification Details](./specifications/DECAF_42.md)
+- **Tasks:**
+  - [x] [DECAF-42-1](./specifications/tasks/TASK_245.md): Define subscription mode, registry contract, and filtering semantics.
+  - [x] [DECAF-42-2](./specifications/tasks/TASK_246.md): Extend the `for-http` SSE connector to register and unregister subscriptions.
+  - [x] [DECAF-42-3](./specifications/tasks/TASK_247.md): Add live tests and docs for broadcast default behavior, 5+ consumer fan-out correctness, and private subscription mode.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -604,6 +639,9 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-36: ✅ Graph Canvas Save/Auto-Save & Undo/Redo (all 8 tasks completed — Save button, Auto-Save toggle, GraphHistoryService ring buffer, Undo/Redo, keyboard shortcuts, backend PUT endpoint; 60 for-angular + 172 graph tests pass)
 - DECAF-37: ✅ Fabric Mirror Gating (allowMirroring short-circuits mirror behavior; client override whitelist added; unit tests added)
 - DECAF-38: ✅ Integrations Object Loader Framework (base loader, concrete loaders, hook pipeline, export surface, docs, and verification completed)
+- DECAF-40: ✅ BI Dashboard Embed Plugins (Kibana + Superset) — shared contract, both plugins implemented with identical API, 59 unit tests passing, Playwright e2e scaffolding created; live instance visual validation pending
+- DECAF-41: ✅ Kibana Index Pattern Builder (`KibanaIndexBuilder` with 3 matching modes: exact, prefix/glob, logger-generated; collection helper; helpers refactored; 21 unit tests passing)
+- DECAF-42: ✅ Controlled SSE Subscriptions for for-http and for-nest (broadcast default retained; 5+ consumer fan-out and opt-in subscribe/unsubscribe private delivery mode implemented and tested)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
