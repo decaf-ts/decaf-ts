@@ -646,6 +646,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-40: ✅ BI Dashboard Embed Plugins (Kibana + Superset) — shared contract, both plugins implemented with identical API, 59 unit tests passing, Playwright e2e scaffolding created; live instance visual validation pending
 - DECAF-41: ✅ Kibana Index Pattern Builder (`KibanaIndexBuilder` with 3 matching modes: exact, prefix/glob, logger-generated; collection helper; helpers refactored; 21 unit tests passing)
 - DECAF-42: ✅ Controlled SSE Subscriptions for for-http and for-nest (broadcast default retained; 5+ consumer fan-out and opt-in subscribe/unsubscribe private delivery mode implemented and tested)
+- DECAF-43: ✅ Keycloak Realm Brokering and End-to-End Auth Flow Matrix (separate broker contracts, dual-Keycloak Traefik/oauth2-proxy harness, and live OIDC/SAML matrix complete)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
