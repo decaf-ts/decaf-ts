@@ -1,6 +1,6 @@
 # DECAF-35: Graph Metadata/Engine Split for Frontend/Backend Boundary
 
-**Status:** In Progress — the shared/engine split, export map, and for-angular boundary are implemented; final verification still depends on live for-nest infrastructure.
+**Status:** Completed — the shared/engine split, export map, for-angular boundary, and final verification (TASK-233) are all complete. Production bundle confirmed free of engine code.
 **Priority:** High
 **Owner:** decaf-dev
 
@@ -45,7 +45,7 @@ The split follows the existing `integrations` subpath convention (`./secrets/aws
 * [x] ESLint `no-restricted-imports` rule in for-angular forbidding `@decaf-ts/integrations/graph` (full) and `@decaf-ts/integrations/graph/*` except `./shared`.
 * [x] All for-angular production imports repointed to `@decaf-ts/integrations/graph/shared`.
 * [x] In-browser demo executors (`graph-demo-executors.ts`, `GraphExecutionService`, `GraphExecutionEventSubjectObserver`, `GraphExecutionStateMapper.spec.ts`) quarantined to a dev-only entry or migrated to the NestJS SSE backend (TASK-224/226).
-* [ ] All existing graph tests (116) continue to pass; lint clean; build clean.
+* [x] All existing graph tests (116) continue to pass; lint clean; build clean.
 
 ## 3. User Stories / Requirements
 
@@ -328,7 +328,7 @@ This specification is broken down into the following tasks.
 | TASK-230 | Split `integrations/src/graph/` into `shared/` and `engine/` subtrees, partition types/constants, add `./graph/shared` export. Add `@node`/`@graph` registry side-effects and `Metadata.nodes()` / `Metadata.workflows()` accessors in `ui-decorators/graph` (see §4.4) | High | Done | — |
 | TASK-231 | Add ESLint `no-restricted-imports` boundary in for-angular and repoint all production imports to `@decaf-ts/integrations/graph/shared` | High | Done | TASK-230 |
 | TASK-232 | Quarantine or migrate the in-browser demo executors (`graph-demo-executors.ts`, `GraphExecutionService`, `GraphExecutionEventSubjectObserver`) out of the production bundle | High | Done | TASK-231 |
-| TASK-233 | Verify all 116 graph tests pass, lint clean, build clean, for-angular production bundle contains no engine code | Medium | Pending | TASK-232 |
+| TASK-233 | Verify all 116 graph tests pass, lint clean, build clean, for-angular production bundle contains no engine code | Medium | Done | TASK-232 |
 
 ### TASK-230 — Split graph package into `shared/` and `engine/`
 

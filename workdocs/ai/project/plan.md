@@ -497,24 +497,28 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ## DECAF-34 — Graph Node Type Catalogue
 - **Priority:** Medium
-- **Goal:** Catalogue all 20 graph node types (6 trigger + 10 flow-control/utility + 3 loop + 1 agent) from the Alfred AI specs (ALFRED-5/6/7/8, UPSTREAM-1) and DECAF-32 into a single reference document with per-node identity, functionality, ports (inputs/outputs/connections), UI rendering, and CRUD edit screen details.
-- **Status:** Completed — documentation-only specification; no code tasks. All node declarations already exist in `integrations/src/graph/nodes/` (DECAF-32 TASK-228/TASK-229).
+- **Goal:** Catalogue all graph node types (6 trigger + 11 flow-control/utility + 3 loop + 1 agent) from the Alfred AI specs (ALFRED-5/6/7/8, UPSTREAM-1) and DECAF-32 into a single reference document with per-node identity, functionality, ports (inputs/outputs/connections), UI rendering, and CRUD edit screen details.
+- **Status:** Re-opened — the For-Each node was revised to a self-connected loop-closure port model (`@connection` bottom `loop` port + `body`/`completed` outputs + `slice` config input), and a new `core.flow.break` node was added (declaration + `BreakGraphNodeExecutor` + `GraphBreakSignal`). Spec, executors, registry factory, for-angular demo node, and unit tests updated; all builds and graph tests green.
 - **Link:** [Specification Details](./specifications/DECAF_34.md)
 - **Tasks:**
   - (documentation only — node declarations already exist in DECAF-32 TASK-228/TASK-229)
+  - [x] Revise For-Each port model (loop-closure `@connection` port, `completed` output, `slice` input) in spec + `GraphForeachLoopNode`.
+  - [x] Add `core.flow.break` node (`BreakFlowNode` declaration, `BreakGraphNodeExecutor`, `GraphBreakSignal`).
+  - [x] Update `ForeachGraphNodeExecutor` for `slice` grouping + cooperative break termination.
+  - [x] Register break executor in `GraphExecutorRegistryFactory`; add unit tests.
 
 ---
 
 ## DECAF-35 — Graph Metadata/Engine Split for Frontend/Backend Boundary
 - **Priority:** High
 - **Goal:** Split `integrations/src/graph/` into `shared/` (frontend-safe metadata, types, constants, node catalogue) and `engine/` (backend-only execution engine, executors, registry, store, pinning, validation, NestJS module) with two subpath exports: `@decaf-ts/integrations/graph/shared` (frontend) and `@decaf-ts/integrations/graph` (backend, re-exports shared + engine). Enforce the boundary via ESLint `no-restricted-imports` in for-angular.
-- **Status:** In Progress — the shared/engine split, export map, and for-angular boundary are implemented; final verification still depends on live for-nest infrastructure.
+- **Status:** Completed — the shared/engine split, export map, for-angular boundary, and final verification (TASK-233) are all complete. Production bundle confirmed free of engine code; all graph tests, lint, and builds green.
 - **Link:** [Specification Details](./specifications/DECAF_35.md)
 - **Tasks:**
   - [x] [TASK-230](./specifications/tasks/TASK_230.md): Split `integrations/src/graph/` into `shared/` and `engine/` subtrees, partition types/constants, add `./graph/shared` export and `ALL_GRAPH_NODES` catalogue.
   - [x] [TASK-231](./specifications/tasks/TASK_231.md): Add ESLint `no-restricted-imports` boundary in for-angular and repoint all production imports to `@decaf-ts/integrations/graph/shared`.
   - [x] [TASK-232](./specifications/tasks/TASK_232.md): Quarantine or migrate the in-browser demo executors out of the production bundle (SSE backend migration preferred).
-  - [ ] [TASK-233](./specifications/tasks/TASK_233.md): Final verification — all builds/lints/tests green, production bundle has no engine code, no circular imports.
+  - [x] [TASK-233](./specifications/tasks/TASK_233.md): Final verification — all builds/lints/tests green, production bundle has no engine code, no circular imports.
 
 ---
 
@@ -634,8 +638,8 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
 - DECAF-32: ✅ Decaf Graph Execution Engine (Phase 1: 14 tasks, 88 tests. Phase 2: graph page UI, node-edit modal, node taxonomy, @connection ports, NestJS backend, full-stack e2e — all completed; 116 graph tests passing)
 - DECAF-33: ✅ Decaf-TS Org-Based Authorization System (namespace auth, UI wrappers, Keycloak support, and for-nest compatibility implemented and verified)
-- DECAF-34: ✅ Graph Node Type Catalogue (documentation-only; 20 node types catalogued with ports, UI, and CRUD details)
-- DECAF-35: ⏳ Graph Metadata/Engine Split for Frontend/Backend Boundary (shared/engine split, export map, and for-angular boundary implemented; final verification still depends on live for-nest infra)
+- DECAF-34: 🔁 Graph Node Type Catalogue (re-opened: For-Each revised to loop-closure port model + `core.flow.break` node added; 21 node types, spec + executors + tests updated, all builds/tests green)
+- DECAF-35: ✅ Graph Metadata/Engine Split for Frontend/Backend Boundary (shared/engine split, export map, for-angular boundary, and final verification TASK-233 all completed; production bundle confirmed free of engine code)
 - DECAF-36: ✅ Graph Canvas Save/Auto-Save & Undo/Redo (all 8 tasks completed — Save button, Auto-Save toggle, GraphHistoryService ring buffer, Undo/Redo, keyboard shortcuts, backend PUT endpoint; 60 for-angular + 172 graph tests pass)
 - DECAF-37: ✅ Fabric Mirror Gating (allowMirroring short-circuits mirror behavior; client override whitelist added; unit tests added)
 - DECAF-38: ✅ Integrations Object Loader Framework (base loader, concrete loaders, hook pipeline, export surface, docs, and verification completed)

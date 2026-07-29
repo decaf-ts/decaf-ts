@@ -1,6 +1,6 @@
 # DECAF-34: Graph Node Type Catalogue
 
-**Status:** Completed
+**Status:** In Progress — re-opened for the For-Each loop visual/execution model redesign (self-connected loop-closure port, slice input, break node, after-loop output).
 **Priority:** Medium
 **Owner:** AI Agent
 
@@ -34,10 +34,10 @@ This is a **documentation-only** specification — no code tasks. All node decla
 | Category | Count | Kinds |
 |:---|:---|:---|
 | Trigger | 6 | `core.trigger.manual`, `core.trigger.webhook`, `core.trigger.schedule`, `core.trigger.event`, `core.trigger.form`, `core.trigger.chat` |
-| Flow Control | 7 | `core.flow.if`, `core.flow.switch`, `core.flow.parallel`, `core.flow.errorBoundary`, `core.flow.humanApproval`, `core.loop.foreach`, `core.loop.while`, `core.loop.until` |
+| Flow Control | 8 | `core.flow.if`, `core.flow.switch`, `core.flow.parallel`, `core.flow.errorBoundary`, `core.flow.humanApproval`, `core.flow.break`, `core.loop.foreach`, `core.loop.while`, `core.loop.until` |
 | Utility | 4 | `core.flow.merge`, `core.flow.map`, `core.flow.delay`, `core.flow.return`, `core.flow.code` |
 | Agent | 1 | `core.agent` |
-| **Total** | **20** | |
+| **Total** | **21** | |
 
 > **Note:** The loop nodes (`core.loop.foreach/while/until`) are grouped under Flow Control in the palette but have built-in engine executors (DECAF-32 §5.9), unlike the other flow-control kinds which are graph macros compiled by ALFRED-5.
 
@@ -353,25 +353,87 @@ Flow-control nodes are **graph-level macros**. The engine's planner recognises t
 | **Class** | `GraphForeachLoopNode` (for-angular demo layer) |
 | **Icon** | `ti-repeat` |
 | **Colour** | `#eab308` (yellow) |
-| **Size** | 96×96 |
-| **Purpose** | Iterates over an input array and executes a body subworkflow for each item. Has a **built-in engine executor** (`ForeachGraphNodeExecutor`, DECAF-32 §5.9). |
+| **Size** | 120×140 |
+| **Purpose** | Iterates over an input array and executes a body subworkflow for each item (or slice of items). Has a **built-in engine executor** (`ForeachGraphNodeExecutor`, DECAF-32 §5.9). |
 
-**Ports:**
+**Port model (revised):**
 
-| Port | Direction | Handle | Label | Type |
-|:---|:---|:---|:---|:---|
-| items | INPUT | `items` | Items | `unknown[]` |
-| body | OUTPUT | `body` | Item Flow (body subworkflow) | `branch` |
+The For-Each node has a **self-connected loop-closure port** on the bottom edge (rendered via the `@connection` decorator, the only bottom-side port primitive) that MUST be connected to its own `body` output port. This symbolizes the loop: the `body` output carries the current item(s) into the loop body, and the `loop` connection port on the bottom receives the processed result back, closing the loop. The loop body itself is still compiled from `metadata.loop.body` (a `GraphWorkflowDefinition`); the `body`→`loop` self-connection is the visual contract that encloses the body nodes. When the node is placed on the canvas empty (no body connected), the `loop` port shows a **placeholder** that the user can click to add nodes to the loop body. The `loop` port can only and MUST at all times close the loop on all the nodes inside the for-each.
+
+The renderer supports three port sides: `@input` (LEFT), `@output` (RIGHT), and `@connection` (BOTTOM). There is no TOP-side port; `completed` is therefore a regular `@output` port on the RIGHT, ordered after `body`.
+
+| Port | Direction | Side | Handle | Label | Type | Notes |
+|:---|:---|:---|:---|:---|:---|:---|
+| items | INPUT | LEFT | `items` | Items | `unknown[]` | Must be an array or mapped to an array. |
+| slice | INPUT (config) | LEFT | `slice` | Slice size | `number` | How many items are taken from the input list at a time. Default `1`. Port is NOT open by default (configuration-only). |
+| item | OUTPUT | RIGHT | `item` | Item | `unknown` | Carries the current item(s) into the loop body. MUST be connected to the `loop` connection port. The connection is mandatory and non-deletable; a ghost/placeholder node always sits between `item` and `loop`. |
+| loop | CONNECTION (loop-closure) | BOTTOM | `loop` | Loop closure | `unknown` | `@connection` port. Receives the processed result from the body nodes. MUST be self-connected to `item` via a ghost node. `connectionRules.allowSelf: true`. |
+| completed | OUTPUT | TOP | `completed` | After loop | `unknown[]` | Represents the flow after the loop ends. Carries the collected results array. Rendered on the TOP side of the node. |
+
+**Visual contract:**
+
+```txt
+         ○ completed (TOP — after-loop output)
+    ┌───────────────────────────┐
+    │  [×] [⚙] [📌]             │
+    │     [ti-repeat]           │
+    │     For Each              │
+    │                           │
+    │ ○ items      item     ○───┼──→ [ghost/add] ──→ loop ○
+    │ ○ slice (config)          │
+    │                           │
+    │         ○ loop (BOTTOM)   │
+    └───────────────────────────┘
+```
+
+The `item` output (right) connects through a mandatory ghost/placeholder node to the `loop` connection port (bottom), enclosing the loop body nodes visually. The ghost node acts as an "add node" button — clicking it opens the palette to insert a node into the loop body. The `item`→ghost→`loop` connection is mandatory and non-deletable. `completed` is the TOP-side output, carrying the collected results after the loop ends.
 
 **CRUD / Edit screen:**
 
 | Property | Editor | Notes |
 |:---|:---|:---|
 | `items` | `PortToggleCrudComponent` | Manual array OR connected from upstream port |
-| `concurrency` | Standard CRUD (number input) | Positive integer; default 1 |
-| `body` | Graph subworkflow editor | The body is a sub-graph compiled from the `body` output's downstream nodes |
+| `slice` | Standard CRUD (number input) | Positive integer; default `1`. How many items per iteration. Port NOT open by default. |
+| `maxIterations` | Standard CRUD (number input) | Positive integer; default `100` |
+| `body` | Graph subworkflow editor / placeholder | The body is the `metadata.loop.body` sub-workflow. Click the `loop` placeholder to add nodes. |
 
-**Validation:** Input must be array-like; body output must be connected; `concurrency` must be a positive integer.
+**Validation:**
+* Input `items` must be an array or mappable to an array (non-array inputs are wrapped in a single-element array with a warning).
+* `slice` must be a positive integer; default `1`.
+* The `loop` input port MUST be connected to the `body` output port at all times (the loop must close).
+* `maxIterations` must be a positive integer.
+* If a `core.flow.break` node fires inside the loop body, the loop terminates early and `completed` carries the results collected so far.
+
+---
+
+### 6.3.1 Break
+
+| Field | Value |
+|:---|:---|
+| **Engine kind** | `core.flow.break` |
+| **ALFRED-5 kind** | (none — DECAF addition) |
+| **Class** | `BreakFlowNode` (`flow-control.ts`) |
+| **Icon** | `ti-square-arrow-right` |
+| **Colour** | `#ef4444` (red) |
+| **Size** | 96×96 |
+| **Purpose** | Breaks out of the enclosing loop (foreach/while/until). When executed inside a loop body, the loop terminates early and the loop's `completed`/`state` output carries the results collected so far. |
+
+**Ports:**
+
+| Port | Direction | Handle | Label | Type |
+|:---|:---|:---|:---|:---|
+| value | INPUT | `value` | Value | `unknown` |
+| broken | OUTPUT | `broken` | Broken | `unknown` |
+
+**CRUD / Edit screen:**
+
+| Property | Editor | Notes |
+|:---|:---|:---|:---|
+| `value` | `PortToggleCrudComponent` | Value to forward (the loop collects this as the last partial result) |
+
+**Validation:** Must only be used inside a loop body (`core.loop.foreach`, `core.loop.while`, `core.loop.until`). Using a Break node outside a loop is a validation error.
+
+**Execution semantics:** When the `BreakFlowNode` executor runs, it throws a special `GraphBreakSignal` that the enclosing loop executor catches. The loop stops iterating, emits a `LOOP_COMPLETED` event with a `broken: true` metadata flag, and returns the results collected so far on the `completed` output port.
 
 ---
 
