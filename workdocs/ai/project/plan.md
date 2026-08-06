@@ -601,13 +601,13 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ## DECAF-44 — for-angular Cron Selector Web Component
 - **Priority:** High
-- **Goal:** Add a standalone Ionic cron selector in `for-angular` that visually builds medication-style schedules and emits raw cron output, including support for daily multi-time schedules and semicolon-separated multi-schedule handling in the calendar service.
-- **Status:** Proposed — specification added; implementation tasks pending.
+- **Goal:** Add a standalone Ionic cron selector in `for-angular` that visually builds medication-style schedules and emits raw cron output, including support for daily multi-time schedules and semicolon-separated multi-schedule output.
+- **Status:** Completed — standalone Ionic picker and demo page/route implemented with unit coverage.
 - **Link:** [Specification Details](./specifications/DECAF_44.md)
 - **Tasks:**
-  - [ ] [TASK-253](./specifications/tasks/TASK_253.md): Define the cron-selector contract, serialization rules, and calendar-service multi-schedule requirements.
-  - [ ] [TASK-254](./specifications/tasks/TASK_254.md): Implement the Ionic standalone cron-selector component and reactive-form binding.
-  - [ ] [TASK-255](./specifications/tasks/TASK_255.md): Update the calendar service for semicolon-separated cron expressions and add verification coverage.
+  - [x] [TASK-253](./specifications/tasks/TASK_253.md): Define the cron-selector contract, serialization rules, and downstream multi-schedule expectations.
+  - [x] [TASK-254](./specifications/tasks/TASK_254.md): Implement the Ionic standalone cron-selector component and reactive-form binding.
+  - [x] [TASK-255](./specifications/tasks/TASK_255.md): Add raw cron serialization coverage for daily multi-time output and emitted semicolon-separated expressions.
 
 ---
 
@@ -659,7 +659,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-41: ✅ Kibana Index Pattern Builder (`KibanaIndexBuilder` with 3 matching modes: exact, prefix/glob, logger-generated; collection helper; helpers refactored; 21 unit tests passing)
 - DECAF-42: ✅ Controlled SSE Subscriptions for for-http and for-nest (broadcast default retained; 5+ consumer fan-out and opt-in subscribe/unsubscribe private delivery mode implemented and tested)
 - DECAF-43: ✅ Keycloak Realm Brokering and End-to-End Auth Flow Matrix (separate broker contracts, dual-Keycloak Traefik/oauth2-proxy harness, and live OIDC/SAML matrix complete)
-- DECAF-44: ⏳ for-angular Cron Selector Web Component (Ionic standalone cron picker with multi-time daily schedules and calendar-service multi-schedule handling)
+- DECAF-44: ✅ for-angular Cron Selector Web Component (Ionic standalone cron picker with multi-time daily schedules, semicolon-separated output, and a demo route)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
