@@ -1,6 +1,6 @@
 # DECAF-14: Cross-Adapter Migration Engine Hardening
 
-**Status:** Completed
+**Status:** Completed — TASK-256 aligned multi-adapter orchestration with the singleton `@service()` lifecycle.
 **Priority:** High
 **Owner:** decaf-dev
 
@@ -35,7 +35,7 @@ Harden and standardize Decaf migrations so they can be executed deterministicall
 *   **Req-8:** `setCurrentVersion` must run after migration task completion.
 *   **Req-8a:** Current version is global state and persisted/retrieved only via handlers.
 *   **Req-9:** For flavour-based sorting conflicts that cannot be resolved by current precedence logic, throw an explicit error (task mode remains unaffected by step ordering boundaries).
-*   **Req-9a:** In multi-adapter task mode, generic migrations do not run; migrations must be flavour-scoped (except TaskService generic orchestration behavior).
+*   **Req-9a:** In multi-adapter task mode, generic migrations are excluded by default but must run when `includeGenericInTaskMode` is explicitly enabled, subject to the same version filtering rules.
 *   **Req-10:** Rollback scope is only the failed migration, handled by migration logic; task retries are delegated to existing task retry semantics.
 *   **Req-10a:** Multi-adapter execution must stop on first failure.
 *   **Req-11:** `PersistenceService` must support executing migrations across multiple adapters where each adapter has its own migration handler configuration.
@@ -63,7 +63,7 @@ Primary modules:
 
 Design constraints:
 *   Semver ordering must use npm standard semver implementation and be covered by targeted edge-case tests.
-*   Generic migrations and flavour-scoped migrations both run in non-task orchestration; in multi-adapter task mode, only flavour-scoped migrations execute.
+*   Generic migrations and flavour-scoped migrations both run in non-task orchestration; multi-adapter task mode defaults to flavour-scoped migrations and accepts `includeGenericInTaskMode: true` as an explicit override.
 *   Conflicting flavour precedence that cannot be deterministically sorted must fail fast with a clear error.
 *   Failed migration rollback is local to failed migration, with retries delegated to task engine behavior.
 *   Multi-adapter migration orchestration stops on first failure.
@@ -83,6 +83,7 @@ This specification is broken down into the following tasks. Each task should be 
 | TASK-116 | [for-fabric unit migration coverage hardening](./tasks/TASK_116.md) | Medium   | Completed | TASK-113 |
 | TASK-117 | [for-nest multi-adapter (Nano + TypeORM) migration integration boot](./tasks/TASK_117.md) | High     | Completed | TASK-114,TASK-115 |
 | TASK-118 | [for-nest CLI migration command (headless boot, no route exposure)](./tasks/TASK_118.md) | High     | Completed | TASK-117 |
+| TASK-256 | [MigrationService singleton orchestration](./tasks/TASK_256.md) | High | Completed | TASK-113 |
 
 ## 6. Open Questions / Risks
 *   `for-fabric` full-suite integration tests currently expose unrelated infrastructure/auth/gateway issues; DECAF-14 verification is targeted to migration-focused suites.
@@ -112,3 +113,4 @@ This specification is broken down into the following tasks. Each task should be 
     This restart enforces RamAdapter+NanoAdapter-only coverage for `for-nano`, couples NanoAdapter with TypeORMAdapter for `for-typeorm`, and clears the way for `for-nest` migration work now that the live suites are green.
 *   Validation milestone (2026-05-04): module readiness rerun in requested order (`core => for-nano => for-typeorm => for-fabric => for-nest`) confirms `core` full tests pass, `for-nano` live integration passes, `for-typeorm` live integration passes, and `for-fabric` unit suite passes.
 *   Validation milestone (2026-06-30): `for-nest/tests/integration/migration.multi-adapter.integration.test.ts` and `for-nest/tests/integration/cli-migrate.multi-adapter.integration.test.ts` were rerun successfully against the live Nano/Postgres infra in this workspace, and the full `for-nest` integration suite passed.
+*   Singleton milestone (2026-08-08): multi-adapter orchestration now uses one `MigrationService`, one accumulated task chain, and one `track()`/`retry()` surface. Core build/lint and six focused migration suites pass; Nano, TypeORM, Fabric, and Nest builds pass against the new Core declarations. The live Nano + Ram multi-adapter migration suite also passes against CouchDB; the isolated Fabric migration test exposed a pre-existing linked-dependency metadata mismatch.

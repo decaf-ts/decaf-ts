@@ -238,6 +238,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-116](./specifications/tasks/TASK_116.md): for-fabric unit migration coverage hardening.
   - [x] [TASK-117](./specifications/tasks/TASK_117.md): for-nest multi-adapter (Nano + TypeORM) migration integration boot (live integration coverage exists under `for-nest/tests`, but stability hardening is still pending).
   - [x] [TASK-118](./specifications/tasks/TASK_118.md): for-nest CLI migration command (headless boot, no route exposure).
+  - [x] [TASK-256](./specifications/tasks/TASK_256.md): Refactor `MigrationService` multi-adapter execution onto one decorated singleton while preserving adapter-scoped tracking.
 - **Notes:** Core and adapter migration integration suites must hit live adapter instances without mocking or in-memory shortcuts, perform required schema changes (adding required columns/properties and backfilling existing records with default values), restrict `for-nano` coverage to RamAdapter + NanoAdapter (no dependency on `for-typeorm`), drive `for-typeorm` migrations through NanoAdapter plus TypeORMAdapter, and keep `for-nest` verification aligned with the live Nano/TypeORM flow. The for-nest task migration harness filters `DECAF_ADAPTER_ID` results by flavour/database so that the Ram-based TaskEngine adapter remains separate from the migrated Nano/TypeORM adapters during the full suite run.
 - Added Fabric-specific migration guidance: the contract now exposes a `migrate` transaction, the client ships paired `@migration` classes that call the contract, and the documentation surfaces how TaskService/TaskEngine configs plus `@migration` metadata control precedence, retries, and per-version version tracking for `core`, `for-nano`, `for-typeorm`, `for-nest`, `for-http`, and `for-fabric`.
 
@@ -632,7 +633,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-11: ✅ Property-Scoped Persistent Sequences (property-scoped sequence support implemented and verified)
 - DECAF-12: ✅ TaskEngine Runtime Orchestration Controls (runtime composite insertion, dependencies, locks, and handler catch completed with core verification)
 - DECAF-13: ✅ for-http HttpAdapter Simple REST Helpers (simple helpers and typed options implemented with tests/docs updates)
-- DECAF-14: ✅ Cross-Adapter Migration Engine Hardening (all 7 tasks completed; live `for-nest` rerun blocked by Nano/Postgres infra unavailability but implementation is done).
+- DECAF-14: ✅ Cross-Adapter Migration Engine Hardening (all 8 tasks completed; latest downstream builds and the live Nano + Ram migration rerun pass, while remaining live reruns depend on local Postgres availability).
 - DECAF-15: ✅ Webhook Signature Verification Middleware (middleware implemented, all tests passing, documentation complete).
 - DECAF-16: ✅ Jira Ticket Template Resources & Guided Creation (custom-field-aware template work added; one inspector CLI transport check remains flaky but non-blocking)
 - DECAF-17: ⏳ Agent-Namespace MCP Startup, Tool-Driven Orchestration, and Deterministic GOAP (progress notifications and manager relay merged into this spec; implementation in progress, handshake validation pending)
