@@ -499,7 +499,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 ## DECAF-34 — Graph Node Type Catalogue
 - **Priority:** Medium
 - **Goal:** Catalogue all graph node types (6 trigger + 11 flow-control/utility + 3 loop + 1 agent) from the Alfred AI specs (ALFRED-5/6/7/8, UPSTREAM-1) and DECAF-32 into a single reference document with per-node identity, functionality, ports (inputs/outputs/connections), UI rendering, and CRUD edit screen details.
-- **Status:** Re-opened — the For-Each node was revised to a self-connected loop-closure port model (`@connection` bottom `loop` port + `body`/`completed` outputs + `slice` config input), and a new `core.flow.break` node was added (declaration + `BreakGraphNodeExecutor` + `GraphBreakSignal`). Spec, executors, registry factory, for-angular demo node, and unit tests updated; all builds and graph tests green.
+- **Status:** Completed — the For-Each node was revised to a self-connected loop-closure port model (`@connection` bottom `loop` port + `body`/`completed` outputs + `slice` config input), and a new `core.flow.break` node was added (declaration + `BreakGraphNodeExecutor` + `GraphBreakSignal`). Spec, executors, registry factory, for-angular demo node, and unit tests updated; all builds and graph tests green.
 - **Link:** [Specification Details](./specifications/DECAF_34.md)
 - **Tasks:**
   - (documentation only — node declarations already exist in DECAF-32 TASK-228/TASK-229)
@@ -538,6 +538,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] [TASK-240](./specifications/tasks/TASK_240.md): Configuration provider tokens (`GRAPH_HISTORY_LIMIT`, `GRAPH_AUTOSAVE_DEBOUNCE_MS`).
   - [x] [TASK-241](./specifications/tasks/TASK_241.md): Tests — history service, auto-save debounce, save endpoint, mutation detector.
   - [x] [TASK-242](./specifications/tasks/TASK_242.md): Backend architecture refactor — adapter-agnostic module, `@service(Model)` services, context propagation, remove injection tokens.
+- **Fix (2026-08-14):** `GraphExecutionResultModel` and `GraphWorkflowModel` (`integrations/src/nest/graph/`) extended `Model` from `@decaf-ts/decorator-validation` directly instead of `BaseModel` from `@decaf-ts/core` (the convention used by every other persisted model in `integrations`, e.g. `Secret`, `FeatureFlag`, namespace models). This left both classes unpopulated on construction (`Object.keys(model) === []`), so `GraphResultService`/`GraphWorkflowService` silently persisted empty records — `GET /graph/results/:runId` 404'd and `PUT /graph/workflow/:id` 500'd. Switched both to `extends BaseModel`; all 179 graph tests (`tests/unit/graph` + `tests/unit/nest/graph-execution-module.test.ts`) pass, verified across repeated runs.
 
 ---
 
@@ -651,7 +652,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-31: ✅ mcp-server CLI Packaging, ADOS Setup, and Dist Inspector Validation (node_modules packaging, orchestration CLI repair, dist coverage, and docs updated)
 - DECAF-32: ✅ Decaf Graph Execution Engine (Phase 1: 14 tasks, 88 tests. Phase 2: graph page UI, node-edit modal, node taxonomy, @connection ports, NestJS backend, full-stack e2e — all completed; 116 graph tests passing)
 - DECAF-33: ✅ Decaf-TS Org-Based Authorization System (namespace auth, UI wrappers, Keycloak support, and for-nest compatibility implemented and verified)
-- DECAF-34: 🔁 Graph Node Type Catalogue (re-opened: For-Each revised to loop-closure port model + `core.flow.break` node added; 21 node types, spec + executors + tests updated, all builds/tests green)
+- DECAF-34: ✅ Graph Node Type Catalogue (For-Each revised to loop-closure port model + `core.flow.break` node added; 21 node types, spec + executors + tests updated, all builds/tests green)
 - DECAF-35: ✅ Graph Metadata/Engine Split for Frontend/Backend Boundary (shared/engine split, export map, for-angular boundary, and final verification TASK-233 all completed; production bundle confirmed free of engine code)
 - DECAF-36: ✅ Graph Canvas Save/Auto-Save & Undo/Redo (all 8 tasks completed — Save button, Auto-Save toggle, GraphHistoryService ring buffer, Undo/Redo, keyboard shortcuts, backend PUT endpoint; 60 for-angular + 172 graph tests pass)
 - DECAF-37: ✅ Fabric Mirror Gating (allowMirroring short-circuits mirror behavior; client override whitelist added; unit tests added)

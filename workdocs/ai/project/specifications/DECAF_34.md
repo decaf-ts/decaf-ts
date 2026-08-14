@@ -1,6 +1,6 @@
 # DECAF-34: Graph Node Type Catalogue
 
-**Status:** In Progress — re-opened for the For-Each loop visual/execution model redesign (self-connected loop-closure port, slice input, break node, after-loop output).
+**Status:** Completed — re-opened for the For-Each loop visual/execution model redesign (self-connected loop-closure port, slice input, break node, after-loop output); all goals delivered and verified.
 **Priority:** Medium
 **Owner:** AI Agent
 
