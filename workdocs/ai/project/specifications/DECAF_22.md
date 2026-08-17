@@ -1,8 +1,8 @@
-# DECAF-22 — TaskEngine Step Insertion & Per-Step Retry
+# DECAF-22 — TaskEngine Step Insertion, Per-Step Retry, and Concurrent Composite Steps
 
 - **Status:** COMPLETED
 - **Priority:** High
-- **Goal:** Extend `core` composite task execution with tail-insertion (`atEnd`), required context on insertion methods, per-step `maxAttempts`/`backoff`, and test coverage for identified gaps.
+- **Goal:** Extend `core` composite task execution with tail-insertion (`atEnd`), required context on insertion methods, per-step `maxAttempts`/`backoff`, and opt-in concurrent execution for compatible locked steps, then verify the persistence behavior again in `for-nano`.
 
 ---
 
@@ -15,15 +15,19 @@ DECAF-12 delivered runtime composite-step insertion (`scheduleSteps().afterCurre
 3. **Per-step `maxAttempts` / `backoff`** — `TaskStepSpecModel` gains optional `maxAttempts?: number` and `backoff?: TaskBackoffModel`. When set, failed steps retry in-place (with heartbeat between retries) before propagating failure to the task level. Default `maxAttempts` is `undefined` (treated as 1, preserving backward compatibility).
 4. **`attempt` on step results** — `TaskStepResultModel` gains `attempt?: number` recording how many tries the step needed.
 5. **`setMaxAttempts` / `setBackoff` on `TaskStepSpecBuilder`** — builder helpers expose the new step fields.
-6. **Test coverage** — 4 new tests covering: `atEnd()` ordering, dynamic-steps-surviving early failure + retry, per-step in-place retry, and step exhaustion propagating to task-level retry.
+6. **Concurrent composite steps** — `TaskStepSpecModel` gains `allowConcurrent: boolean` defaulting to `false`, which makes the step's `lock` eligible for concurrent execution alongside other steps that share the same lock value. `TaskEngineConfig` gains `maxConcurrentCompositeSteps` (default `-1`, meaning no limit) to cap how many compatible composite steps may run at once. This cap is independent from the engine's global runnable-task `concurrency` limit.
+7. **Test coverage** — 4 new tests covering: `atEnd()` ordering, dynamic-steps-surviving early failure + retry, per-step in-place retry, and step exhaustion propagating to task-level retry. Concurrent-step coverage is added in `core` and re-verified in `for-nano`.
 
 ## 2. Goals
 *   [x] Add `atEnd(ctx: TaskContext)` to `TaskContext.scheduleSteps()`.
 *   [x] Make `ctx` required (not optional) on both `afterCurrent` and `atEnd`.
 *   [x] Engine callbacks use handler's `ctx` for logging only; engine's own context for persistence and bus.
 *   [x] `TaskStepSpecModel` accepts `maxAttempts` and `backoff`.
+*   [x] `TaskStepSpecModel` accepts `allowConcurrent` with a `false` default.
 *   [x] `TaskStepResultModel` records `attempt`.
 *   [x] `TaskStepSpecBuilder` exposes `setMaxAttempts` and `setBackoff`.
+*   [x] `TaskStepSpecBuilder` exposes `setAllowConcurrent`.
+*   [x] `TaskEngineConfig` exposes `maxConcurrentCompositeSteps`.
 *   [x] `TaskFlags` updated to include `scheduleCompositeStepsAtEnd` (optional, matching `scheduleCompositeSteps`).
 *   [x] All new and existing composite task tests pass.
 
@@ -40,9 +44,10 @@ DECAF-12 delivered runtime composite-step insertion (`scheduleSteps().afterCurre
 - Per-step retry is entirely in-process (no DB status changes during retry); heartbeat is called between retries to extend the lease.
 - When all step-level attempts are exhausted, `handler.catch?.(...)` is invoked and then the error propagates to the task-level handler (which may retry the whole task from `currentStep`).
 - `step.backoff` falls back to `task.backoff` when absent.
+- Concurrent composite execution is opt-in at the step level through `allowConcurrent` and only applies to steps that share the same lock key. The flag defaults to `false`. The engine uses a separate write lock on the shared task context so log tail and step-result persistence stay serialized even when handlers run in parallel.
 
 ## 5. Results & Artifacts
 
 - Modified: `core/src/tasks/TaskContext.ts`, `core/src/tasks/TaskEngine.ts`, `core/src/tasks/types.ts`, `core/src/tasks/models/TaskStepSpecModel.ts`, `core/src/tasks/models/TaskStepResultModel.ts`, `core/src/tasks/builder.ts`.
 - Tests: `core/tests/integration/composite-tasks.test.ts` — 4 new tests added.
-- Verification (2026-06-08): `npm run build` passed; `npx jest --runInBand --watchman=false` → 559 passed, 25 skipped, 94 suites passed, 3 skipped. No regressions.
+- Verification (2026-08-17): `npm run build` passed in `core`; targeted composite concurrency spec passed in `core`; targeted concurrent-step Nano integration passed in `for-nano`. No regressions in the exercised suites.
