@@ -163,6 +163,18 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-46 — Jest Xray Teardown Utility Port
+- **Priority:** Medium
+- **Goal:** Move the Xray Jest teardown helper into `@decaf-ts/utils/tests` so consuming Jest configs can use a transpiled shared export instead of the raw `.cjs` script.
+- **Status:** COMPLETED — shared teardown helper exported from `@decaf-ts/utils/tests`, optional peer metadata added, and Jest config stabilized with a dedicated tsconfig.
+- **Link:** [Specification Details](./specifications/DECAF_46.md)
+- **Tasks:**
+  - [x] [TASK-257](./specifications/tasks/TASK_257.md): Port the Xray teardown script into `utils/src/tests/` and re-export it from the tests entry point.
+  - [x] [TASK-258](./specifications/tasks/TASK_258.md): Add optional peer dependency metadata for any new teardown-only package imports.
+  - [x] [TASK-259](./specifications/tasks/TASK_259.md): Update Jest `globalTeardown` usage to the transpiled `@decaf-ts/utils/tests` export and document the contract.
+
+---
+
 ## SPECIFICATION-2 — Jira MCP Toolset
 - **Priority:** High
 - **Goal:** Implement the Jira MCP toolset (issue CRUD, workflow transitions, assignments, comments, links, attachments, and worklogs) with proper registration and Zod validation.
