@@ -16,7 +16,7 @@ jiraIssueId: "none"
 jiraUpdatedAt: "none"
 jiraSyncState: "disabled"
 createdAt: "2026-08-17T20:00:40Z"
-updatedAt: "2026-08-17T20:06:30Z"
+updatedAt: "2026-08-17T22:30:00Z"
 ---
 
 # DECAF-45: User Request Handling Engine
@@ -44,13 +44,21 @@ remains `blocked` on the implementation child [SAA-14](/SAA/issues/SAA-14).
 
 ## Overview
 
-A backend/frontend-compatible **User Request Resolution Engine** for
-`@decaf-ts/integrations`, exposed as new package exports `user-requests` and
-`user-requests/shared`. In the backend, user input can be easily mocked and
-embedded in backend operations/tests. In the frontend, a user request resolves
-through arbitrary UI operations (screens/pages/popups, multi-step forms) until
-final submission, returning the user's selection to the caller as a Promise. The
-design supersedes the old glass-toolkit `core/requests` engine.
+A backend/frontend-compatible **User Request Resolution Engine** published from
+`@decaf-ts/ui-decorators` and exposed as the package exports `user-requests` and
+`user-requests/shared`. `@decaf-ts/integrations` re-exports the same subpaths as
+backward-compatible shims so backend consumers keep resolving the same code path.
+In the backend, user input can be easily mocked and embedded in backend
+operations/tests. In the frontend, a user request resolves through arbitrary UI
+operations (screens/pages/popups, multi-step forms) until final submission,
+returning the user's selection to the caller as a Promise. The design supersedes
+the old glass-toolkit `core/requests` engine.
+
+> Canonical-source amendment (2026-08-17): the engine was originally specified to
+> live in `integrations`; implementation moved the canonical source into
+> `ui-decorators` because `for-angular` cannot import the backend-only
+> `integrations` package (forbidden dependency edge). `integrations` now carries
+> re-export shims only. See Decisions and Execution Log.
 
 ## Problem Statement
 
@@ -88,12 +96,12 @@ module and glass-wallet `registerInputHandlers` bootstrap (see References).
 
 ### In Scope
 
-- New `integrations/src/user-requests/` module + `user-requests/shared` subpath, wired into `integrations/package.json` `exports` (mirroring `./feature-flags` and `./graph/shared`).
+- Canonical core module `ui-decorators/src/user-requests/` (+ `shared` subpath), wired into `ui-decorators/package.json` `exports` as `./user-requests` and `./user-requests/shared` (mirroring `./graph` and `./graph/shared`). `integrations/src/user-requests/` and `integrations/src/user-requests/shared/` are re-export shims to `@decaf-ts/ui-decorators/user-requests[/shared]`, retained in `integrations/package.json` `exports` for backward compatibility.
 - Core abstractions: `UserRequest<T>` model (id/type/payload), `UserRequestHandler<T>` interface (`handle`/`handleAsync` Promise-based), `UserRequestRegistry` (lookup + dispatch, multi-handler chaining), and a resolution context.
 - `@userRequest('user-request-id')` decorator (analog to core's `@task(...)` / `@migration(...)`), built on `@decaf-ts/decoration` (`Decoration.for(...).define(...).apply()` and `metadata(...)`), registering handlers by keyed metadata.
 - Backend adapter: a mockable resolver where the user response is preconfigured per request type (improves on `getBackendInputHandler`).
 - Frontend adapter contract: a resolver that maps a request to UI code wrapped in a Promise (stepped forms/popups) and resolves with the user's submission.
-- Unit tests (Jest, integrations) for the full backend layer including mocking the user's response.
+- Unit tests (Jest) for the full backend layer including mocking the user's response, located alongside the canonical source in `ui-decorators` (and resolvable through the `integrations` shims).
 - A new Angular test (in `for-angular`) executing the same code path but driving the real UI with the `SteppedFormComponent` (clicking/filling across steps until the handler closes).
 
 ### Out Of Scope
@@ -111,7 +119,7 @@ module and glass-wallet `registerInputHandlers` bootstrap (see References).
 | FR-3 | Backend resolver returns a preconfigured (mocked) response per request type | Must | Unit test with mocked response |
 | FR-4 | Frontend resolver wraps UI execution in a Promise and resolves with submitted data | Must | Angular test fills SteppedForm and asserts resolved value |
 | FR-5 | Same handler code path executes in both backend (mocked) and frontend (UI) tests | Must | Both tests pass |
-| FR-6 | Package exports `user-requests` and `user-requests/shared` resolve | Must | Build/exports config + import test |
+| FR-6 | Package exports `user-requests` and `user-requests/shared` resolve (canonical `@decaf-ts/ui-decorators` exports plus `@decaf-ts/integrations` re-export shims) | Must | Build/exports config + import test |
 
 Acceptance evidence is the planned verification for each criterion. Actual
 command output is recorded under Verification Evidence when the implementation
@@ -122,24 +130,28 @@ child ([SAA-14](/SAA/issues/SAA-14)) completes.
 | ID | Area | Requirement | Verification |
 | --- | --- | --- | --- |
 | NFR-1 | Compatibility | Engine is UI-framework-agnostic; Angular is one frontend binding | Shared module has no Angular imports |
-| NFR-2 | Testability | Backend path runs under Node Jest with no DOM | integrations jest passes |
-| NFR-3 | Conventions | Follows decaf decoration patterns + integrations export layout | Review against feature-flags/graph |
+| NFR-2 | Testability | Backend path runs under Node Jest with no DOM | ui-decorators jest passes (canonical); integrations shim path also resolves |
+| NFR-3 | Conventions | Follows decaf decoration patterns + ui-decorators export layout (mirroring `./graph`); integrations re-exports mirror the same subpaths | Review against ui-decorators graph / integrations shims |
 
 ## Architecture And Interfaces
 
-- `user-requests/shared` (framework-agnostic): `UserRequest` model, `UserRequestHandler` / `IGlassRequestHandler`-style interface (Promise-first), `UserRequestRegistry`, `@userRequest` decorator + constants/types. No Angular.
-- `user-requests` (backend + binding surface): backend `MockUserRequestResolver` / `getBackendInputHandler` successor; re-exports shared.
-- Frontend binding lives in `for-angular` (or an angular-facing resolver) and uses `SteppedFormComponent` to render a multi-step form whose submit resolves the request Promise (mirrors glass-wallet `registerInputHandlers` -> `getWalletInputHandler`).
+- `user-requests/shared` (framework-agnostic, canonical source in `ui-decorators/src/user-requests/shared`): `UserRequest` model, `UserRequestHandler` / `IGlassRequestHandler`-style interface (Promise-first), `UserRequestRegistry`, `@userRequest` decorator + constants/types. No Angular.
+- `user-requests` (backend + binding surface, canonical source in `ui-decorators/src/user-requests`): backend `MockUserRequestResolver` / `getBackendInputHandler` successor; re-exports `shared`.
+- `integrations/src/user-requests/` and `integrations/src/user-requests/shared/` are **re-export shims** back to `@decaf-ts/ui-decorators/user-requests[/shared]`, kept in `integrations/package.json` `exports` so existing backend consumers keep resolving.
+- Frontend binding lives in `for-angular` (or an angular-facing resolver) and uses `SteppedFormComponent` to render a multi-step form whose submit resolves the request Promise (mirrors glass-wallet `registerInputHandlers` -> `getWalletInputHandler`). The `for-angular` resolver imports from `@decaf-ts/ui-decorators/user-requests` (not `integrations`, which is backend-only).
 - Decorator modeled on `core/src/migrations/decorators.ts` (`Decoration.for(KEY).define({decorator,args}).apply()` + `Metadata.set`).
 
 Compatibility constraints: the `shared` subpath must remain Angular-free (NFR-1).
 Frontend binding location is decided: keep the frontend resolver + Angular spec in
-`for-angular` importing `@decaf-ts/integrations/user-requests/shared`; do **not**
+`for-angular` importing `@decaf-ts/ui-decorators/user-requests[/shared]`; do **not**
 create a `user-requests/angular` subpath (CTO decision on [SAA-18](/SAA/issues/SAA-18)).
-This keeps `integrations` Angular-free and buildable in pure-Node CI, and keeps
-Angular concerns in `for-angular`, which already owns `SteppedFormComponent` and the
-Jest/i18n harness. `user-requests/shared` is consumed by both the backend resolver in
-`integrations/src/user-requests/` and the frontend resolver in `for-angular`.
+The canonical source moved from `integrations` to `ui-decorators` because `for-angular`
+cannot depend on the backend-only `integrations` package (forbidden dependency edge);
+`integrations` re-exports the same subpaths for backward compatibility. This keeps
+`ui-decorators` Angular-free in its `shared` core and buildable in pure-Node CI, and
+keeps Angular concerns in `for-angular`, which already owns `SteppedFormComponent` and
+the Jest/i18n harness. `user-requests/shared` is consumed by both the backend resolver in
+`ui-decorators/src/user-requests/` and the frontend resolver in `for-angular`.
 
 ## Data, Security, And Privacy
 
@@ -179,8 +191,8 @@ Jest/i18n harness. `user-requests/shared` is consumed by both the backend resolv
 - [ ] FR-5: Same handler code path executes in both backend (mocked) and frontend (UI) tests (both tests pass).
 - [ ] FR-6: Package exports `user-requests` and `user-requests/shared` resolve (build/exports config + import test).
 - [ ] NFR-1: `user-requests/shared` has no Angular imports.
-- [ ] NFR-2: Backend path runs under Node Jest with no DOM (integrations jest passes).
-- [ ] NFR-3: Follows decaf decoration patterns + integrations export layout (review against feature-flags/graph).
+- [ ] NFR-2: Backend path runs under Node Jest with no DOM (ui-decorators jest passes; integrations shim path also resolves).
+- [ ] NFR-3: Follows decaf decoration patterns + ui-decorators export layout (mirroring `./graph`); integrations re-exports mirror the same subpaths (review against ui-decorators graph / integrations shims).
 - [x] Product scope approval recorded from Product Manager (APPROVED on [SAA-17](/SAA/issues/SAA-17), 2026-08-17T20:05:15Z).
 - [x] Technical governance approval recorded from CTO (APPROVED on [SAA-18](/SAA/issues/SAA-18), 2026-08-17T20:05:51Z); CTO also decided frontend binding stays in `for-angular`.
 
@@ -193,10 +205,10 @@ approvals are now recorded as outcomes.
 
 | Check | Command or method | Expected result | Owner |
 | --- | --- | --- | --- |
-| Backend unit tests | `cd integrations && npm test` (jest, new user-requests suite) | Pass; FR-1, FR-2, FR-3, FR-5 (backend) green | CTO / executor |
-| Frontend UI test | `cd for-angular && npm test` (jest, new SteppedForm spec) | Pass; FR-4, FR-5 (frontend) green | CTO / executor |
-| Exports resolve | import `@decaf-ts/integrations/user-requests` and `/shared` | Both resolve (FR-6) | CTO / executor |
-| Shared has no Angular | grep `@angular` in `integrations/src/user-requests/shared` | No matches (NFR-1) | CTO / executor |
+| Backend unit tests | `cd ui-decorators && npm test` (jest, new user-requests suite); also resolvable via `integrations/src/user-requests` shims | Pass; FR-1, FR-2, FR-3, FR-5 (backend) green | CTO / executor |
+| Frontend UI test | `cd for-angular && npm test` (jest, new SteppedForm spec; imports `@decaf-ts/ui-decorators/user-requests`) | Pass; FR-4, FR-5 (frontend) green | CTO / executor |
+| Exports resolve | import `@decaf-ts/ui-decorators/user-requests` and `/shared` (canonical); import `@decaf-ts/integrations/user-requests` and `/shared` (shims) | Both resolve (FR-6) | CTO / executor |
+| Shared has no Angular | grep `@angular` in `ui-decorators/src/user-requests/shared` | No matches (NFR-1) | CTO / executor |
 | Domain record valid | `node <skill-root>/scripts/validate-domain-record.mjs workdocs/ai/project/specifications/DECAF_45.md` | Pass | Delivery Documentation Specialist |
 | delivery-docs mapping resolves | parent SAA-12 `delivery-docs` document paths point to real files | Resolves | Delivery Documentation Specialist |
 
@@ -226,9 +238,10 @@ records.
 | 2026-08-17 | Delivery Documentation Specialist | Allocate local spec ref DECAF-45 (next after DECAF-44); SPECIFICATION_KEY=DECAF; Jira disabled | maintain-domain-docs disabled-mode local sequence allocation |
 | 2026-08-17 | Product Manager (via [SAA-17](/SAA/issues/SAA-17)) | **Product scope APPROVED.** Tight additive scope; correct out-of-scope cuts; measurable success measures; acceptance criteria map to evidence; frontend-binding open question correctly deferred to CTO. | PM scope verdict recorded 2026-08-17T20:05:15Z |
 | 2026-08-17 | CTO (via [SAA-18](/SAA/issues/SAA-18)) | **Technical governance / architecture APPROVED.** Decoration model, exports layout (`lib/types`/`lib/esm`/`lib/cjs` triple from `./feature-flags`), `SteppedFormComponent` target, no-collision additivity, backend/frontend symmetry, and security posture all verified against the codebase. | CTO governance verdict recorded 2026-08-17T20:05:51Z |
-| 2026-08-17 | CTO (via [SAA-18](/SAA/issues/SAA-18)) | Frontend binding stays in `for-angular`; do **not** create a `user-requests/angular` subpath. `user-requests/shared` stays Angular-free and is consumed by the backend resolver in `integrations/src/user-requests/` and the frontend resolver in `for-angular`. | Keeps `integrations` Angular-free and buildable in pure-Node CI; matches existing core-vs-Angular split; consumers already import Angular bindings from `for-angular`. |
+| 2026-08-17 | CTO (via [SAA-18](/SAA/issues/SAA-18)) | Frontend binding stays in `for-angular`; do **not** create a `user-requests/angular` subpath. `user-requests/shared` stays Angular-free and is consumed by the backend resolver in `ui-decorators/src/user-requests/` and the frontend resolver in `for-angular`. | Keeps `shared` Angular-free and buildable in pure-Node CI; matches existing core-vs-Angular split; consumers already import Angular bindings from `for-angular`. |
+| 2026-08-17 | Delivery Documentation Specialist (via [SAA-31](/SAA/issues/SAA-31)) | **Canonical-source amendment.** The User Request Resolution Engine's canonical source moved from `integrations` to `ui-decorators` (`ui-decorators/src/user-requests/` + `shared`), with `./user-requests` and `./user-requests/shared` added to `ui-decorators/package.json` `exports`. `integrations/src/user-requests/` and `integrations/src/user-requests/shared/` are now re-export shims to `@decaf-ts/ui-decorators/user-requests[/shared]` (their `exports` entries retained for backward compatibility). | `for-angular` cannot import the backend-only `integrations` package (forbidden dependency edge); the engine must be frontend-hostable. Backend consumers keep resolving via the `integrations` shims. NFR-1 (`shared` stays Angular-free) unchanged. Record-only amendment; no code touched by this milestone. |
 
-Implementation note for [SAA-14](/SAA/issues/SAA-14) (from CTO): frontend resolver + Angular spec live in `for-angular` importing `@decaf-ts/integrations/user-requests/shared`; backend resolver + unit tests live in `integrations/src/user-requests/` (re-exports shared); wire `./user-requests` and `./user-requests/shared` into `integrations/package.json` `exports`; keep `shared` free of any `@angular` import (NFR-1).
+Implementation note for [SAA-14](/SAA/issues/SAA-14) (from CTO; amended 2026-08-17 per [SAA-31](/SAA/issues/SAA-31)): canonical engine source lives in `ui-decorators/src/user-requests/` (backend resolver `MockUserRequestResolver` + re-exports) and `ui-decorators/src/user-requests/shared/` (framework-agnostic core: `UserRequest` model, `UserRequestHandler`/`BaseUserRequestHandler`, `UserRequestRegistry`, `@userRequest` decorator, constants/types, example handler). Frontend resolver + Angular spec live in `for-angular` importing `@decaf-ts/ui-decorators/user-requests[/shared]` (not `integrations`, which is backend-only). `integrations/src/user-requests/` and `integrations/src/user-requests/shared/` are re-export shims to `@decaf-ts/ui-decorators/user-requests[/shared]`, retained in both packages' `exports` for backward compatibility. Wire `./user-requests` and `./user-requests/shared` into `ui-decorators/package.json` `exports` (canonical) and keep the matching `exports` entries in `integrations/package.json` (shims); keep `shared` free of any `@angular` import (NFR-1). Reason: `for-angular` cannot depend on the backend-only `integrations` package, so the canonical source was moved to `ui-decorators` (frontend-hostable).
 
 ## Execution Log
 
@@ -257,11 +270,32 @@ Implementation note for [SAA-14](/SAA/issues/SAA-14) (from CTO): frontend resolv
 - Jira gate: `JIRA_ENABLED` is not `true` → no Jira discovery, mention, handoff, or call. `jiraSyncState` stays `disabled`.
 - Closing documentation milestone [SAA-13](/SAA/issues/SAA-13) as `done`: domain record complete, both approvals recorded, `delivery-docs` mapping resolves. Parent [SAA-12](/SAA/issues/SAA-12) remains `blocked` on implementation child [SAA-14](/SAA/issues/SAA-14); acceptance evidence for FR/NFR will be recorded by a future verification milestone when SAA-14 completes.
 
+### 2026-08-17T22:30:00Z - Delivery Documentation Specialist (amendment via [SAA-31](/SAA/issues/SAA-31))
+
+- Checked out amendment milestone [SAA-31](/SAA/issues/SAA-31); parent remains domain root [SAA-12](/SAA/issues/SAA-12) (DECAF-45). `taskType: specification` and the `delivery-docs` mapping are unchanged.
+- Verified the implemented reality against the issue's claims before editing:
+  - `ui-decorators/src/user-requests/` holds `MockUserRequestResolver.ts` + `index.ts` (re-exports `shared`); `ui-decorators/src/user-requests/shared/` holds `types.ts`, `constants.ts`, `UserRequestRegistry.ts`, `BaseUserRequestHandler.ts`, `decorators.ts`, `examples.ts`, `index.ts`.
+  - `ui-decorators/package.json` `exports` include `./user-requests` and `./user-requests/shared` (import/require types+default, mirroring `./graph`).
+  - `integrations/src/user-requests/index.ts` and `integrations/src/user-requests/shared/index.ts` are re-export shims to `@decaf-ts/ui-decorators/user-requests[/shared]`; `integrations/package.json` `exports` still list both subpaths.
+  - `for-angular/src/lib/user-requests/SteppedFormUserRequestResolver.ts` imports from `@decaf-ts/ui-decorators/user-requests`.
+- Applied minimal record edits so DECAF-45 matches the implemented architecture (canonical source in `ui-decorators`, `integrations` shims):
+  - Overview: engine is published from `@decaf-ts/ui-decorators`, with `integrations` re-exporting the same subpaths; added a canonical-source amendment callout.
+  - Scope (In Scope) and FR-6: reflect `ui-decorators` canonical exports + `integrations` shims.
+  - Architecture And Interfaces + compatibility paragraph: canonical core in `ui-decorators/src/user-requests/shared`, backend resolver in `ui-decorators/src/user-requests`, `integrations` as shims, frontend importing `@decaf-ts/ui-decorators/user-requests`; reason = `for-angular` cannot depend on backend-only `integrations`.
+  - NFR-2 / NFR-3 wording updated to reference the canonical ui-decorators jest + export layout. NFR-1 (shared Angular-free) unchanged — still true.
+  - Decisions: added a canonical-source amendment row; updated the CTO frontend-binding decision row to name the `ui-decorators` backend resolver location.
+  - Implementation note for [SAA-14](/SAA/issues/SAA-14) and the Verification Plan: frontend test imports `@decaf-ts/ui-decorators/user-requests`; backend tests run from `ui-decorators` (resolvable via `integrations` shims); exports-resolve check covers both canonical and shim imports.
+- `validate-domain-record.mjs` remains absent from the installed `maintain-domain-docs` skill directory in this environment; validation stays manual against the template frontmatter and section contract. Frontmatter `taskType: specification`, paths, IDs, and the `delivery-docs` mapping are preserved.
+- Jira gate: `JIRA_ENABLED` is not `true` → no Jira action. `jiraSyncState` stays `disabled`.
+- Record-only amendment: no code touched. Edits left uncommitted for the domain root's single user-approved commit (per `git-ops`).
+- Closing amendment milestone [SAA-31](/SAA/issues/SAA-31) as `done`.
+
 ## Changed Artifacts
 
 | Path | Purpose |
 | --- | --- |
 | `workdocs/ai/project/specifications/DECAF_45.md` | New specification domain record for the User Request Handling engine |
+| `workdocs/ai/project/specifications/DECAF_45.md` (amended via [SAA-31](/SAA/issues/SAA-31), 2026-08-17) | Canonical-source amendment: engine now published from `ui-decorators` with `integrations` re-export shims |
 
 ## Verification Evidence
 
@@ -275,7 +309,7 @@ Implementation note for [SAA-14](/SAA/issues/SAA-14) (from CTO): frontend resolv
 | 2026-08-17T20:06:30Z | Delivery Documentation Specialist | `task-metadata` vs domain-record `taskType` agreement | Pass | Both `specification`; canonical `task-metadata` on parent SAA-12 |
 | 2026-08-17T20:06:30Z | Delivery Documentation Specialist | `validate-domain-record.mjs` (completion gate) | Not run | Validator script still absent from installed skill directory in this environment; manual validation re-confirmed against template contract |
 
-Acceptance evidence (integrations jest, for-angular jest, exports/import) is
+Acceptance evidence (ui-decorators jest, for-angular jest, exports/import for both canonical and shim paths) is
 recorded here when [SAA-14](/SAA/issues/SAA-14) completes.
 
 ## Result
