@@ -175,6 +175,18 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-47 — for-fabric Mirror Allow Predicate
+- **Priority:** High
+- **Goal:** Extend `@mirror()` in `for-fabric` with an optional `allow(context)` predicate that can bypass every mirror-related code path when it returns `false`.
+- **Status:** In Progress — decorator bypass logic is implemented; contract/repository unit coverage passes; adapter harness validation remains pending.
+- **Link:** [Specification Details](./specifications/DECAF_47.md)
+- **Tasks:**
+  - [x] [TASK-260](./specifications/tasks/TASK_260.md): Extend `@mirror()` metadata and typing with `allow(context)`.
+  - [x] [TASK-261](./specifications/tasks/TASK_261.md): Short-circuit all mirror paths when `allow` returns `false`.
+  - [ ] [TASK-262](./specifications/tasks/TASK_262.md): Add regression coverage for blocked and allowed mirror execution paths.
+
+---
+
 ## SPECIFICATION-2 — Jira MCP Toolset
 - **Priority:** High
 - **Goal:** Implement the Jira MCP toolset (issue CRUD, workflow transitions, assignments, comments, links, attachments, and worklogs) with proper registration and Zod validation.
@@ -674,6 +686,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-42: ✅ Controlled SSE Subscriptions for for-http and for-nest (broadcast default retained; 5+ consumer fan-out and opt-in subscribe/unsubscribe private delivery mode implemented and tested)
 - DECAF-43: ✅ Keycloak Realm Brokering and End-to-End Auth Flow Matrix (separate broker contracts, dual-Keycloak Traefik/oauth2-proxy harness, and live OIDC/SAML matrix complete)
 - DECAF-44: ✅ for-angular Cron Selector Web Component (Ionic standalone cron picker with multi-time daily schedules, semicolon-separated output, and a demo route)
+- DECAF-47: ⏳ for-fabric Mirror Allow Predicate (spec added for decorator-level bypass contract; implementation pending)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
