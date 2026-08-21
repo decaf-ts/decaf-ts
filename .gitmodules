@@ -82,3 +82,9 @@
 [submodule "for-react"]
 	path = for-react
 	url = git@github.com:decaf-ts/for-react.git
+[submodule "ts-template"]
+	path = ts-template
+	url = https://github.com/decaf-ts/ts-workspace
+[submodule "with-ai"]
+	path = with-ai
+	url = https://github.com/decaf-ts/with-ai

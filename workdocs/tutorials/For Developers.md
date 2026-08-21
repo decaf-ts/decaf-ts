@@ -14,6 +14,23 @@ npm `npm run link-token` - this will link your token files to all the submodules
 
 Run `npm install` (or `npm run do-install` if you have private dependencies and a `.token` file) to install the dependencies:
 
+### Local Claude/Codex/OpenCode MCP credentials
+
+`.claude/mcp.json`, `.codex/config.toml`, and `opencode.json` (all gitignored)
+wire up the `decaf-mcp` (Jira/Xray) MCP server for local, non-Paperclip use of
+these CLIs directly in this repo. None of them contain credential values --
+they reference environment variables (`${VAR}` for Claude, `env_vars = [...]`
+for Codex, `{env:VAR}` for OpenCode), which live in the repo-root `.env`
+(gitignored) instead.
+
+None of the three CLIs auto-load `.env` on their own, so install
+[direnv](https://direnv.net/) (`apt-get install direnv`, `brew install direnv`,
+etc.), add its hook to your shell rc file (e.g. `eval "$(direnv hook bash)"`
+in `~/.bashrc`), then run `direnv allow` once in this repo's root. After that,
+`cd`-ing into this repo automatically exports `.env`'s values for the shell,
+so plain `claude`, `codex`, and `opencode` pick up the right credentials with
+no extra steps per session.
+
 ### Scripts
 
 The following npm scripts are available for development:
