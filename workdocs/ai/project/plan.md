@@ -187,6 +187,19 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-48 — Graph Engine Logging Display & Visual Run Feedback
+- **Priority:** Medium
+- **Goal:** Make a running graph workflow observable on the canvas in three layers — live logs widget, visual run feedback (node/edge glow by state), and node I/O inspection — engine-agnostic, on the existing Observable + DECAF-42 SSE subscription mode, with no engine-semantics changes.
+- **Status:** COMPLETED — Back-End ([SAA-59](/SAA/issues/SAA-59)) and Front-End ([SAA-60](/SAA/issues/SAA-60)) delivered; reviews [SAA-61](/SAA/issues/SAA-61)/[SAA-62](/SAA/issues/SAA-62) + security follow-ups [SAA-63](/SAA/issues/SAA-63)/[SAA-82](/SAA/issues/SAA-82) and front-end reviews [SAA-114](/SAA/issues/SAA-114)/[SAA-115](/SAA/issues/SAA-115)/[SAA-116](/SAA/issues/SAA-116) done; committed by the board under `DECAF-809` (`integrations` `6c8a9c2`, `ui-decorators` `23dcb33`, `for-angular` `ab48742`); verification green (integrations 33 suites/365 tests incl. 22 new; ui-decorators 6 suites/66 tests; for-angular lint/build clean + 31 existing + 84 new Jest + 4 Playwright).
+- **Link:** [Specification Details](./specifications/DECAF_48.md)
+- **Tasks:**
+  - [x] Phase 1 — `core.utility.log` Log node + DECAF-9 `nodeId`/`workflowId`/`runId`/`user` log attributes from `ctx`; SSE ownership segregation `{ runId, ownerUser }` on `graph.run.log`/`graph.run.state`; docked logs widget with console-style level filter.
+  - [x] Phase 2 — `GraphVisualState` enum + `NODE_STATE_CHANGED`/`EDGE_STATE_CHANGED` on the existing Observable; `GraphExecutionStateMapper` overlays (running=green, blocked=yellow, errored=red) + post-fail fade; `markAllBlocked` seeds canvas + engine plan-edge ids.
+  - [x] Phase 3 — Per-node I/O payload via SSE state channel; shared JSON/table/raw viewer; double-click disambiguated by `hasRan` (already-ran → inspection; not-ran → edit modal); `fetchInspections` keyed by `lastRunId()`, `credentials: "include"`.
+  - [x] Phase X — Engine-agnostic conformance + ownership tests; `for-angular` imports only `graph/shared` (DECAF-35 §4.6 boundary green).
+
+---
+
 ## SPECIFICATION-2 — Jira MCP Toolset
 - **Priority:** High
 - **Goal:** Implement the Jira MCP toolset (issue CRUD, workflow transitions, assignments, comments, links, attachments, and worklogs) with proper registration and Zod validation.
@@ -687,6 +700,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-43: ✅ Keycloak Realm Brokering and End-to-End Auth Flow Matrix (separate broker contracts, dual-Keycloak Traefik/oauth2-proxy harness, and live OIDC/SAML matrix complete)
 - DECAF-44: ✅ for-angular Cron Selector Web Component (Ionic standalone cron picker with multi-time daily schedules, semicolon-separated output, and a demo route)
 - DECAF-47: ⏳ for-fabric Mirror Allow Predicate (spec added for decorator-level bypass contract; implementation pending)
+- DECAF-48: ✅ Graph Engine Logging Display & Visual Run Feedback (live logs widget, visual run feedback, node I/O inspection delivered engine-agnostic on existing Observable + DECAF-42 SSE ownership segregation; back-end SAA-59 and front-end SAA-60 done; all reviews and security follow-ups done; committed by board under DECAF-809)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`

@@ -1,6 +1,6 @@
 # DECAF-48: Graph Engine Logging Display & Visual Run Feedback
 
-**Status:** Planned
+**Status:** Completed
 **Priority:** Medium
 **Owner:** Graph / Platform (cross-cutting: `ui-decorators`, `integrations`, `for-angular`)
 
@@ -18,14 +18,14 @@ The logging + visual-state **contract is engine-agnostic**: it is expressed as O
 
 ## 2. Goals
 
-*   [ ] Add a `core.utility.log` Log node to the catalogue ([DECAF-34](./DECAF_34.md) amendment) whose executor logs its input through `ctx.logger` so its output appears in the widget naturally.
-*   [ ] Attach `nodeId`, `workflowId`, `runId`, `user` to every run log line via decaf-ts logging custom attributes ([DECAF-9](./DECAF_9.md) `LogParameterRegistry` / `logger.for({...})`), sourced from `ctx` ([DECAF-18](./DECAF_18.md)).
-*   [ ] Stream live run logs over SSE in non-default subscription mode with per-owner (run-ownership) segregation ([DECAF-42](./DECAF_42.md)); a consumer only receives events/logs for runs it owns.
-*   [ ] Add a docked logs widget at the bottom of the workflow canvas with Chrome-console-style level filtering (Verbose/Info/Warnings/Errors), opening on run, collapsible/resizable, dismissible/reopenable.
-*   [ ] Emit per-node/edge execution-state events on the existing Observable pipeline ([DECAF-32](./DECAF_32.md) §5.3/§5.8/§8) and map them to faded glowing border overlays: running=green, blocked=yellow, errored=red; unexecuted nodes/edges fade/disable after a failed run.
-*   [ ] Introduce a `BLOCKED`/waiting visual state for nodes whose upstream dependencies have not all completed (derived from plan/execution events, no engine rewrite).
-*   [ ] Double-click an already-ran node to expand an inline split view: right=inputs, left=outputs (or error), rendered by one shared component with JSON (default) / table / raw view modes.
-*   [ ] Keep the frontend visualization importing only `@decaf-ts/integrations/graph/shared` ([DECAF-35](./DECAF_35.md) §4.6 ESLint boundary); never import the engine in `for-angular`.
+*   [x] Add a `core.utility.log` Log node to the catalogue ([DECAF-34](./DECAF_34.md) amendment) whose executor logs its input through `ctx.logger` so its output appears in the widget naturally.
+*   [x] Attach `nodeId`, `workflowId`, `runId`, `user` to every run log line via decaf-ts logging custom attributes ([DECAF-9](./DECAF_9.md) `LogParameterRegistry` / `logger.for({...})`), sourced from `ctx` ([DECAF-18](./DECAF_18.md)).
+*   [x] Stream live run logs over SSE in non-default subscription mode with per-owner (run-ownership) segregation ([DECAF-42](./DECAF_42.md)); a consumer only receives events/logs for runs it owns.
+*   [x] Add a docked logs widget at the bottom of the workflow canvas with Chrome-console-style level filtering (Verbose/Info/Warnings/Errors), opening on run, collapsible/resizable, dismissible/reopenable.
+*   [x] Emit per-node/edge execution-state events on the existing Observable pipeline ([DECAF-32](./DECAF_32.md) §5.3/§5.8/§8) and map them to faded glowing border overlays: running=green, blocked=yellow, errored=red; unexecuted nodes/edges fade/disable after a failed run.
+*   [x] Introduce a `BLOCKED`/waiting visual state for nodes whose upstream dependencies have not all completed (derived from plan/execution events, no engine rewrite).
+*   [x] Double-click an already-ran node to expand an inline split view: right=inputs, left=outputs (or error), rendered by one shared component with JSON (default) / table / raw view modes.
+*   [x] Keep the frontend visualization importing only `@decaf-ts/integrations/graph/shared` ([DECAF-35](./DECAF_35.md) §4.6 ESLint boundary); never import the engine in `for-angular`.
 
 ## 3. User Stories / Requirements
 
@@ -131,34 +131,34 @@ sequenceDiagram
 
 ## 5. Tasks Breakdown
 
-This specification is broken down into phased work items. Per the [SAA-55](/SAA/issues/SAA-55) / [SAA-56](/SAA/issues/SAA-56) approvals, task decomposition, assignment, and the per-task Paperclip children are owned by CEO/CTO and will carry specification `DECAF-48`. Phasing is a sequencing recommendation, not a hard release split; the specialist may bundle into one specification with phased tasks.
+This specification is broken down into phased work items. Per the [SAA-55](/SAA/issues/SAA-55) / [SAA-56](/SAA/issues/SAA-56) approvals, task decomposition, assignment, and the per-task Paperclip children are owned by CEO/CTO and will carry specification `DECAF-48`. Phasing is a sequencing recommendation, not a hard release split; the specialist may bundle into one specification with phased tasks. Implementation was delivered across both layers — Back-End ([SAA-59](/SAA/issues/SAA-59)) and Front-End ([SAA-60](/SAA/issues/SAA-60)) — both `done`. Status snapshots below are derived from Paperclip at completion (2026-08-21); Paperclip remains authoritative for lifecycle state.
 
 | Phase | Work item | Layer | Priority | Status | Dependencies |
 |:---|:---|:---|:---|:---|:---|
-| 1 | Add `core.utility.log` Log node executor + catalogue amendment ([DECAF-34](./DECAF_34.md)) | integrations / ui-decorators | High | Pending | - |
-| 1 | Register `nodeId`/`workflowId`/`runId`/`user` log attributes via [DECAF-9](./DECAF_9.md) `logger.for(...)`, sourced from `ctx` ([DECAF-18](./DECAF_18.md)) | integrations | High | Pending | - |
-| 1 | SSE subscription-mode segregation keyed by `{ runId, ownerUser }` on `graph.run.log` / `graph.run.state` ([DECAF-42](./DECAF_42.md)) | integrations / for-nest | High | Pending | - |
-| 1 | Logs widget docked at canvas bottom: live SSE stream, Chrome-console level filter, open-on-run, collapsible/resizable | for-angular | High | Pending | 1 (SSE segregation, log attributes) |
-| 2 | Node/edge execution-state enum in `shared` + `NODE_STATE_CHANGED`/`EDGE_STATE_CHANGED` events on the existing Observable ([DECAF-32](./DECAF_32.md) §5.3/§5.8/§8) | integrations / ui-decorators | High | Pending | - |
-| 2 | `GraphExecutionStateMapper` extension + faded glowing overlays (running=green, blocked=yellow, errored=red) and post-fail fade for unexecuted nodes/edges | for-angular | High | Pending | 2 (state events) |
-| 2 | Reconcile run-feedback colours with [DECAF-32](./DECAF_32.md) §21.9 (CTO-confirmed reconciliation); keep `cached`/`pinned` intact | for-angular / ui-decorators | Medium | Pending | 2 (overlay) |
-| 3 | Per-node I/O result payload (`inputs`/`outputs`/`error`) via SSE state channel or `GET /graph/results/:runId` ([DECAF-36](./DECAF_36.md) §4.6) | integrations | Medium | Pending | - |
-| 3 | Reusable JSON (default) / table / raw viewer component (one shared component for inputs and outputs|error) | for-angular | Medium | Pending | 3 (I/O payload) |
-| 3 | Double-click gesture disambiguation (already-ran → I/O inspection; not-ran → edit modal) + inline split-view expand | for-angular | Medium | Pending | 3 (viewer) |
-| X | Engine-agnostic conformance tests asserting the event/attribute contract; ESLint boundary stays green; SSE fan-out + ownership-filter live test (5+ observers) | integrations / for-angular | High | Pending | 1, 2 |
+| 1 | Add `core.utility.log` Log node executor + catalogue amendment ([DECAF-34](./DECAF_34.md)) | integrations / ui-decorators | High | Done | - |
+| 1 | Register `nodeId`/`workflowId`/`runId`/`user` log attributes via [DECAF-9](./DECAF_9.md) `logger.for(...)`, sourced from `ctx` ([DECAF-18](./DECAF_18.md)) | integrations | High | Done | - |
+| 1 | SSE subscription-mode segregation keyed by `{ runId, ownerUser }` on `graph.run.log` / `graph.run.state` ([DECAF-42](./DECAF_42.md)) | integrations / for-nest | High | Done | - |
+| 1 | Logs widget docked at canvas bottom: live SSE stream, Chrome-console level filter, open-on-run, collapsible/resizable | for-angular | High | Done | 1 (SSE segregation, log attributes) |
+| 2 | Node/edge execution-state enum in `shared` + `NODE_STATE_CHANGED`/`EDGE_STATE_CHANGED` events on the existing Observable ([DECAF-32](./DECAF_32.md) §5.3/§5.8/§8) | integrations / ui-decorators | High | Done | - |
+| 2 | `GraphExecutionStateMapper` extension + faded glowing overlays (running=green, blocked=yellow, errored=red) and post-fail fade for unexecuted nodes/edges | for-angular | High | Done | 2 (state events) |
+| 2 | Reconcile run-feedback colours with [DECAF-32](./DECAF_32.md) §21.9 (CTO-confirmed reconciliation); keep `cached`/`pinned` intact | for-angular / ui-decorators | Medium | Done | 2 (overlay) |
+| 3 | Per-node I/O result payload (`inputs`/`outputs`/`error`) via SSE state channel or `GET /graph/results/:runId` ([DECAF-36](./DECAF_36.md) §4.6) | integrations | Medium | Done | - |
+| 3 | Reusable JSON (default) / table / raw viewer component (one shared component for inputs and outputs|error) | for-angular | Medium | Done | 3 (I/O payload) |
+| 3 | Double-click gesture disambiguation (already-ran → I/O inspection; not-ran → edit modal) + inline split-view expand | for-angular | Medium | Done | 3 (viewer) |
+| X | Engine-agnostic conformance tests asserting the event/attribute contract; ESLint boundary stays green; SSE fan-out + ownership-filter live test (5+ observers) | integrations / for-angular | High | Done | 1, 2 |
 
 ## 6. Open Questions / Risks
 
-*   **Colour reconciliation with [DECAF-32](./DECAF_32.md) §21.9** — PM decision: brief's colours win for the live run-feedback overlay (running=green, blocked=yellow, errored=red); `cached`/`pinned` semantics stay intact. CTO to confirm the cleanest reconciliation (revise §21.9's running colour vs layer the new overlay on top). Owner: CTO.
-*   **`BLOCKED`/waiting state** — not present in the engine's current `PENDING/RUNNING/SUCCEEDED/FAILED/SKIPPED/CANCELLED/CACHED` set. In scope: introduce a waiting/blocked visual state derived from incomplete upstream dependencies (no engine rewrite). Derivation rule defined in §4.4.
-*   **Double-click vs edit-modal conflict** ([DECAF-32](./DECAF_32.md) §21.11) — resolved: disambiguate by run state (already-ran → I/O inspection; not-ran → edit modal). §4.7.
-*   **Log transport** — product requires live SSE streaming with per-owner segregation; the transport choice (dedicated logs SSE channel vs log events carried on the existing graph-events SSE) is an implementation decision for the spec/CTO. §4.2 defines the `graph.run.log` / `graph.run.state` namespace.
-*   **Log node existence** — [DECAF-34](./DECAF_34.md) has no dedicated Log node. Resolved: add a `core.utility.log` Log node (logs its input via `ctx.logger` at a configurable level). §4.3.
-*   **SSE fan-out + ownership-filter correctness** — must test 5+ concurrent `HttpAdapter` observers in subscription mode and prove each receives only its own runs' events ([DECAF-42](./DECAF_42.md) Req-6/7). Ownership-filter tests are mandatory.
-*   **Contract drift between reference interpreter and future Mastra driver** — mitigate by keeping the event/attribute contract minimal, documented, and asserted by engine-agnostic conformance tests.
-*   **Frontend boundary regression** — [DECAF-35](./DECAF_35.md) ESLint rule must stay green; the new widget/inspector must not import the engine.
-*   **Log volume / SSE backpressure on large runs** — define a sensible per-run log cap and level awareness at the source (frontend filter is a view concern; do not stream debug logs to a console filtered to error only without server-side level awareness).
-*   **`ctx` identity absent for unauthenticated/standalone module runs** ([DECAF-36](./DECAF_36.md) Req-B7 `@Optional()` request context) — define behaviour: attribute `user` as `null`/`system` when absent; ownership filter still keys on `runId` for that case.
+*   **Colour reconciliation with [DECAF-32](./DECAF_32.md) §21.9** — Resolved by implementation: the live run-feedback overlay uses the brief's colours (running=green, blocked=yellow, errored=red) per the PM decision on [SAA-55](/SAA/issues/SAA-55); `cached`/`pinned` semantics stay intact. Technical governance, including the engine-agnostic contract and reuse of the existing Observable + DECAF-42 subscription mode, was approved by CTO on [SAA-56](/SAA/issues/SAA-56). Shipped in the committed tree.
+*   **`BLOCKED`/waiting state** — Resolved: introduced as a visual state derived from incomplete upstream dependencies (no engine rewrite); derivation rule in §4.4, mapped via `GraphExecutionStateMapper`.
+*   **Double-click vs edit-modal conflict** ([DECAF-32](./DECAF_32.md) §21.11) — Resolved: disambiguated by run state via `hasRan` (already-ran → I/O inspection; not-ran → edit modal). §4.7.
+*   **Log transport** — Resolved: logs ride the existing `/graph/events` SSE stream extended to subscription mode under namespace `graph.run.log` / `graph.run.state` (§4.2); no second out-of-band channel.
+*   **Log node existence** — Resolved: `core.utility.log` Log node added, logging its input via `ctx.logger` at a configurable level. §4.3.
+*   **SSE fan-out + ownership-filter correctness** — Verified: SSE ownership segregation keyed by `GraphRunSubscription { runId, ownerUser }` reusing `/graph/events` (DECAF-42); `resolveOwnerUser` context user-access bug fixed ([SAA-82](/SAA/issues/SAA-82)) and for-nest SSE ownership enforcement hardened ([SAA-63](/SAA/issues/SAA-63)).
+*   **Contract drift between reference interpreter and future Mastra driver** — Mitigated: contract kept minimal and engine-agnostic (Observable event types + logger custom attributes), re-exported via `integrations/graph/shared`; conformance tests added (`GraphExecutionStateMapper.test.ts`, `GraphRunLogger.test.ts`).
+*   **Frontend boundary regression** — Verified: `for-angular` imports only `graph/shared` (DECAF-35 §4.6); `ng build` clean, existing + new Jest and Playwright tests green.
+*   **Log volume / SSE backpressure on large runs** — Addressed at the source via level awareness; frontend filter is a view concern.
+*   **`ctx` identity absent for unauthenticated/standalone module runs** — Handled per §4.2/§6: `user` null/system when absent; ownership filter still keys on `runId`.
 *   **Non-goals (v1):** no persistent log store / search / replay across runs (live streaming + level filtering only); no editing from the I/O inspection panel (read-only); no change to engine execution semantics (loops, pinning, planning, value store); no multi-user collaboration features; no redefinition of the node catalogue beyond adding the Log node; no new frontend/backend boundary changes beyond using the existing [DECAF-35](./DECAF_35.md) split and [DECAF-42](./DECAF_42.md) subscription mode; no mobile/responsive canvas redesign; no production Mastra/NestJS driver (the demo engine satisfies the contract now; the driver is a separate future issue).
 
 ## 7. Results & Artifacts
@@ -167,4 +167,29 @@ This specification is broken down into phased work items. Per the [SAA-55](/SAA/
 *   `workdocs/ai/project/plan.md`
 *   `AGENTS.md` (constitution)
 
-Implementation artifacts (Log node executor, log-attribute descriptors, SSE subscription-mode segregation, state events + mapper, logs widget, visual overlays, I/O viewer, conformance/ownership tests) are produced by the delegated implementation children and recorded here when they complete.
+Implementation artifacts (delivered by [SAA-59](/SAA/issues/SAA-59) Back-End and [SAA-60](/SAA/issues/SAA-60) Front-End, both `done`) — repository-root relative; `integrations`, `ui-decorators`, and `for-angular` are sibling git repos in the workspace:
+
+- `integrations/src/graph/engine/execution/GraphExecutionEngine.ts` — state-event emission (`emitNodeStateChanged`/`emitEdgeStateChanged`) on the existing Observable.
+- `integrations/src/graph/log/GraphRunLogger.ts`, `integrations/src/graph/log/LogParameters.ts` — run-scoped `ctx.logger` + idempotent DECAF-9 `LogParameterDescriptor` registration (side-effect import wired in `integrations/src/graph/index.ts`).
+- `integrations/src/graph/shared/GraphExecutionStateMapper.ts`, `constants.ts`, `types.ts`, `index.ts` — visual-state contract (`GraphVisualState`), topics (`graph.run.log`/`graph.run.state`), and re-exports.
+- `integrations/src/graph/engine/execution/GraphExecutionContext.ts`, `LogGraphNodeExecutor.ts`, `integrations/src/nest/graph/GraphExecutorRegistryFactory.ts` — `ctx.logger` wiring + `core.utility.log` Log node.
+- `integrations/src/nest/graph` — `GraphRunSubscription { runId, ownerUser }` ownership key reusing `/graph/events` (DECAF-42 subscription mode).
+- `integrations/tests/unit/graph/GraphExecutionStateMapper.test.ts`, `GraphRunLogger.test.ts` — 22 new unit tests.
+- `ui-decorators/src/graph/constants.ts` — visual-style + node I/O metadata (re-exportable via `integrations/graph/shared`, DECAF-35 §4.6).
+- `for-angular/src/graph/execution/GraphRunLogStore.ts`, `GraphExecutionStateMapper.ts`, `GraphExecutionStateService.ts`, `GraphInspectionStore.ts` — Phase 1/2/3 stores and state mapping.
+- `for-angular/src/graph/components/graph-logs-widget/` — Phase 1 live logs widget (console-style level filter, docked bottom overlay).
+- `for-angular/src/graph/components/` node/edge templates — Phase 2 visual run feedback (running=green / blocked=failed / skipped states; `markAllBlocked` seeds both canvas + engine plan-edge ids).
+- `for-angular/src/graph/components/graph-io-viewer/`, `graph-node-inspection/` — Phase 3 node I/O inspection (double-click disambiguated by `hasRan`; shared JSON/table/raw viewer; `credentials: "include"` + `fetchInspections` keyed by `lastRunId()`).
+- `for-angular/tests/playwright/graph/graph-run.spec.ts` — Playwright run-feedback e2e.
+
+## 8. Completion Summary
+
+- **Acceptance criteria:** all §2 goals and §3 requirements (Req-1…Req-11) have outcomes (see §2 checkboxes and §5 task statuses). No scope remains open on this domain root.
+- **Reviews:** JSDoc review [SAA-61](/SAA/issues/SAA-61) done; security review [SAA-62](/SAA/issues/SAA-62) done (APPROVED with required follow-ups). Front-end reviews — tests [SAA-114](/SAA/issues/SAA-114), docs [SAA-115](/SAA/issues/SAA-115), security [SAA-116](/SAA/issues/SAA-116) — all done. Security follow-ups resolved: for-nest SSE ownership enforcement [SAA-63](/SAA/issues/SAA-63) done; `resolveOwnerUser` context user-access bug fix [SAA-82](/SAA/issues/SAA-82) done.
+- **Commit disposition:** the board declined both git-ops commit-approval cards and committed the DECAF-48 deliverables themselves under message `DECAF-809 - graph/user request/vuls, ci, everything`. No agent-created commit SHA exists; the user owns the commit. The committed tree was re-verified by the implementing agents and independently re-verified by Delivery Documentation Specialist at completion: all DECAF-48 files present at HEAD, working trees clean — `integrations` HEAD `6c8a9c2`, `ui-decorators` HEAD `23dcb33`, `for-angular` HEAD `ab48742`. This is an acceptable completion path per git-ops (board/user may take the commit step).
+- **Verification evidence (reported by executors):**
+  - Back-End ([SAA-59](/SAA/issues/SAA-59)): `integrations` `npm run lint`=0 errors, `npm run build`=success, `npm run test:unit`=33 suites/365 tests pass (incl. 22 new); `ui-decorators` `npm run lint`=0, `npm run build`=success, `npm run test:unit`=6 suites/66 tests.
+  - Front-End ([SAA-60](/SAA/issues/SAA-60)): `for-angular` lint 0 errors, `ng build` success, existing Jest 31/31 + 84 new Jest + 4 Playwright green; reviews [SAA-114](/SAA/issues/SAA-114)/[SAA-115](/SAA/issues/SAA-115)/[SAA-116](/SAA/issues/SAA-116) done.
+  - Committed-tree re-verification by implementers after the user commit: all DECAF-48 deliverables present in HEAD; both review findings confirmed fixed (`markAllBlocked` edge mapping; `fetchInspections` keyed by `lastRunId()`, `credentials: "include"` on runtime fetches).
+- **Documentation provenance:** completion milestone reported by CEO on [SAA-132](/SAA/issues/SAA-132); domain record finalized by Delivery Documentation Specialist. Repository edits left uncommitted for inclusion in the domain root's single user-approved commit per git-ops (the board already committed the implementation; documentation deltas are part of the same tree).
+- **Outstanding items:** none on this domain root. Company-wide DECAF-809 bundle work is tracked on its own tickets, not here.
