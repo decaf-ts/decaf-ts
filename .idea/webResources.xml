@@ -46,6 +46,7 @@
             <path value="file://$PROJECT_DIR$/logging/.codex" />
             <path value="file://$PROJECT_DIR$/crypto/workdocs" />
             <path value="file://$PROJECT_DIR$/integrations/workdocs" />
+            <path value="file://$PROJECT_DIR$/with-ai/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>
