@@ -1,0 +1,981 @@
+# 11 — Tooling, CLI & MCP Server Design
+
+The architecture is detailed in the [Architecture Handbook](../architecture-handbook/09-tooling-infra.md).
+
+This specification covers the design of the decaf-ts tooling layer
+(`@decaf-ts/utils`, `@decaf-ts/cli`) and the decaf-ts MCP server
+(`@decaf-ts/mcp-server`), plus the operational infra packages that the research
+briefs document (`with-ai`, `reusable-actions`, `ts-template`, `as-infra`,
+`bin`, `docker`). It is grounded in two read-only research briefs and invents
+no API beyond them. Where a brief is thin, this spec says so.
+
+## 1. Design Principles
+
+**Tooling is a leaf, not a framework dependency.** — Why: keeping `utils`/`cli`/
+`mcp-server` free of imports from the persistence/HTTP/UI layers means the
+tooling can evolve and release independently of the runtime frameworks.
+Enforcing test/spec: `utils` declares only `@decaf-ts/logging` as a runtime dep;
+`mcp-server` is a leaf with no in-monorepo runtime dependents (verified by
+dependency inspection in the brief).
+
+**One CLI framework on top of one command framework.** — Why: `utils`
+`Command<I,R>` (Template Method) is the single substrate for every CLI command,
+and `cli` `CliWrapper` is the single discovery + dispatch layer on top of
+Commander; avoiding a second command abstraction prevents divergent arg/help/
+dry-run semantics. Enforcing test/spec: built-in `build`/`release`/`utils`
+modules forward to `@decaf-ts/utils` command classes via
+`runUtilsCommand`; discovered modules must resolve to a commander `Command`.
+
+**Discoverable extensibility over central registration.** — Why: any decaf-ts
+package can extend the `decaf` CLI by shipping a `cli-module.cjs`/`.mjs` without
+editing a central registry; the MCP server similarly centralizes registration
+through `registerTools`/`registerResources`/`registerAgentModeAssets` called
+from `McpServer.load()` rather than scattered per-module `registerAll()`.
+Enforcing test/spec: `CliWrapper` crawls host → `@decaf-ts/*` scope → siblings
+for `${CLI_FILE_NAME}\.[cm]js$` and dedups by resolved path; `McpServer.load()`
+is the single registration site.
+
+**Build-time token substitution keeps metadata out of source.** — Why:
+`##...##` placeholders (`VERSION`/`COMMIT`/`FULL_VERSION`/`PACKAGE_NAME`) are
+injected by `build-scripts` at bundle time so published artifacts carry the
+real `package.json` version without source edits. Enforcing test/spec: the
+placeholder constants are literal in source and only meaningful in a built
+`build-scripts` bundle.
+
+**Validation at the boundary.** — Why: `ToolBuilder.build()` runs `hasErrors()`
+and throws on validation failure before calling `server.registerTool`, and MCP
+schemas must be canonical `ZodObject`s unwrapped to a `ZodRawShape` via
+`ensureZodObject`/`extractShape`; this guarantees every registered tool is
+well-formed and its argument schema is advertised to clients. Enforcing
+test/spec: `Builder` extends `decorator-validation`'s `Model` with `@required()`
+on `name`/`title`/`description`.
+
+**Provider-agnostic agent execution.** — Why: `runtime/provider.ts` resolves a
+CLI command per provider (`codex`/`claude`/`copilot`) so the same agent
+definitions drive multiple LLM CLIs; only the `prompt` model type actually
+shells out. Enforcing test/spec: `runProviderPrompt` returns
+`{exitCode, stdout, stderr, command}` and is the sole provider entrypoint.
+
+**One canonical skip-CI token across local release and CI.** — Why:
+`bin/tag-release.sh` normalizes `-no-ci`/`[skip ci]`/`[ci skip]`/… to a single
+`[skip ci]` before commit/tag, matching the assumption baked into
+`reusable-actions` publish/release workflows. Enforcing test/spec:
+`publish-on-release.yaml` explicitly checks
+`!endsWith(github.event.release.body, '[skip ci]')`.
+
+## 2. CLI Design — `@decaf-ts/cli`
+
+### 2.1 CliWrapper
+
+`CliWrapper` extends `LoggedClass` and lazily builds a root commander `Command`
+(`command` getter), initialized via `CLIUtils.initialize` which hard-codes
+`command.name("decaf")`.
+
+- Constructor: `(basePath?, crawlLevels=4)`; the bin passes `process.cwd()`.
+- `run(args?)`: awaits `boot()` then `command.parseAsync(args)`.
+- Static `accumulateEnvironment(obj)` / `getEnv()` for the accumulated
+  `DecafCLieEnvironment`.
+- `boot()`: `ensureLogLevelSupport` adds `--logLevel` + a `preAction` hook
+  (default `LogLevel.info`); loads built-in modules then crawls
+  host/scope/sibling paths.
+
+### 2.2 Command dispatch
+
+Built-in modules (`INCLUDED_MODULE_FACTORIES = [buildModule, releaseModule,
+utilsModule]`) load first. For `build`, the `.action` handler builds a value
+map (`buildValueMap`) then `runUtilsCommand(new BuildScripts(), values, this)`
+which merges `DefaultCommandValues`, short-circuits on help/version, else calls
+`BuildScripts.run(payload)`. The `preAction` hook applies any `--logLevel`
+override.
+
+```mermaid
+sequenceDiagram
+    participant Shell as shell (decaf build --dev)
+    participant Bin as bin/cli.cjs
+    participant CW as CliWrapper
+    participant Crawl as crawl + loadFromFile
+    participant Cmd as commander Command
+    participant Fwd as command-forwarder
+    participant Util as @decaf-ts/utils BuildScripts
+    Shell->>Bin: process.argv
+    Bin->>CW: new CliWrapper(process.cwd()).run(argv)
+    CW->>CW: boot() — ensureLogLevelSupport + preAction hook
+    CW->>Crawl: load built-in modules, then crawl host→scope→siblings
+    Crawl->>CW: addCommand(...) (dedup by name)
+    CW->>CW: printBanner() unless help
+    CW->>Cmd: command.parseAsync(args)
+    Cmd->>Fwd: build .action handler
+    Fwd->>Fwd: buildValueMap(opts)
+    Fwd->>Util: runUtilsCommand(new BuildScripts(), values, this)
+    Util->>Util: short-circuit on help/version, else run(payload)
+```
+
+### 2.3 Module discovery
+
+- `crawl(basePath, levels)` recursively scans for
+  `${CLI_FILE_NAME}\.[cm]js$` (i.e. `cli-module.cjs`/`.mjs`; **not** `.js`).
+- Each hit is `import()`-ed via `CLIUtils.loadFromFile`/`normalizeImport` (handles
+  CJS `default` unwrapping); loaded modules may be a `Function` (invoked) or
+  `Promise` (awaited) and must resolve to a commander `Command`.
+- Discovery scope: host path → `@decaf-ts/*` scope roots → sibling packages in
+  the enclosing `node_modules`; a `seen` set dedups by resolved path.
+
+### 2.4 CLI module creation
+
+A package extends the `decaf` CLI by authoring `cli-module.cjs` (or `.mjs`)
+exporting a factory that resolves to a commander `Command`. The factory is
+loaded by `CLIUtils.loadFromFile`/`normalizeImport`, invoked/awaited, and the
+resulting `Command` is added via `addCommand` (dedup by name). No central
+registry edit is required.
+
+### 2.5 Environment
+
+- `DefaultCliEnvironment = { banner: true, cliModuleRoot, style: true }`.
+- `cliModuleRoot` defaults to `process.cwd()` unless env var `CLI_MODULE_TOOT`
+  is set (the env var name is a documented typo for `CLI_MODULE_ROOT`).
+- Banner suppressed for `-h`/`--help`/`help`; disable globally via
+  `DecafCLieEnvironment.banner = false`.
+
+## 3. utils Design — `@decaf-ts/utils`
+
+### 3.1 Command framework
+
+`Command<I,R>` is the abstract Template-Method base. Subclasses implement
+`run(answers)` and optionally `help()`; `execute()` orchestrates parsing →
+help/version short-circuit → prompt for missing answers (via `UserInput`) →
+`run`. Concrete commands (`BuildScripts`, `ReleaseScript`,
+`ReleaseChainCommand`, `ModulesCommand`, `NpmLinkCommand`, `NpmTokenCommand`,
+`RunAllCommand`, `TagReleaseCommand`, `CredentialsCommand`,
+`CompileMatrixCommand`, `MirrorRepoCommand`) are re-exported from
+`src/cli/commands/index.ts`.
+
+### 3.2 Output strategy
+
+`OutputWriter` (interface), `StandardOutputWriter` (logs+accumulates),
+`RegexpOutputWriter` (resolves the executor on the first regex match) form a
+Strategy family over process output. `spawnCommand`/`runCommand` route
+stdout/stderr chunks to an `OutputWriter`; on exit the executor resolves/
+rejects.
+
+### 3.3 Credentials
+
+`CredentialsCommand` (+ `resolveSecret`/`hasSecret`) resolves credentials via a
+Chain-of-Responsibility: env var (CI) → OS keychain (local) → deprecated legacy
+plaintext file (with warning). `credentials --action setup --rm` enrolls
+built-in secrets in the OS keychain and removes legacy files.
+
+### 3.4 Release chain
+
+`ReleaseChainRunner`/`runReleaseChain`/`dispatchReleaseChainWorkflow` encode
+multi-step release pipelines as composable, abortable units
+(`chainAbortController` composes AbortControllers; `lockify` is a mutex
+wrapper).
+
+### 3.5 Build placeholders
+
+`VERSION`/`COMMIT`/`FULL_VERSION`/`PACKAGE_NAME` are literal `"##...##"` in
+source, substituted by `build-scripts` at bundle time. They are only meaningful
+in a built `build-scripts` bundle.
+
+### 3.6 Secondary entrypoint
+
+`@decaf-ts/utils/tests` exposes `TestReporter`, `Consumer`, `jestPerformanceRunner`,
+and helpers via a separate export map (not reachable from the main import).
+
+## 4. MCP Server Design — `@decaf-ts/mcp-server`
+
+### 4.1 Server & boot
+
+`McpServer` owns the underlying MCP SDK client (stored in a `WeakMap`).
+`boot(transportType, options)`:
+
+1. If stdio, swaps the `Logging` factory to a stderr-only logger so stdout stays
+   protocol-clean.
+2. Builds `Implementation`/`ServerOptions` (instructions = agent system prompt
+   when `agentMode`, else the static `SystemPrompt`).
+3. Constructs the SDK `MCP` client, stores it in the `WeakMap`.
+4. Resolves the transport (`StdioServerTransport` or
+   `StreamableHTTPServerTransport`, or validates a passed-in `Transport`
+   duck-type).
+5. `load()` → registers prompts (iterating `Prompts`), `registerTools`,
+   `registerResources`, and (if `agentMode`) `registerAgentModeAssets`.
+6. `client.connect(transport)`; optional `MCP_DEBUG_TOOLS=1` lists tools;
+   `MCP_DEBUG_BOOT=1` appends a boot trace to `/tmp/mcp-boot.log`.
+
+`McpServerRuntimeOptions`: `agentMode`, `workspacePath`, `agentProvider`,
+`modelType`, `executeSpec`, `entryFile`.
+
+### 4.2 Tool registration
+
+Centralized registration through `registerTools(server)` (which calls
+`registerJiraTools`, summarization, and server-info tools), `registerResources`,
+and `registerAgentModeAssets` — all invoked from `McpServer.load()`. This is a
+deliberate migration away from per-module `registerAll()`.
+
+`ToolBuilder` wraps the MCP SDK `registerTool` with:
+
+- **Validation** — `Builder` extends `decorator-validation`'s `Model`; required
+  fields (`name`/`title`/`description`) enforced with `@required()`;
+  `ToolBuilder.build()` runs `hasErrors()` and throws on validation failure.
+- **Schema shape** — schemas must be canonical `ZodObject`s; `ensureZodObject`/
+  `extractShape` unwrap `ZodOptional`/`ZodEffects`/`ZodDefault` and extract the
+  raw `ZodRawShape` expected by the MCP SDK.
+- **Usage meta** — `UsableBuilder` carries `reasoning`/`effort`/`cost`
+  (`constants.ts` enums) serialized into `_meta.usage` on every invocation.
+- **Duplicate-registration tolerance** — `ToolBuilder.build()` and the agent-mode
+  `register*` helpers swallow errors whose message includes
+  `"already registered"`, returning lightweight placeholders.
+
+### 4.3 Prompts & resources
+
+- `Prompts` is an ordered array of prompt builders loaded at boot:
+  `interactive-jsdoc`, `JsDocPrompts` (`NamedPromptBuilder`-based, loaded from
+  `assets/prompts/documentation/*.json`), `TsCodeDesignPatterBuilder`, plus
+  Jira/summarization prompts.
+- `Resources` is an ordered array of resource builders: `repo.metadata`,
+  decoration schematics, golden overrides, and Jira ticket templates. Assets
+  load from `src/assets/resources/` with obfuscated `.enc` fallbacks decrypted
+  via `utils/obfuscation.ts`.
+- `AssetReader` (`@injectable`) is injected into `PromptBuilder`;
+  `NamedPromptBuilder` loads a named prompt plus optional `prefix`/`suffix`
+  fragments from a category dir, then `sf(...)`-substitutes placeholders.
+
+### 4.4 Agent orchestration
+
+- `Agent` accepts an `AgentBehaviorDefinition` (behavior tree string + GOAP
+  state/goal/actions + action list) and a set of behaviour handlers. `run()`
+  dispatches to `runWorkflow()` (mistreevous `BehaviourTree`, stepped with a
+  50-iteration safety bound) or `runGoap()` (`goap-solver` `planner`). A
+  `Blackboard` carries state between actions; progress reported via `onProgress`.
+- `AgentBuilder` constructs and registers an `Agent` in a process-wide
+  `registry` keyed by `workspaceRoot::agentName`.
+- `registerAgentModeAssets` reads `assets/resources/agent/catalog.json` (copied
+  into the repo workspace under `workdocs/ai/project/agent/`), then registers
+  `resource://agent.catalog`, per-agent
+  `resource://agent.behavior.<name>` and `resource://agent.prompt.<name>`
+  resources, an `agent-<name>` prompt, and `agent.do`/`agent.notify` plus
+  per-operation `agent.<operation>` tools that dispatch through
+  `runAgentCommand`.
+- **Model type semantics** — `prompt` shells out to a provider CLI (requires
+  the CLI on PATH); `goap` runs the GOAP planner against the behavior
+  definition; `workflow` runs the mistreevous behavior tree in-process. Only
+  `prompt` actually drives an external LLM.
+
+### 4.5 Provider abstraction
+
+`runtime/provider.ts` resolves a CLI command per provider (`codex` →
+`codex -s workspace-write exec`, `claude`, `copilot`); `runProviderPrompt`
+spawns it, piping the prompt to stdin and returning
+`{exitCode, stdout, stderr, command}`.
+
+### 4.6 Transport
+
+Stdio is the supported, tested transport. `StreamableHTTPServerTransport` is
+implemented in `boot` but is unreachable from the CLI (`runStandardServer`
+throws "Unsupported transport mode" for any non-stdio value) and untested; a
+passed-in `Transport` duck-type is also accepted.
+
+### 4.7 MCP tool invocation flow
+
+```mermaid
+sequenceDiagram
+    participant CLI as decaf-mcp start
+    participant Srv as McpServer.boot
+    participant Load as McpServer.load
+    participant Reg as registerTools → registerJiraTools
+    participant SDK as MCP SDK client
+    participant Tool as jira tool runTool
+    participant Jira as jira.js v3 / Xray GraphQL
+    CLI->>Srv: boot("stdio", options)
+    Srv->>Load: register prompts/tools/resources (+agent assets)
+    Load->>Reg: makeJiraClient() (may throw MissingJiraEnvironmentError; tools still register)
+    Reg->>SDK: server.registerTool(name, {title,description,inputSchema,annotations}, cb)
+    SDK->>Tool: invoke callback with args
+    Tool->>Tool: parse args with Zod schema
+    Tool->>Jira: issueSearch.searchForIssuesUsingJqlEnhancedSearchPost (e.g.)
+    Jira-->>Tool: results
+    Tool-->>SDK: CallToolResult via toCallToolResult
+```
+
+### 4.8 Agent execute flow
+
+1. `runAgentCommand({ operation: "execute", … })` → `runAgentExecution` creates
+   a `git worktree`, ensures the agent workspace inside it, loads the catalog,
+   and iterates
+   `["manager","orchestrator","architect","implementation","reviewer","documentation"]`.
+2. For each agent: in `prompt` model it builds a stage prompt and shells out
+   via `runProviderPrompt`; in `goap`/`workflow` model it builds an `Agent`
+   runtime and calls `agent.run()`. Blocker detection scans stdout/stderr for
+   `clarification`/`blocker`/`needs input`.
+3. Progress is appended to the SPEC/TASK markdown files and optionally synced to
+   Jira as a comment; the worktree is cleaned up in a `finally`.
+
+## 5. with-ai Design
+
+`with-ai` is an operational packaging/distribution vehicle, not a stable
+library: its published `src/` is the unmodified `ts-workspace` template and
+carries no AI-specific value; the real product is the docker/company/skills/
+agents bundle (not part of the `files` array).
+
+- **Skills packaging** — each skill is a directory with a `SKILL.md` carrying
+  YAML frontmatter (`name`, `description`, optional explicit `key:` for
+  `common/*` and `paperclipai/*`, `categories`) plus optional `references/`/
+  `scripts/`/`assets/` siblings. `decaf-ts/*` skills have no explicit key; their
+  live slug is the repo path with `/` flattened to `-`, with a `SLUG_EXCEPTIONS`
+  map for legacy divergences.
+- **Agents packaging** — each agent dir has `AGENTS.md` (frontmatter: `name`,
+  `title`, `reportsTo`, `skills:` list) plus `SOUL.md`/`HEARTBEAT.md`/
+  `TOOLS.md`; frontmatter is consumed at import time, only the body is stored
+  as the agent prompt; the active harness manifest supplies
+  `adapter.type`/`config`, `runtime`, `permissions` per agent slug.
+- **MCP server integration** — `docker/mcp/managed-mcp.json` is baked into the
+  image at `/etc/claude-code/managed-mcp.json` and is the exclusive, zero-trust
+  MCP allowlist for in-container agents; it defines read/write-split servers
+  (github, google, microsoft mail/calendar/teams), single `playwright`, and
+  `@decaf-ts/mcp-server`-routed `xray`/`jira` entries; credentials resolve from
+  container env via `${VAR:-}`.
+- **CLI init (`bin/init.mjs`)** — parses `.env.secret.template`/
+  `.env.projects.template`, generates `openssl rand -hex 32` secrets, fills
+  `USER_GID`/`USER_UID`, rewrites `PAPERCLIP_DATA_DIR`/
+  `COMPANY_REPOSITORY_PATH`, prompts for a harness, runs `npm run boot:<harness>`,
+  waits for health, scrapes the board-claim URL from `docker logs`, and tries to
+  open a browser.
+
+## 6. reusable-actions / templates / docker / bin Design
+
+### 6.1 reusable-actions
+
+Composite-by-`workflow_call`: every shared workflow uses `on: workflow_call`
+(+ `workflow_dispatch`); callers invoke with `uses: ...@main` and
+`secrets: inherit`. Skip-CI normalization pairs
+`bin/tag-release.sh` (canonical `[skip ci]`) with `publish-on-release.yaml`'s
+explicit `[skip ci]` check. Trivy→Renovate pairing: `trivy-scan.yml` uploads
+`trivy-report.json` then dispatches `renovate-trigger`/`renovate-dep-trigger`;
+`renovate.yml` reads that report to scope `matchPackageNames` to vulnerable
+packages at the configured severity and to prune stale `package.json`
+`overrides` entries. Concurrency groups keyed by
+`${{ github.repository }}-${{ github.ref }}` with `cancel-in-progress` (except
+`pages.yaml` which sets it `false`).
+
+### 6.2 ts-template (scaffold)
+
+Scaffolding conventions: barrel `src/index.ts` re-exports submodules; nested
+`namespace`/`children` demonstrates the recommended folder hierarchy; every
+export carries heavy JSDoc with `@mermaid`/`@example` blocks consumed by the
+docs pipeline. Multi-target testing via `tests/workspace-target.ts` +
+`TEST_TARGET` lets the same unit tests run against `src`/`lib`/`dist`. Script
+contract: `build`/`build:prod`/`test:all`/`coverage`/`docs`/`prepare-pr`/
+`prepare-release`/`release` are the shared lifecycle every decaf-ts package
+inherits.
+
+### 6.3 as-infra (IaC)
+
+One chart, three value files: `values.yaml` (cloud/AWS-shaped defaults) +
+`values-local.yaml` (Minikube overrides) + `values-aws.yaml` (explicit cloud
+overrides); environment differences live in overrides/`--set`, never as a
+second copy of templates. Portable secrets model: charts never own secret
+material; AWS profile renders an ESO `SecretStore` (IRSA) + `ExternalSecret`
+syncing from AWS Secrets Manager; local profile sets `secretStore.enabled=false`
+and pre-creates the `<release>-secrets` Secret out-of-band (Terraform writes
+them into LocalStack Secrets Manager, ESO mirrors them). Terraform drives Helm
+in dependency order; two-step bootstrap (`scripts/bootstrap-cluster.sh` then
+`terraform apply`); Argo CD GitOps with manual sync.
+
+### 6.4 docker (local dev)
+
+Traefik label-driven routing with oauth2-proxy as a `forwardAuth` middleware;
+ELK TLS-from-setup (the `setup` service generates CA + instance certs via
+`elasticsearch-certutil` and bootstraps the `kibana_system` password); host-mount
+observability (metricbeat/filebeat mount host `/proc`, `/sys/fs/cgroup`, `/`,
+`/var/run/docker.sock`); fully env-var parameterized (a `.env` is required but
+not committed). These compose files are the local-dev originals that `as-infra`
+Helm charts re-derive for Kubernetes. Insecure defaults (`FLEET_INSECURE=true`,
+`FLEET_SERVER_INSECURE_HTTP=true`,
+`OAUTH2_PROXY_INSECURE_OIDC_ALLOW_UNVERIFIED_EMAIL: true`,
+`OAUTH2_PROXY_SSL_INSECURE_SKIP_VERIFY: true`) are appropriate only for local
+dev.
+
+### 6.5 bin (workspace orchestration)
+
+Submodule-driven orchestration (`modules.js` is the single source of truth);
+local linking instead of publishing for dev (`npm-link.js` symlinks
+`node_modules/@decaf-ts/<dep>/lib` to workspace source, skipping `utils` and
+`logging` because they cross-reference each other); aggregate dist bundling
+(`bundle.js` + `releases/bundles.json` produce `@decaf-ts/dist-*`
+meta-packages); vendored tooling (`build-scripts.cjs`/`update-scripts.cjs` are
+committed bundled artifacts so submodules can `npx` them without a separate
+install).
+
+## 7. Functional Requirements
+
+### 7.1 CLI dispatch
+
+- **FR-CLI-1** — `decaf` shall resolve the bin to `lib/cjs/bin/cli.cjs`, which
+  constructs `new CliWrapper(process.cwd())` and calls `run(process.argv)`.
+- **FR-CLI-2** — `boot()` shall add `--logLevel` support with a `preAction`
+  hook (default `LogLevel.info`), load built-in modules, then crawl host →
+  `@decaf-ts/*` scope → siblings for `cli-module.[cm]js`.
+- **FR-CLI-3** — Discovered modules shall be loaded via
+  `CLIUtils.loadFromFile`/`normalizeImport` (CJS `default` unwrapping), invoked
+  or awaited, and added via `addCommand` with name dedup.
+- **FR-CLI-4** — For built-in `build`, the action handler shall call
+  `runUtilsCommand(new BuildScripts(), values, this)`, short-circuiting on
+  help/version, else calling `BuildScripts.run(payload)`.
+- **FR-CLI-5** — A random ASCII banner + slogan shall be rendered on `run()`
+  when banner is enabled and the invocation is not a help request.
+
+### 7.2 MCP server
+
+- **FR-MCP-1** — `McpServer.boot("stdio", options)` shall swap the `Logging`
+  factory to a stderr-only logger so stdout stays protocol-clean.
+- **FR-MCP-2** — `McpServer.load()` shall register prompts (iterating
+  `Prompts`), call `registerTools`, `registerResources`, and (if `agentMode`)
+  `registerAgentModeAssets`, then `client.connect(transport)`.
+- **FR-MCP-3** — `ToolBuilder.build()` shall run `hasErrors()` and throw on
+  validation failure before calling `server.registerTool`; the input schema
+  shall be a `ZodRawShape` extracted from a canonical `ZodObject` via
+  `ensureZodObject`/`extractShape`.
+- **FR-MCP-4** — Every tool/prompt invocation shall serialize
+  `reasoning`/`effort`/`cost` into `_meta.usage`.
+- **FR-MCP-5** — Jira tools shall register even without credentials; each
+  invocation shall throw `MissingJiraEnvironmentError` with a descriptive env
+  summary until `JIRA__HOST`/`JIRA__EMAIL`/`JIRA__API_KEY` are set.
+- **FR-MCP-6** — `registerAgentModeAssets` shall register
+  `resource://agent.catalog`, per-agent `resource://agent.behavior.<name>` and
+  `resource://agent.prompt.<name>` resources, an `agent-<name>` prompt, and
+  `agent.do`/`agent.notify` plus per-operation `agent.<operation>` tools that
+  dispatch through `runAgentCommand`.
+- **FR-MCP-7** — The `execute` agent operation shall create a `git worktree`,
+  iterate the six agent roles, append progress to SPEC/TASK markdown, optionally
+  sync a Jira comment, and clean up the worktree in a `finally`.
+- **FR-MCP-8** — Duplicate-registration errors (message includes
+  `"already registered"`) shall be swallowed, returning lightweight placeholders.
+
+## 8. Acceptance Criteria
+
+### CLI command success
+
+```gherkin
+Given a host with a discovered cli-module.cjs exporting a commander Command "foo"
+When the operator runs `decaf foo --bar baz`
+Then CliWrapper.run boot loads built-in modules and crawls host→scope→siblings
+And the discovered "foo" Command is added via addCommand (dedup by name)
+And commander.parseAsync routes to the "foo" action handler
+And the action handler receives the parsed --bar=baz value
+```
+
+### Unknown CLI command
+
+```gherkin
+Given no discovered or built-in module named "nope"
+When the operator runs `decaf nope`
+Then commander.parseAsync does not match a subcommand
+And CliWrapper prints the decaf help/usage output (banner suppressed for help)
+```
+
+### MCP tool success
+
+```gherkin
+Given a booted McpServer over stdio with Jira credentials set
+When the MCP client invokes the "jira-issue-list" tool with valid args
+Then the tool callback parses args with its Zod schema
+And calls the jira.js v3 search API
+And returns a CallToolResult via toCallToolResult with _meta.usage populated
+```
+
+### MCP tool error (missing Jira credentials)
+
+```gherkin
+Given a booted McpServer over stdio without JIRA__HOST/JIRA__EMAIL/JIRA__API_KEY
+When the MCP client invokes any Jira tool
+Then the tool was registered at load() time despite the missing env
+And the tool callback throws MissingJiraEnvironmentError with a descriptive env summary
+```
+
+## 9. Environment Variables
+
+Only env vars actually read by the tooling packages (per the briefs) are
+listed. No others are invented.
+
+### 9.1 utils
+
+| Env var | Purpose |
+|---|---|
+| `NPM_TOKEN` | token-authenticated install/publish (via `CredentialsCommand` / `bundle.js` / `bin/tag-release.sh`) |
+
+Credentials resolution order: env var → OS keychain → deprecated legacy file
+(with warning). No other `utils`-owned env vars are documented in the brief.
+
+### 9.2 cli
+
+| Env var | Purpose |
+|---|---|
+| `CLI_MODULE_TOOT` | overrides `cliModuleRoot` (the env var name is a documented typo for `CLI_MODULE_ROOT`) |
+
+### 9.3 mcp-server
+
+| Area | Env vars |
+|---|---|
+| Jira | `JIRA__HOST`, `JIRA__EMAIL`, `JIRA__API_KEY` (alias `JIRA__APIKEY`), `JIRA__PROJECT_KEY`, `JIRA__ISSUE_TYPE`, `JIRA__PARENT_ISSUE`, `JIRA__TIMEOUT`, `JIRA__RATE_LIMIT_RETRY_DELAY_MS`; `JIRA_ENABLED=true` gates agent→Jira comment sync |
+| Xray | `XRAY__HOST`, `XRAY__API_HOST`, `XRAY__API_USER`, `XRAY__API_SECRET` |
+| Agent | `AGENT_PROVIDER` (default `codex`), `AGENT_MODEL_TYPE` (default `prompt`; valid `prompt`/`goap`/`workflow`), `AGENT_WORKSPACE_PATH` (default `workdocs/ai`), `AGENT_ENTRY_FILE` (default `./AGENTS.md`) |
+| Assets | `DECAF_ASSET_DIR` / `MCP_ASSET_DIR` / `ASSET_DIR` |
+| Debug | `MCP_DEBUG_TOOLS`, `MCP_DEBUG_BOOT` |
+| Inspector | `DANGEROUSLY_OMIT_AUTH` (for the inspector scripts) |
+
+Defaults: log level `error`; Jira timeout 1000ms; rate-limit retry delay 3000ms;
+Xray host `https://xray.cloud.getxray.app`; `file-summarizer` default target
+`README.md`; workflow safety bound 50 iterations; GOAP confidence 90 on success
+/ 35 when blocked. No persistence/adapter flavours.
+
+### 9.4 with-ai
+
+| Area | Env vars |
+|---|---|
+| Tracked `.env` | `PAPERCLIP_HARNESS` (default `opencode` in compose, `claude` in bootstrap fallback), `USER_UID`/`USER_GID` (default 1001), `PAPERCLIP_PORT` (3110 host → 3100 container), `PAPERCLIP_STALE_ALIVE_GRACE_MS` (300000), `PAPERCLIP_ISOLATED_WORKSPACES_ALLOWED`, `JIRA_ENABLED`/`PR_ENABLED`/`DIRECT_RELEASE_ENABLED` (default `false`), `ENV_TARGET`, `BETTER_AUTH_TRUSTED_ORIGINS` (must match `PAPERCLIP_PORT`) |
+| Gitignored `.env.secret` | `BETTER_AUTH_SECRET`, `PAPERCLIP_AGENT_JWT_SECRET`, `PAPERCLIP_TOOL_ACTION_SIGNING_SECRET`, `DECAF_MCP_ENCRYPTION_KEY`, external MCP tokens |
+| Gitignored `.env.projects` | `PAPERCLIP_DATA_DIR`, `COMPANY_REPOSITORY_PATH`, `DECAF_TS_PATH`, personal workspace paths |
+
+### 9.5 as-infra
+
+Terraform vars (`variables.tf`): `kube_context` (default `minikube`),
+`localstack_namespace`, `localstack_repository_url`, `localstack_chart_name`,
+`localstack_services` (`s3,secretsmanager`), `auth_namespace`,
+`observability_namespace`, `ptp_backend_namespace`, `ptp_frontend_namespace`,
+`paperclip_namespace`, `paperclip_extra_secrets` (sensitive, default `{}`),
+`ptp_backend_extra_secrets` (sensitive). Bootstrap env:
+`MINIKUBE_PROFILE`/`DRIVER`/`CPUS`/`MEMORY`/`CNI`, `TRAEFIK_VERSION`,
+`TRAEFIK_CRD_URL`, `TRAEFIK_RBAC_URL`. No `terraform.tfvars` committed;
+sensitive extra-secrets supplied via `-var`/`TF_VAR_`.
+
+### 9.6 docker
+
+`auth/`: `KEYCLOAK_IMAGE_TAG`, `KEYCLOAK_ADMIN_USERNAME`,
+`KEYCLOAK_ADMIN_PASSWORD`, `KEYCLOAK_HOSTNAME`, `TRAEFIK_IMAGE_TAG`,
+`TRAEFIK_LOG_LEVEL`, `TRAEFIK_HOSTNAME`, `TRAEFIK_BASIC_AUTH`,
+`TRAEFIK_ACME_EMAIL` (commented), `OAUTH2_PROXY_IMAGE_TAG`,
+`OAUTH2_PROXY_COOKIE_SECRET`, `OAUTH2_PROXY_COOKIE_DOMAINS`,
+`OAUTH2_PROXY_WHITELIST_DOMAINS`, `OAUTH2_PROXY_PROVIDER`,
+`OAUTH2_PROXY_CLIENT_ID`, `OAUTH2_PROXY_CLIENT_SECRET`,
+`OAUTH2_PROXY_EMAIL_DOMAINS`, `OAUTH2_PROXY_REALM`, `ORG_DOMAIN`.
+`elk/`: `STACK_VERSION`, `ELASTIC_PASSWORD`, `KIBANA_PASSWORD`,
+`CLUSTER_NAME`, `ES_PORT`, `ES_MEM_LIMIT`, `LICENSE`, `KIBANA_PORT`,
+`KB_MEM_LIMIT`, `ENCRYPTION_KEY`, `FLEET_PORT`, `APMSERVER_PORT`,
+`ELASTIC_APM_SECRET_TOKEN`. Compose expects a `.env` file (referenced in
+`setup` error messages) but no `.env`/`.env.example` is committed.
+
+### 9.7 bin
+
+| Env var | Purpose |
+|---|---|
+| `DRY_RUN=1` | dry-run `bundle.js` manifest generation without publishing |
+| `TIMEOUT` | seconds to wait between bundle publishes (default 20) |
+| `TOKEN` / `NPM_TOKEN` | publish credentials for `bundle.js` |
+| `VERSION` | docker tag override |
+
+`tag-release.sh` reads `.token` (git push) and `.npmtoken` (npm publish);
+requires branch `master`/`main`.
+
+### 9.8 reusable-actions / ts-template
+
+`reusable-actions` has no boot/init code; configuration is purely declarative
+YAML inputs/secrets (`GH_PAT`, `RENOVATE_TOKEN` where applicable). `ts-template`
+reads `NPM_TOKEN` (`npm run do-install` reads `NPM_TOKEN=$(cat .npmtoken)`)
+and `TEST_TARGET` ∈ {`src`,`lib`,`dist`}; secrets files `.token`, `.npmtoken`,
+`.dockertoken`, `.dockeruser`, `.confluence-token` are read by scripts.
+
+## 10. Secrets
+
+Secrets relevant to the tooling packages (per the briefs). No literal values
+are recorded.
+
+- **utils / cli / bin** — npm publish token (`NPM_TOKEN` / `.npmtoken`) and git
+  push token (`.token`) used by `CredentialsCommand`, `bundle.js`, and
+  `bin/tag-release.sh`. Credentials resolution prefers env (CI) → OS keychain
+  (local) → deprecated legacy plaintext file (with warning).
+- **mcp-server** — `ENCRYPTION_KEY` for `.enc` asset decryption; Jira
+  credentials (`JIRA__EMAIL`, `JIRA__API_KEY`); Xray credentials
+  (`XRAY__API_USER`, `XRAY__API_SECRET`). `DANGEROUSLY_OMIT_AUTH` is an inspector
+  escape hatch, not a secret.
+- **with-ai** — `.env.secret` (gitignored, chmod 0600) holds
+  `BETTER_AUTH_SECRET`, `PAPERCLIP_AGENT_JWT_SECRET`,
+  `PAPERCLIP_TOOL_ACTION_SIGNING_SECRET`, `DECAF_MCP_ENCRYPTION_KEY`, and
+  external MCP tokens. `.env` is tracked and must not contain secrets.
+- **as-infra** — local: all credentials randomly generated by Terraform
+  (`random_password`); cloud: secrets must pre-exist in AWS Secrets Manager and
+  are pulled via ESO/IRSA (account-specific role ARNs are deliberately not
+  committed).
+- **docker** — `KEYCLOAK_ADMIN_PASSWORD`, `OAUTH2_PROXY_COOKIE_SECRET`,
+  `OAUTH2_PROXY_CLIENT_SECRET`, `ELASTIC_PASSWORD`, `KIBANA_PASSWORD`,
+  `ENCRYPTION_KEY`, `ELASTIC_APM_SECRET_TOKEN` are read from a `.env` file that
+  is not committed.
+- **ts-template** — committed credential files `.token` and `.npmtoken` (40
+  bytes each) exist in the working tree (a flagged secret-leak risk; see
+  Inaccuracies); ensure `.gitignore`/`.npmignore` exclude them and rotate if
+  real.
+
+## 11. Minimal Usage Examples
+
+### CLI
+
+```ts
+import { CliWrapper } from '@decaf-ts/cli';
+const cli = new CliWrapper('./');
+await cli.run(['node', 'cli', '-h']); // prints "Usage: decaf [options] [command]"
+```
+
+```bash
+decaf utils print-all-banners
+```
+
+### utils
+
+```ts
+class MyCommand extends Command<MyCommandOptions, string> {
+  constructor() { super('my-command', { /* CommandOptions map */ }); }
+  async run(answers: MyCommandOptions): Promise<string> { return 'ok'; }
+}
+await new MyCommand().execute();
+```
+
+```bash
+credentials --action get --name npm
+credentials --action setup --rm
+```
+
+```ts
+import { patchFile, getAllFiles } from '@decaf-ts/utils';
+patchFile(path, { '{{name}}': 'John' });
+getAllFiles(dir, filter);
+```
+
+### MCP server
+
+```ts
+import { McpServer } from '@decaf-ts/mcp-server';
+const server = new McpServer();
+await server.boot('stdio', { workspacePath: 'workdocs/ai' });
+```
+
+```ts
+import { runAgentCommand } from '@decaf-ts/mcp-server/modules/agent/runtime/commands';
+const result = await runAgentCommand({
+  operation: 'plan',
+  provider: 'codex',
+  modelType: 'workflow',      // skips provider shell-out; runs behavior tree
+  workspacePath: workspaceRoot,
+  entryFile: './AGENTS.md',
+});
+```
+
+### with-ai
+
+```bash
+npm run init            # initialize env files and boot a harness interactively
+npm run boot:opencode   # boot the opencode harness directly
+npm run company:sync    # reconcile repo skills/agents onto the live instance
+```
+
+### reusable-actions (caller)
+
+```yaml
+name: "Test Coverage"
+on:
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+jobs:
+  coverage:
+    uses: decaf-ts/reusable-actions/.github/workflows/jest-coverage.yaml@main
+    secrets: inherit
+```
+
+### as-infra
+
+```sh
+minikube start --driver=docker --cni=calico
+MINIKUBE_CPUS=8 MINIKUBE_MEMORY=12288 ./scripts/bootstrap-cluster.sh
+terraform init
+terraform apply
+```
+
+### bin
+
+```sh
+node bin/run-all.js npm run build:prod
+node bin/npm-link.js --link
+DRY_RUN=1 node bin/bundle.js
+./bin/tag-release.sh --public patch "fix auth bug -bug"
+```
+
+### docker
+
+```sh
+docker compose -f docker/auth/docker-compose.yml up -d
+docker compose -f docker/elk/docker-compose.yml up -d
+```
+
+## 12. Inaccuracies
+
+Recorded verbatim (with module tag) from the research briefs' own "Inaccuracies
+found" sections. No fixes were applied. (The full list is mirrored in the
+[Architecture Handbook](../architecture-handbook/09-tooling-infra.md#11-inaccuracies);
+it is reproduced here for spec-self-containment.)
+
+### mcp-server
+
+- **[mcp-server]** README — The README is the generic `ts-workspace` template,
+  not a description of the MCP server. | Evidence: `README.md:2-14`,
+  `README.md:30-34`; vs `package.json:2-3` and `package.json:78`. | Suggested
+  fix: Author an mcp-server-specific README.
+- **[mcp-server]** `package.json` keywords — `["template","typescript","ts"]`,
+  inherited from the template. | Evidence: `package.json:88-92`. | Suggested
+  fix: Replace with MCP-relevant keywords.
+- **[mcp-server]** `package.json` `files` vs `exports` — `exports`/`main`/
+  `module`/`types` resolve to `./lib/...` but `files` only ships `dist` and
+  `workdocs/assets/slogans.json`; `lib/` is not published. | Evidence:
+  `package.json:8-23` vs `package.json:84-87`. | Suggested fix: Add `lib` to
+  `files` or drop the `lib`-based `exports`.
+- **[mcp-server]** Unused dependency `ts-morph` — declared but never imported in
+  `src/`; expected AST/JSDoc tooling absent and tests `test.skip`/`describe.skip`.
+  | Evidence: `package.json:124`; `tests/integration/ast-jsdoc-tools/apply.test.ts:14`,
+  `repoRunner.test.ts:12`; no `src/**` import. | Suggested fix: Remove `ts-morph`
+  or implement the feature.
+- **[mcp-server]** `main.ts` uses `require.main` in an ESM package —
+  `package.json:4` `"type": "module"` vs `main.ts:20` `require.main === module`.
+  | Suggested fix: Use an ESM guard or remove the self-invocation block.
+- **[mcp-server]** CLI cannot select HTTP transport — `start --transport`
+  defaults to `"stdio"`; `runStandardServer` throws for any other value even
+  though `McpServer.boot` implements the http branch. | Evidence:
+  `cli-module.ts:84-90` vs `mcp-server.ts:287-299`. | Suggested fix: Wire
+  `--transport http` through or document stdio-only.
+- **[mcp-server]** `registerJiraTools` passes full `ZodObject` instead of raw
+  shape. | Evidence: `modules/jira/register-utils.ts:356-363` vs
+  `builders/tool-builder.ts:75-83` and
+  `modules/agent/runtime/register.ts:166-172`. | Suggested fix: Pass
+  `tool.inputSchema.shape` (or `extractShape`).
+- **[mcp-server]** Dead/commented Jira tool modules — `search-jql.ts`,
+  `project-list.ts`, `agile-board-list.ts` are 100% commented and reference
+  non-existent source paths. | Suggested fix: Delete the stubs or implement
+  them.
+- **[mcp-server]** Dead `example-resource` and `template-module` — unused
+  scaffolding exporting nothing/empty arrays. | Suggested fix: Remove or
+  document as extension points.
+- **[mcp-server]** Stale commented code in `McpServer.load()` —
+  `mcp-server.ts:135-224` large commented block. | Suggested fix: Delete the
+  commented block.
+- **[mcp-server]** Vestigial `prompts/jsdocs/*.ts` stubs — not wired into the
+  runtime `Prompts` array; smoke test still imports them. | Suggested fix:
+  Remove the stubs or replace with real named-prompt wiring.
+- **[mcp-server]** `mcp-server.ts` reassigns a union-typed parameter to an
+  object. | Evidence: `mcp-server.ts:228` vs `:285,288,345`. | Suggested fix: Use
+  a local `let transport: Transport`.
+- **[mcp-server]** `Prompts` array casts hide builder typing —
+  `prompts/index.ts:13-14` casts `as unknown as PromptBuilder`. | Suggested fix:
+  Drop the casts and align prompt builder types.
+- **[mcp-server]** `agent-cache/` contains committed build artifacts
+  (`dist-inspector-pdm-*`). | Suggested fix: Add `agent-cache/` to `.gitignore`
+  and remove the committed directories.
+
+### utils
+
+- **[utils]** Text Processing exports — `padEnd`, `patchPlaceholders`,
+  `toCamelCase`, `toSnakeCase`, `toKebabCase`, `toPascalCase`, `toENVFormat`
+  advertised in docs but not defined in `src/`. | Evidence:
+  `workdocs/5-HowToUse.md:420-459` vs grep of `src/`. | Suggested fix:
+  implement+export these or remove the section.
+- **[utils]** `md.ts` and `timeout.ts` are orphaned — defined but not
+  re-exported from `src/utils/index.ts:1-6`. | Suggested fix: re-export or
+  document as internal.
+- **[utils]** `TagReleaseCommand` has no bin — re-exported but `package.json:40`
+  routes `tag-release` to `ReleaseScript`. | Suggested fix: add a distinct bin
+  or stop re-exporting.
+- **[utils]** `src/tests` subpath is undocumented. | Evidence:
+  `package.json:19-29` vs `README.md:35-69`. | Suggested fix: document the
+  `./tests` subpath.
+- **[utils]** `patchString` is private but imported by docs. | Evidence:
+  `src/utils/fs.ts:18` vs `workdocs/5-HowToUse.md:446-450`. | Suggested fix:
+  export `patchString` or change the example to use `patchFile`.
+- **[utils]** Skipped release tests — multiple `ReleaseScript` suites `.skip`ped.
+  | Suggested fix: re-enable or rewrite the release tests.
+- **[utils]** `timeout.test.ts` couples to a non-shipped helper
+  (`../module-router`). | Suggested fix: keep the router test-only and document
+  it.
+- **[utils]** Dependency hygiene — all build/test/lint tooling in
+  `dependencies` not `devDependencies`; `@decaf-ts/logging` and
+  `typed-object-accumulator` use floating `latest`. | Evidence:
+  `package.json:125-164,126,161`. | Suggested fix: move tooling to
+  `devDependencies` and pin internal deps.
+- **[utils]** README size claim — `README.md:31` "Minimal size: 28.5 KB kb
+  gzipped" (redundant "KB kb"). | Suggested fix: remove or regenerate the size
+  badge.
+
+### cli
+
+- **[cli]** Public API — `CLIUtils` documented as exported but the barrel does
+  not re-export `./utils`. | Evidence: `README.md:171`/`workdocs/5-HowToUse.md:89`
+  vs `src/index.ts:1-3`. | Suggested fix: re-export `CLIUtils` or remove the
+  examples.
+- **[cli]** Public API — `VERSION`/`COMMIT`/`FULL_VERSION`/`PACKAGE_NAME`
+  claimed exported but unreachable; `src/version.ts` never imported. | Suggested
+  fix: add `export * from "./version"` or remove the JSDoc claim.
+- **[cli]** `version.ts` is orphaned dead code; `@decaf-ts/cli` never
+  self-registers with `Metadata`. | Suggested fix: import `./version` from
+  `src/index.ts` or `src/bin/cli.ts`, or delete the file.
+- **[cli]** README/workdocs advertise `npx decaf list` but no `list` command
+  exists. | Suggested fix: remove the `list` examples or implement the command.
+- **[cli]** README/workdocs advertise `npx decaf demo command "hello world"` but
+  no `demo` module exists. | Suggested fix: remove the demo section or add the
+  module.
+- **[cli]** Module-discovery extension mismatch — docs say `cli-module.js` but
+  the crawler regex only matches `.cjs`/`.mjs`. | Evidence: `README.md:60` vs
+  `src/CliWrapper.ts:553`. | Suggested fix: update docs or extend the regex.
+- **[cli]** Environment variable name typo `CLI_MODULE_TOOT` (should be
+  `CLI_MODULE_ROOT`). | Evidence: `src/environment.ts:10-11`. | Suggested fix:
+  rename to `CLI_MODULE_ROOT` (or accept both).
+- **[cli]** Exported `Command` subclass is broken and unused — `initCliCommand`
+  drops the action handler; no internal module uses it. | Evidence:
+  `src/Command.ts:14-54`. | Suggested fix: remove from the barrel/exports or
+  fix `initCliCommand` to invoke `fn`.
+- **[cli]** JSDoc default mismatch for `crawl` — JSDoc says `[levels=2]` but the
+  default is `crawlLevels = 4`. | Evidence: `src/CliWrapper.ts:540,135,342`. |
+  Suggested fix: align JSDoc/default with 4.
+- **[cli]** `DecafCLieEnvironment` identifier typo (should be
+  `DecafCliEnvironment`). | Evidence: `src/environment.ts:20`. | Suggested fix:
+  rename (provide a deprecated alias if needed).
+- **[cli]** README badge/size claims are not derived from this package. |
+  Evidence: `README.md:33-34,38`. | Suggested fix: point badges at this
+  package's metadata or remove the size line.
+- **[cli]** `tests/unit/module-loading.test.ts` has a duplicate/conflicting
+  `path` import. | Evidence: `tests/unit/module-loading.test.ts:1,4`. |
+  Suggested fix: remove the redundant `import * as path` line.
+- **[cli]** Test fixture coverage gaps — empty `esm-package`/`transpiled-default`
+  fixture dirs; no test exercises the ESM `default` unwrapping path. | Evidence:
+  `tests/unit/__fixtures__` vs `src/utils.ts:38-52`. | Suggested fix: add an ESM
+  fixture + test or remove the empty dirs.
+
+### with-ai
+
+- **[with-ai]** package.json `types` paths disagree — `exports.types` →
+  `./lib/types/index.d.ts` but top-level `types` → `./lib/types/index.d.mts`. |
+  Evidence: `package.json:7` vs `package.json:14`. | Suggested fix: reference
+  the same declaration file consistently.
+- **[with-ai]** README "What's Inside" agent/skill counts are stale — README
+  reports 22 Agents / 141 Skills; actual 43 agent dirs / 244 `SKILL.md` files.
+  | Suggested fix: regenerate the table from `agents/` and `skills/`.
+- **[with-ai]** README agent roster omits the majority of shipped agents (lists
+  22 of 43 dirs). | Suggested fix: regenerate the agent table from
+  `agents/*/AGENTS.md` frontmatter.
+- **[with-ai]** `workdocs/4-Description.md` is template boilerplate unrelated to
+  with-ai. | Suggested fix: replace with a real summary.
+- **[with-ai]** `src/` is the unmodified `ts-workspace` template, contradicting
+  the package description. | Suggested fix: implement the advertised MCP/CLI in
+  `src/` or document that the npm package ships only the template scaffold.
+- **[with-ai]** `bin/init.mjs`/bootstrap default harness fallback (`claude`)
+  disagrees with `.env`/compose (`opencode`). | Suggested fix: align the
+  bootstrap fallback.
+- **[with-ai]** `package.json` `build` scripts prepend a shebang implying a CLI
+  artifact, yet there is no `bin` field. | Suggested fix: add a `bin` mapping or
+  drop the shebang-injection step.
+- **[with-ai]** devDependency pin (`^1.15.2`) vs in-container invocation pin
+  (`@latest`) diverge for `@decaf-ts/mcp-server`. | Suggested fix: pin
+  `managed-mcp.json` to a specific version.
+- **[with-ai]** README "Getting Started" uses `pnpm` while the repo is
+  npm-only. | Suggested fix: document the repo's own `npm run init`/`npm run
+  boot:*` flow as primary.
+- **[with-ai]** `docker/README.md` port instructions say `http://localhost:3100`
+  while `.env` publishes 3110. | Suggested fix: state the host URL as
+  `http://localhost:${PAPERCLIP_PORT}`.
+- **[with-ai]** README references `.claude/mcp.json`/`.codex/config.toml` not
+  present in the tree. | Suggested fix: ship templates or document exact
+  contents.
+- **[with-ai]** Staged deletions of `xray-reader`/`xray-writer` agent dirs and
+  `common/xray-ops` skill linger (`git status` `AD`). | Suggested fix: commit
+  the deletions.
+
+### reusable-actions
+
+- **[reusable-actions]** README vs workflow input parity — README `trivy-scan.yml`
+  table omits the `target-branch` input. | Suggested fix: add a `target-branch`
+  row.
+- **[reusable-actions]** `release-on-merge-pr.yml:51` references undefined
+  `${TAG_NAME}` instead of `${TAG}`. | Suggested fix: use `${TAG}` (or export
+  `TAG_NAME`).
+- **[reusable-actions]** Node matrix inconsistency — `release-on-merge-pr.yml:22`
+  uses `22.x`; others use bare `22`. | Suggested fix: standardize on `22`.
+
+### ts-template
+
+- **[ts-template]** README `src/bin` shebang claim vs reality — `cli.ts` has no
+  shebang; it is injected at build. | Suggested fix: clarify in JSDoc or add the
+  shebang to source.
+- **[ts-template]** `cli.ts:42` logs a fixed `60` instead of the `counter`
+  variable. | Suggested fix: interpolate `${counter}`.
+- **[ts-template]** `cli.ts:56` exits with code `1` on normal countdown
+  completion. | Suggested fix: `process.exit(0)`.
+- **[ts-template]** `package.json:96` lists `@decaf-ts/utils` under
+  `devDependencies` as `"latest"` — non-reproducible. | Suggested fix: pin to a
+  concrete version.
+- **[ts-template]** Committed credential files `ts-template/.token` and
+  `ts-template/.npmtoken` exist in the working tree (secret-leak risk). |
+  Suggested fix: confirm ignores and rotate if real.
+
+### as-infra
+
+- **[as-infra]** `package.json` name/description mismatch (primary finding) —
+  declares `@decaf-ts/ts-workspace` / `"template for ts projects"` but the
+  content is Terraform/Helm/Argo IaC. | Suggested fix: set `name` to
+  `@decaf-ts/as-infra`, fix `description`, drop/replace TS-template
+  `scripts`/`exports`/`files`/`keywords`.
+- **[as-infra]** `package.json` metadata points at the wrong repo
+  (`ts-workspace.git`). | Suggested fix: update `repository`/`bugs`/`homepage`.
+- **[as-infra]** `README.md` is byte-identical to `ts-template/README.md`. |
+  Suggested fix: replace with an as-infra README.
+- **[as-infra]** `Dockerfile` is the template's and is broken for this repo
+  (`COPY ./src/`, `.mpmrc` typo, `lib/cli.cjs` entrypoint). | Suggested fix:
+  remove or replace with an IaC-appropriate image.
+- **[as-infra]** `tests/workspace-target.ts` resolves to nonexistent `../src`;
+  `jest.config.cjs` covers nothing. | Suggested fix: replace with IaC validation
+  tests.
+- **[as-infra]** `package.json` scripts are all TS-template scripts that do not
+  apply to an IaC repo. | Suggested fix: replace with IaC scripts or remove.
+- **[as-infra]** `.gitlab-ci.yml` is the TS-template publish pipeline. |
+  Suggested fix: replace with IaC CI or remove.
+- **[as-infra]** Version `3.10.17` is a TS semver unrelated to the IaC content
+  or chart `version: 0.1.0`s. | Suggested fix: give as-infra its own versioning
+  scheme.
+- **[as-infra]** `infrastructure/auth/application.yaml:14` comment is stale
+  (paperclip chart now lives in this repo, not with-ai). | Suggested fix: update
+  the comment.
+
+### bin
+
+- **[bin]** `copy-ai-docs.sh:71` ends with a stray `mpts` token. | Suggested
+  fix: delete the trailing line.
+- **[bin]** `modules.js:3` regex likely returns URLs/empty instead of local
+  paths, breaking `run-all.js`/`npm-link.js`/`npm-token.js`. | Suggested fix:
+  parse `.gitmodules` properly (grep `path = ` lines).
+- **[bin]** `npm-token.js` log messages say "linking .token"/"linking .npmtoken"
+  but the name implies npm-only. | Suggested fix: rename to `link-tokens.js` or
+  document that it links both.
+- **[bin]** `bundle.js:248` sets a generic `description` for every bundle. |
+  Suggested fix: allow `entry.description` override in `bundles.json`.
+- **[bin]** `tag-release.sh:135` unconditionally runs `npm run prepare-release`,
+  which fails for `as-infra` (no `src`). | Suggested fix: guard with
+  `--if-present` semantics or make the script repo-aware.
+
+### docker
+
+- **[docker]** `auth/docker-compose.yml:172` typo `PathPrefix(\`/oauht2/\`)`
+  (dead branch). | Suggested fix: remove the typo'd alternative.
+- **[docker]** `auth/docker-compose.yml:9-12` declares a bind volume
+  `keycloak-data` but `docker/auth/volumes/` contains only `oauth2proxy-templates`.
+  | Suggested fix: create `keycloak-data/` (with `.gitkeep`) or use a named
+  volume.
+- **[docker]** Inconsistent Traefik service naming (`auth2proxy` vs
+  `oauth2proxy`). | Suggested fix: align the names.
+- **[docker]** `elk/docker-compose.yml:13,16` instructs a `.env` file but none
+  is committed. | Suggested fix: commit a `.env.example`.
+- **[docker]** `elk/metricbeat.yml:54-57` enables a `couchdb` module pointing at
+  `localhost:5984` (the beat container, not a CouchDB host). | Suggested fix:
+  point at a real CouchDB service or remove the module.
