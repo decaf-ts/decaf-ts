@@ -64,7 +64,7 @@ the format:
 **[<module>]** <area> — <what> | Evidence: <file:line> | Suggested fix: <short>
 ```
 
-Aggregated across all chapters, **~488 distinct inaccuracies** were recorded.
+Aggregated across all chapters, **457 distinct inaccuracies, 0 exact duplicates** were recorded.
 The count is dominated by the briefs' own findings; the largest clusters are
 in `integrations` (79), `for-angular` (24), `core` (35), and the `for-*`
 adapter families. Many entries are documentation-vs-code drift (README/import
@@ -74,7 +74,7 @@ registration; runtime deps under `devDependencies`), and dead/commented code.
 A smaller set are real correctness concerns (e.g. `Statement.prepareCondition`
 `BIGGER_EQ` dropping the comparison value; `feature-flags` access lookups
 ignoring the feature key; a hardcoded JWT shipped in `for-angular`'s published
-bundle; `RgxDecafCrudField` Rules-of-Hooks violations in `for-react-native`).
+bundle; `RnDecafCrudField` Rules-of-Hooks violations in `for-react-native`).
 
 See each chapter's inaccuracies section for the full, sourced list. Notable
 authoring-stage observations beyond the briefs' own findings include:
