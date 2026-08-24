@@ -30,3 +30,5 @@
 .ai
 .playwright-mcp/*
 opencode.json
+workdocs/locks/*
+!workdocs/locks/.gitkeep
