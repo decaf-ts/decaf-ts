@@ -650,6 +650,22 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-50 — Canonical Workflow Documents, Backend Node Catalogue, and Remote Graph Execution
+- **Priority:** High
+- **Goal:** Make the graph editor, persistence layer, and execution engine operate on one canonical, serializable `GraphWorkflowDocument`: replace client-provided `GraphNodeDefinition` uploads with a backend-authoritative node catalogue (serializable `GraphNodeManifest` shared to the frontend, backend-only executors), add a deterministic `GraphWorkflowDocument` ⇄ `ng-diagram` adapter, an asynchronous run-scoped execution API with authorized ordered replayable SSE events (`request` → poll/cancel → result), a schema-driven node-parameter renderer, strict backend validation before execution, catalogue-based Angular palette discovery, and a controlled transition for existing decorated workflows and snapshots.
+- **Status:** Planned — specification initialized 2026-08-31 for domain root [SAA-385](/SAA/issues/SAA-385); Product Manager scope approved (enforced priority High, replacing the draft's Critical claim) and CTO technical governance approved; implementation decomposition by CEO pending.
+- **Link:** [Specification Details](./specifications/DECAF_50.md)
+- **Tasks:**
+  - [ ] Phase 1 — Shared contracts: canonical document/instance/binding/manifest/parameter/visibility/schema types, builder, serializer, decorated compiler (`ui-decorators/src/graph/document` + `catalog`).
+  - [ ] Phase 2 — Backend catalogue: `integrations/src/graph/engine/catalog`, registration validation, built-in manifest+executor pairs, catalogue/dynamic-method HTTP APIs.
+  - [ ] Phase 3 — Engine resolution: document validation, `GraphResolvedWorkflow`, catalogue plan nodes, parameters/inputs separation, output validation, nested documents.
+  - [ ] Phase 4 — Angular canonical store: `GraphWorkflowDocumentStore`, `GraphDiagramAdapter`, manifest palette, document commands, schema-driven forms, save/history/autosave integration.
+  - [ ] Phase 5 — Persistence: canonical document endpoints (`PUT/GET /graph/workflows/{id}`, `POST /graph/workflows/validate`), lossless legacy conversion, ownership.
+  - [ ] Phase 6 — Run lifecycle: `POST /graph/runs` (202 before completion), status/result/cancel, authorized replayable run-scoped SSE, Angular run clients.
+  - [ ] Phase 7 — Cutover: run the exact editor document, reject inline definitions, remove constructor palette discovery and independent `GraphNodeConfigStore`, remove raw-definition planning and the `GRAPH_CANONICAL_DOCUMENT_ENABLED` flag, complete the 12-step E2E, update docs.
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -701,6 +717,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-44: ✅ for-angular Cron Selector Web Component (Ionic standalone cron picker with multi-time daily schedules, semicolon-separated output, and a demo route)
 - DECAF-47: ⏳ for-fabric Mirror Allow Predicate (spec added for decorator-level bypass contract; implementation pending)
 - DECAF-48: ✅ Graph Engine Logging Display & Visual Run Feedback (live logs widget, visual run feedback, node I/O inspection delivered engine-agnostic on existing Observable + DECAF-42 SSE ownership segregation; back-end SAA-59 and front-end SAA-60 done; all reviews and security follow-ups done; committed by board under DECAF-809)
+- DECAF-50: ⏳ Canonical Workflow Documents, Backend Node Catalogue & Remote Graph Execution (spec initialized 2026-08-31 under [SAA-385](/SAA/issues/SAA-385); PM scope + CTO governance approved; phases P1–P7 pending implementation)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
