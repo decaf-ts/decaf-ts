@@ -8,7 +8,7 @@ It does three things:
 
 1. Adds a `render()` method to every `Model` (via prototype override) plus a family of class/property decorators (`@uimodel`, `@uielement`, `@uiprop`, `@uichild`, `@uilayout`, `@uisteppedmodel`, `@hideOn`, `@hideFor`, `@showFor`, `@uiorder`, `@uilistprop`, `@uitablecol`, `@uipageprop`, `@uion*`, …) that attach UI metadata to model classes and properties.
 2. Defines an abstract `RenderingEngine` that converts that metadata + validation metadata into a framework-neutral `FieldDefinition` tree, and a flavour registry so a concrete engine (React, Angular, HTML5, graph, …) registers itself and is selected per model via `@renderedBy`.
-3. Provides two opt-in subpath layers: a **graph metadata layer** (`./graph`) that extends the same model/decoration system to visual workflow nodes/ports/workflows and serializes their state into framework-neutral snapshots, and a **User Request Resolution Engine** (`./user-requests`) that lets a backend `Service` resolve a typed user request through a rendering-engine facade (modal/toast/spinner/router) without any Angular/DOM dependency.
+ 3. Provides two opt-in subpath layers: a **graph workspace contracts layer** (`./graph`) — the decorated authoring metadata for visual workflow nodes/ports/workflows plus, since the canonical cutover, the serializable `GraphWorkflowDocument` model and the `GraphNodeManifest`/parameter-schema contracts every frontend and backend share — and a **User Request Resolution Engine** (`./user-requests`) that lets a backend `Service` resolve a typed user request through a rendering-engine facade (modal/toast/spinner/router) without any Angular/DOM dependency.
 
 It is consumed by `for-angular`, `for-react`, `for-react-native`, `for-nextjs`, `for-fabric`, `integrations`, `demo` (angular/ionic, angular/ew), and `web-page`.
 
@@ -94,6 +94,8 @@ flowchart TD
 - **Registry:** `registerNode`, `registerWorkflow`, `graphNodes`, `graphWorkflows`, `resetGraphRegistries`.
 - **Reader:** `graphNodeMetadataOf`, `graphWorkflowMetadataOf`, `graphPortMetadataOf`, `graphPortDefinitionOf`, `graphPortsOf`, `graphLeafPortsOf`, `graphWorkflowInputLeafPortsOf`, `graphWorkflowOutputLeafPortsOf`, `graphDefinitionOf`, `graphWorkflowDefinitionOf`.
 - **Snapshot:** `GRAPH_WORKFLOW_SNAPSHOT_VERSION`, `GraphWorkflowSnapshot*` types, `graphWorkflowSnapshotDefinitionOf`, `graphWorkflowSnapshotOf`, `graphWorkflowSnapshotRestore`, `graphWorkflowSnapshotToJSON`, `graphWorkflowSnapshotFromJSON`, `graphWorkflowSnapshotInputValuesOf`, `graphWorkflowSnapshotOutputValuesOf`.
+- **Canonical document contracts** (`src/graph/document/`): `GraphWorkflowDocument`, `GraphWorkflowPortInstance`, `GraphNodeInstance`, `GraphEdgeInstance`, `GraphEndpoint`, `GraphInputBinding`/`GraphOutputBinding`, `GraphLoopConfiguration`, `GraphWorkflowUiState`, `GraphJsonValue`, `GraphWorkflowDocumentBuilder` (fail-fast local validation), `GraphWorkflowDocumentReader`, `GraphWorkflowDocumentSerializer`, `GraphDecoratedWorkflowCompiler` (decorated workflow → document, init/restore only), plus the lossless `graphWorkflowDocumentFromLegacySnapshot` legacy converter.
+- **Manifest/catalog contracts** (`src/graph/catalog/`): `GraphNodeManifest`, `GraphNodeDisplayManifest`, `GraphPortManifest`, `GraphConnectionPolicy`, `GraphValueSchema` (+ derivation), `GraphParameterDefinition` union, `GraphParameterOption`, `GraphParameterValidation`, `GraphVisibilityExpression` (declarative DSL), `GraphDynamicPortRule`, `GraphNodeMethodManifest`, `GraphCredentialRequirement`/`GraphCredentialReference`, `GraphNodeCapability`, `GraphNodePolicyManifest`, `GraphIconReference`, `GraphManifestCompiler` (`graphNodeManifest`), `GraphNodeManifestSerialization` (serializability/function-leakage guards).
 - **Augmentations:** `Metadata.nodes()`, `Metadata.workflows()`, `RenderingEngine#renderAsNode`.
 
 ### Subpath `./user-requests`
@@ -158,7 +160,9 @@ sequenceDiagram
 
 Detail of the walk: `Model.uiDecorationOf` returns all UI decorator entries for a property, sorted so `ELEMENT`/`CHILD` process first; `Model.uiTypeOf` enforces the one-decorator rule; `hideOn` requires a `@uielement`. `@uiprop` → stored in `childProps`; `@uichild` → recursive `toFieldDefinition` on the nested model (instantiating via `Model.get(clazzName)` if undefined) with `inheritProps`/`childOf` path propagation; `@uilistprop` → builds the `item` mapper + container props; `@uielement` (and `@uion`/`@uipageprop`/`@uilayoutprop`/`@hideFor`/`@showFor`) → builds a child `FieldDefinition`, folding validation, defaulting `type` from `Metadata.type(...)`, formatting the value via `formatByType`. `rendererId` is added only at the top level via `generateUIModelID(model)`.
 
-### 7.2 Graph definition + snapshot
+### 7.2 Graph authoring → canonical document
+
+The decorated reader still derives `GraphNodeDefinition`/`GraphWorkflowDefinition` for **authoring and compatibility** (manifest compilation, demo fixtures, backend registration). Since the canonical cutover these definitions are compiled into a `GraphWorkflowDocument` — the single representation the editor, persistence, and backend execute.
 
 ```mermaid
 sequenceDiagram
@@ -166,24 +170,24 @@ sequenceDiagram
     participant GD as graphDefinitionOf
     participant WF as graphWorkflowDefinitionOf
     participant RP as graphPortsOf (reader)
-    participant Style as resolveEffectiveColor/Icon
-    participant Snap as graphWorkflowSnapshotOf
-    participant RT as ToJSON / FromJSON / Restore
+    participant MC as graphNodeManifest compiler
+    participant DC as GraphDecoratedWorkflowCompiler
+    participant Doc as GraphWorkflowDocument
     Caller->>GD: graphDefinitionOf(GraphToolModel)
     GD->>GD: Model.uiModelOf + graphNodeMetadataOf
     GD->>RP: graphPortsOf(model)
     RP->>RP: @input/@output Schema? splice nested ports unprefixed (cycle guard)
     RP->>RP: @port Schema? expand prefixed composite children
     RP->>RP: resolve portGroups (default "all")
-    GD->>Style: resolveEffectiveColor/Icon (node > category > default)
+    GD->>GD: resolveEffectiveColor/Icon (node > category > default)
     GD-->>Caller: GraphNodeDefinition
+    Caller->>MC: compile definition → GraphNodeManifest (JSON shape)
     Caller->>WF: graphWorkflowDefinitionOf(model)
-    WF->>WF: split ports into inputs/outputs/connections; attach nodes/relations
-    WF-->>Caller: GraphWorkflowDefinition
-    Caller->>Snap: graphWorkflowSnapshotOf(model, input?)
-    Snap->>Snap: normalize definition + state (deep clone, idempotent merge)
-    Snap-->>Caller: GraphWorkflowSnapshot
-    Caller->>RT: ToJSON → FromJSON → Restore (re-derive vs current definition)
+    WF-->>Caller: GraphWorkflowDefinition (authoring/compat input)
+    Caller->>DC: compile(definition) — constructors → {id, kind}, relations → endpoints
+    DC->>DC: defaults → parameters/bindings; layout → ui; nested workflows recursive
+    DC-->>Caller: Doc (canonical, JSON-safe, no functions)
+    Note over Doc: Editing, save/history/autosave, validation,<br/>and execution all consume this document;<br/>the diagram is a projection of it.
 ```
 
 ### 7.3 User request flow

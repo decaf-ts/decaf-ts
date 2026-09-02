@@ -90,9 +90,9 @@ Several patterns recur across the package and explain *why* it is shaped the way
 
 ### 2.8 Graph engine
 
-**What:** `GraphExecutionEngine` plans a workflow into topological layers (Kahn cycle detection), seeds inputs into a `GraphValueStore`, executes layer-by-layer with concurrency, routes values along edges, and emits structured events. Executors are registered imperatively in a `GraphNodeExecutorRegistry` (no `@executor` decorator). Pinning is all-or-nothing across upstream pin sets with TTL'd cached values. Loops re-enter the engine via `engine.execute(bodyWorkflow, ...)` with `parentRunId` propagation. Code/Switch nodes run through a pluggable `CodeSandboxEvaluator`; `IsolatedVmCodeSandboxEvaluator` transpiles TS, validates the AST (blocking `eval`/`new Function`/imports/exports/blocked identifiers), and runs in an `isolated-vm` isolate with timeout/memory limits.
+**What:** `GraphExecutionEngine` executes canonical `GraphWorkflowDocument`s: a nine-stage validation gate resolves every node kind against the trusted `GraphNodeCatalogue` (one kind → manifest+executor+methods registration; fail-fast on drift) into a backend-only `GraphResolvedWorkflow`, the planner builds topological layers (Kahn cycle detection) from resolved workflows only, and the engine seeds inputs into a `GraphValueStore`, executes layer-by-layer with concurrency, validates outputs against effective manifests, routes values along edges, and emits structured events. Pinning is all-or-nothing across upstream pin sets with TTL'd cached values (fingerprints exclude presentation-only UI state). Loops re-enter the engine with nested canonical documents and `parentRunId` propagation. The Nest module adds the manifests-only catalogue API, canonical persistence, and the asynchronous run lifecycle (`POST /graph/runs` → `202`, run-scoped authorized replayable SSE). Code/Switch nodes run through a pluggable `CodeSandboxEvaluator`; `IsolatedVmCodeSandboxEvaluator` transpiles TS, validates the AST (blocking `eval`/`new Function`/imports/exports/blocked identifiers), and runs in an `isolated-vm` isolate with timeout/memory limits.
 
-**Why:** A reference execution engine that is backend-agnostic (the engine takes a registry, a value store, and a sandbox evaluator as injected dependencies) lets the same graph definitions run in-process for tests and behind a Nest controller in production. Imperative registry registration (rather than decorators) keeps executor wiring explicit and avoids import-order surprises. Sandboxing untrusted code via `isolated-vm` with AST validation is the safe-by-default answer to running user-authored node bodies; the engine does *not* wire it by default — consumers must pass `codeSandboxEvaluator` or Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED`.
+**Why:** A reference execution engine that is backend-agnostic (the engine takes a catalogue-backed registry, a value store, and a sandbox evaluator as injected dependencies) lets the same canonical documents run in-process for tests and behind a Nest controller in production. Making the backend catalogue the only source of node behavior (kind → registration, client definitions rejected) removes the trust gap where client-provided definitions could mislead planning. Sandboxing untrusted code via `isolated-vm` with AST validation is the safe-by-default answer to running user-authored node bodies; the engine does *not* wire it by default — consumers must pass `codeSandboxEvaluator` or Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED`.
 
 > The graph engine's design and acceptance criteria are detailed in the [Design Specification — Graph Design](../design-specification/08-graph-design.md) and the graph handbook chapter. This chapter covers only its integrations-package surface.
 
@@ -411,7 +411,7 @@ const { tenantId } = await new BootstrapService().bootstrapTenantFromTemplate({
 
 `./nest`: `KeycloakAuthHandler`/`KeycloakNamespaceAuthHandler`/`KeycloakAuthData`; `KeycloakModule`/`AuthModule`; `namespace()` decorator + `AUTH_NAMESPACE_KEY`; utils `extractKeycloakRoles`/`extractKeycloakNamespaces`/`getRealmFromIssuer`/`getClientRoles`; types (`src/nest/index.ts:1-7`).
 
-`./nest/graph`: `GraphExecutionController`/`GraphExecutionModule`, `GraphResultService`/`GraphWorkflowService`, `GraphExecutionResultModel`/`GraphWorkflowModel`, `GraphExecutorRegistryFactory` (`createGraphExecutorRegistry`, `createDemoEngineConfig`) (`src/nest/graph/index.ts:1-7`).
+`./nest/graph`: `GraphExecutionController`/`GraphExecutionModule` (deprecated synchronous path), `GraphNodeCatalogueController` (manifests API, ETag digest), `GraphRunController`/`GraphRunModel`/`GraphRunModelService` (async run lifecycle), `GraphWorkflowController`/`GraphWorkflowService`/`GraphWorkflowModel`/`GraphWorkflowDocumentLimits`, `GraphResultService`/`GraphExecutionResultModel`, `GraphExecutorRegistryFactory` (`createGraphNodeCatalogue`, `createGraphExecutorRegistry`, `createDemoEngineConfig`) (`src/nest/graph/index.ts`).
 
 ### 9.2 Request → context flow
 
@@ -477,27 +477,31 @@ sequenceDiagram
 
 ## 11. Graph Engine (integrations surface)
 
-The graph engine lives in `src/graph/` (`engine/`, `shared/`, `log/`) and is exported via `./graph` and `./graph/shared`. The engine, planner, pinning, value store, loops, executors, registry, events, snapshots, and validation are all exported (`src/graph/engine/index.ts:13-83`). `./graph/shared` exposes frontend-safe node declarations, `GraphExecutionStateMapper`, and visual-state styles.
+The graph system lives in `src/graph/` (`engine/`, `shared/`, `log/`) and is exported via `./graph` and `./graph/shared`. Since the canonical cutover the engine executes `GraphWorkflowDocument`s only: `engine/catalog/` holds the trusted `GraphNodeCatalogue` (one kind → manifest+executor+methods registration, fail-fast validation), `engine/validation/` the nine-stage document gate producing backend-only `GraphResolvedWorkflow`, `engine/runs/` the asynchronous run lifecycle (run service, executor, event publisher, event/run stores), and `engine/` the planner (resolved workflows only), pinning, value store, loops, executors, registry facade, events, and snapshots (`src/graph/engine/index.ts`). `./graph/shared` exposes the frontend-safe built-in node manifests, run wire contracts (`GraphRunStatus`/`GraphRunEventEnvelope`), `GraphExecutionStateMapper`, and visual-state styles.
 
 ```mermaid
 sequenceDiagram
     participant App as Application
     participant E as GraphExecutionEngine
+    participant V as GraphWorkflowDocumentValidator
+    participant Cat as GraphNodeCatalogue
     participant P as GraphExecutionPlanner
     participant VS as GraphValueStore
-    participant Reg as GraphNodeExecutorRegistry
-    App->>E: execute(workflow, inputs, options)
-    E->>P: plan(workflow) (Kahn topo + cycle detection)
+    App->>E: execute(document, inputs, options)
+    E->>V: validate(document) — nine stages 1→9
+    V->>Cat: resolve kinds → manifests + executors
+    V-->>E: GraphResolvedWorkflow (or structured issues)
     E->>VS: seedWorkflowInputs(inputs)
+    E->>P: plan(resolved) (Kahn topo + cycle detection)
     loop each topological layer
         E->>E: executeLayer (concurrency batch)
         loop each node
             E->>E: emit NODE_STARTED
-            E->>VS: resolve inputs
+            E->>VS: resolve inputs (edges + literals + expressions)
             alt pinned & cache hit: E->>E: emit NODE_CACHE_HIT
             end
-            E->>Reg: resolve executor
-            E->>E: run executor
+            E->>E: run catalogue-resolved executor (§4.9 request contract)
+            E->>E: validate outputs vs effective manifest
             E->>VS: routeOutgoingEdges -> emit EDGE_VALUE_ROUTED
             E->>E: emit NODE_COMPLETED
         end
@@ -507,20 +511,22 @@ sequenceDiagram
 
 ### Usage example
 
-From `tests/unit/graph/GraphExecutionEngine.test.ts:14-44`:
+Adapted from `tests/unit/graph/GraphExecutionEngine.test.ts` and `src/nest/graph/GraphExecutorRegistryFactory.ts`:
 
 ```ts
-const registry = new GraphNodeExecutorRegistry();
-registry.register("math.add", { execute: (i) => ({ sum: Number(i.a) + Number(i.b) }) });
-registry.register("math.multiply", { execute: (i) => ({ product: Number(i.x) * 2 }) });
-const engine = new GraphExecutionEngine({ registry });
-const result = await engine.execute(linearWorkflow(), { a: 2, b: 3 }); // outputs.result === 10
+const catalogue = new GraphNodeCatalogue();
+registerBuiltInGraphNodes(catalogue); // built-in manifest+executor pairs (fail-fast on drift)
+catalogue.registerExecutor("math.add", { execute: (r) => ({ sum: Number(r.inputs.a) + Number(r.inputs.b) }) });
+catalogue.registerExecutor("math.multiply", { execute: (r) => ({ product: Number(r.inputs.x) * 2 }) });
+const engine = new GraphExecutionEngine({ registry: new GraphNodeExecutorRegistry(catalogue) });
+const result = await engine.execute(linearDocument(), { a: 2, b: 3 }); // nine-stage gate runs first
 ```
 
 ### Consumer notes
 
 - The engine does **not** wire `IsolatedVmCodeSandboxEvaluator` by default; pass `codeSandboxEvaluator` in config or Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED` (inaccuracy §graph-72). `isolated-vm` is a native addon requiring a build toolchain.
-- Run options default `concurrency=4`, `failFast=true`, `usePinnedValues=true`, `validateInputs/Outputs=true` (`GraphExecutionEngine.ts:726-741`), but `validateInputs/Outputs` are silently ignored (inaccuracy §graph-70).
+- Run options default `concurrency=4`, `failFast=true`, `usePinnedValues=true`. Validation is wired into the path: the nine-stage gate runs on every `execute()` and at every persistence boundary (the former silently-ignored `validateInputs/Outputs` gap, §graph-70, was fixed by the canonical cutover).
+- The Nest module exposes the catalogue API (`GET /graph/node-types*`, ETag-stable), canonical persistence (`PUT|GET /graph/workflows/{id}`, `POST /graph/workflows/validate`), and the async run lifecycle (`POST /graph/runs` → `202` + run-scoped authorized replayable SSE). `POST /graph/execute` and the global `GET /graph/events` are deprecated (kept, not removed).
 
 ---
 
@@ -598,7 +604,7 @@ Test layout mirrors `src/`: `tests/unit/<subsystem>/`, `tests/integration/`, `te
 | namespaces | pure helpers + `canAccess` visibility; services (tenant tier, storage, group principal) | — | `BootstrapService`, `EffectivePermissionService.rebuildForPrincipal`, `OrgUnitService` closure ops, `RoleAssignmentService`, `SystemManagementService`, `ResourceLifecycleService`. |
 | nest | JWT extraction, handler paths, `namespace()`; graph-execution-module | sse-auth-extraction, graph full-stack, graph-execution | `logging.ts`, `KeycloakModule.create()`, `getClientRoles`, `main.ts`. |
 | loader | default/named export, identity, hook ordering, all 8 family loaders | — | URL/`data:` sources, single-named-export fallback, `withOptions`, `createLoaderHookContext`. |
-| graph | engine, planner, topology, pinning, value store, registry, code/switch/foreach/condition executors, isolated-vm sandbox, events, state mapper, run logger, errors | — | `While/Until` executors, validators, snapshot mapper, `LogGraphNodeExecutor`, `GraphNodeExecutorResolver`, pinned cache-hit path, `validateInputs/Outputs`. |
+| graph | engine, planner, topology, nine-stage validator, catalogue + registrations + manifest resolver + method registry, pinning, value store, code/switch/foreach/condition/log executors, isolated-vm sandbox, events, state mapper, run logger, errors | nest: catalogue API (controller suite), run lifecycle (202/SSE/replay/ownership), workflow persistence, graph-execution module | `While/Until` executors, snapshot mapper. |
 | plugins | contract/kibana/superset (constants, manifest, file gen, embed URL, install) | Playwright kibana/superset (+visual) | Superset `build:true` in-process path; `boot-plugin.mjs`. |
 | docker/shared/user-requests | `shared/runtime` (basic parse/serialize) | — | `DockerComposeService` untested; `user-requests` barrel untested. |
 
@@ -610,7 +616,7 @@ Test layout mirrors `src/`: `tests/unit/<subsystem>/`, `tests/integration/`, `te
 - There is no secret factory: import the provider's subpath, `new X()`, then `await initialize(config)`. No provider `extends SecretService`, so the abstract contract is documentary only (inaccuracy §secrets-11).
 - `BlobStoreFactory.create` returns the abstract base; cast or hold the concrete subclass for provider-specific members (inaccuracy §blob-10).
 - For namespaces, provision the Postgres schema + RLS SQL and set `app.principal_id` for RLS-scoped reads; `AuthzService` must be fed by repository-backed data sources, never fixtures.
-- The graph engine does not wire `IsolatedVmCodeSandboxEvaluator` by default — pass `codeSandboxEvaluator` or Code/Switch nodes throw. `isolated-vm` needs a build toolchain.
+- The graph engine does not wire `IsolatedVmCodeSandboxEvaluator` by default — pass `codeSandboxEvaluator` or Code/Switch nodes throw. `isolated-vm` needs a build toolchain. Backend run stores are in-memory reference implementations; durable run/event history across restarts needs a persistent `GraphRunStore`/`GraphRunEventStore`.
 - Keycloak/Kibana services require `initialize(config)` and an `isProduction()`-aware TLS setting; supply `isProduction: () => false` in tests (the config type omits this field — inaccuracies §keycloak-30, §kibana-36).
 - BI plugins are org-agnostic; Superset is pinned to 6.1.x via a hard-named patch script. `boot:plugins:*` only materializes files; the real build happens inside `docker compose build`.
 - Maturity: package is `0.7.0` (pre-1.0); several subsystems have stubs (IPFS postgres/local-json indexes, Superset manifest "stub" wording) and divergent error models (cloud secret providers throw Decaf errors while 1Password/model throw `SecretError` — inaccuracy §secrets-26).
@@ -751,7 +757,7 @@ Reproduced verbatim from the research brief. Nothing was modified.
 
 **[nest]** `getClientRoles` is re-exported twice from the nest barrel — via `export * from "./utils"` and an explicit `export { getClientRoles } from "./utils"` at `src/nest/keycloakAuthHandler.ts:129` (redundant). | Evidence: src/nest/index.ts:2, src/nest/keycloakAuthHandler.ts:129 | Suggested fix: drop line 129.
 
-**[nest]** `GraphWorkflowModel` only declares `workflowId`/`snapshot` but `GraphWorkflowService` sets/constructs an `updatedAt` field relying on an undeclared inherited `BaseModel` field. | Evidence: src/nest/graph/GraphWorkflowModel.ts:6-15, GraphWorkflowService.ts:27, GraphWorkflowService.ts:31-36 | Suggested fix: explicitly declare `@column() updatedAt`.
+**[nest]** `GraphWorkflowModel` declares `workflowId`/`name`/`document`/`owner` (plus the transitional `snapshot`) but `GraphWorkflowService` still sets/constructs an `updatedAt` field relying on an undeclared inherited `BaseModel` field. | Evidence: src/nest/graph/GraphWorkflowModel.ts, GraphWorkflowService.ts (saveDocument/saveSnapshot) | Suggested fix: explicitly declare `@column() updatedAt`.
 
 ### loader
 
@@ -783,17 +789,13 @@ Reproduced verbatim from the research brief. Nothing was modified.
 
 ### graph
 
-**[graph]** validation options silently ignored — `mergeOptions` defaults `validateInputs:true`/`validateOutputs:true` but `execute()` never invokes `GraphValueValidator`/`GraphDefinitionValidator`/`GraphPortSchemaResolver`. | Evidence: GraphExecutionEngine.ts:732-733, GraphExecutionEngine.ts (execute) | Suggested fix: wire validation in or remove the unused options.
-
-**[graph]** event `nodeId` inconsistency — engine node events use `planNode.id` but executor-emitted events go through `GraphExecutionContext.emit` which hard-codes `nodeId: this.node.name`; when a node id differs from its definition's `name`, `NODE_STARTED`/`NODE_COMPLETED` carry a different `nodeId` than `LOOP_*`/`NODE_OUTPUT` events. | Evidence: GraphExecutionEngine.ts:352, GraphExecutionEngine.ts:390, GraphExecutionContext.ts:55, GraphExecutionContext.ts:83 | Suggested fix: pass `planNode.id` into the context and use it in `emit()`.
+> Entries §graph-70 (validation options silently ignored), §graph-71 (event `nodeId` inconsistency), and §graph-75 (README omitted the graph subpaths/engine) were fixed by the DECAF-50 canonical cutover and removed from this register: validation is wired (nine-stage gate on every execute), `GraphExecutionContext.emit` now uses the plan node's `id`, and the README documents `./graph`, `./graph/shared`, `./nest/graph` and the graph modules.
 
 **[graph]** `IsolatedVmCodeSandboxEvaluator` described as "the default" but isn't wired by default — `GraphExecutionEngine` leaves `codeSandboxEvaluator` `undefined` unless supplied; Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED` out of the box. | Evidence: src/graph/shared/nodes/flow-control.ts:380-382, GraphExecutionEngine.ts:93-101 | Suggested fix: document explicit registration or default to it when `isolated-vm` is available.
 
 **[graph]** `GraphTopology.isBoundary` hard-codes `"$workflow"` instead of `GRAPH_WORKFLOW_BOUNDARY`. | Evidence: GraphTopology.ts:63-65, constants.ts:13 | Suggested fix: import and compare against the constant.
 
-**[graph]** dead import — `GraphPinningService` imports `GRAPH_PINNING_METADATA_KEY` only to `void` it at module end. | Evidence: GraphPinningService.ts:6, GraphPinningService.ts:242 | Suggested fix: remove the unused import.
-
-**[graph]** README omits `./graph`/`./graph/shared` and never mentions the graph engine in "Included Modules". | Evidence: README.md, package.json:261-282 | Suggested fix: add the subpaths and a graph bullet.
+**[graph]** dead import — `GraphPinningService` imports `GRAPH_PINNING_METADATA_KEY` only to `void` it at module end. | Evidence: GraphPinningService.ts:15, GraphPinningService.ts:271 | Suggested fix: remove the unused import.
 
 ### plugins
 

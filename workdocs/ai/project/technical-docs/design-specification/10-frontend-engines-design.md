@@ -14,7 +14,9 @@ is implemented by four flavours: Angular/Ionic (`for-angular`, mature), React
 Next.js slot (`for-nextjs`, scaffold only). A shared SCSS design system
 (`styles`) provides `dcf-*` tokens and utility classes consumed at the app level.
 The Angular engine additionally hosts an in-repo graph workflow editor that is a
-thin HTTP/SSE client of the `integrations` NestJS graph backend.
+document-native HTTP/SSE client of the `integrations` NestJS graph backend: it
+edits a canonical `GraphWorkflowDocument`, discovers nodes from backend
+manifests, and drives the asynchronous run lifecycle.
 
 This document specifies the design goals, principles, requirements, and
 acceptance criteria for the frontend engines. Maturity varies sharply across
@@ -59,13 +61,16 @@ deep-merges so app keys override library keys without forking the bundle.
 fallback); app resources override library keys of the same name.
 
 **Remote graph execution, local graph editing.**
-*Why:* the workflow *definition* is a decorated decaf model the backend executes;
-the editor only visualizes a model and ships its serialized form over HTTP/SSE,
-so the editor never re-implements workflow semantics. Keeping execution remote
-also keeps the browser bundle free of engine code.
-*Enforcing test/spec:* the editor must serialize the workflow to the same shape
-the backend executes and must not run execution logic locally; SSE events must
-fold into frontend state via a single mapper.
+*Why:* the workflow is one canonical `GraphWorkflowDocument` shared by editor,
+persistence, and backend; the editor projects it onto the canvas and ships the
+exact same document over the run API, so displayed state and executed state
+cannot diverge. Keeping execution remote and node discovery manifest-driven
+also keeps the browser bundle free of engine code and node constructors.
+*Enforcing test/spec:* the executed document must be the current document-store
+snapshot (12-step canvas→run E2E); the diagram must be a pure projection with
+command-only mutation; the bundle-wall spec must prove no engine/executor/
+catalogue-runtime code reaches the production bundle; run events must fold
+into frontend state through the run state store.
 
 ## 3. Engine Design
 
@@ -244,58 +249,66 @@ sequenceDiagram
 ## 7. Graph Editor Design (Angular only)
 
 The graph editor is an in-repo subsystem of `for-angular` (`src/graph`), not
-published. It edits decorated workflow models (`@graph`/`@node`/`@input`/`@output`
-from `ui-decorators/graph`) and runs them via a remote backend.
+published. Since the canonical cutover it is **document-native and
+manifest-driven**: it edits a `GraphWorkflowDocument` held by
+`GraphWorkflowDocumentStore` and runs it against the remote backend's
+asynchronous run lifecycle. No node constructors, legacy config-store state,
+or engine code reach the browser (asserted by `src/graph/bundle-wall.spec.ts`).
 
-- **Canvas.** `GraphRendererComponent` (ng-diagram) builds the diagram model from
-  `graphWorkflowDefinitionOf` + `buildGraphRendererModel`, with boundary input
-  nodes, ghost nodes for foreach-loops, and runtime-state merging so drags/
-  viewport/selection survive re-renders (snapshot round-trip).
-- **Execution bridge.** `GraphExecutionService` POSTs the serialized workflow to
-  `${GRAPH_BACKEND_URL}/graph/execute` and streams `GraphExecutionEvent`s over
-  SSE (`/graph/events`) via `ServerEventConnector` (`for-http`). No execution
-  engine code runs in the browser.
-- **State.** Module-level signal stores (`graphExecutionState`, `graphRunLog`,
-  `graphInspection`, `graphNodeConfig`, `graphSelection`, `ghostNodeStore`);
-  `GraphExecutionStateMapper.apply` folds events into node/edge UI states;
-  `blocked` is derived frontend-side (`markAllBlocked`).
-- **Snapshot round-trip.** View-model/snapshot builders preserve runtime state
-  across re-renders by merging persisted state with the freshly rebuilt diagram
-  model.
+- **Catalogue.** `GraphNodeCatalogService` loads/refreshes `GraphNodeManifest[]`
+  (backend `GraphNodeCatalogApi` merged with offline
+  `GraphNodeManifestFixtures` via `GraphNodeCatalogCompositeSource`); the
+  palette renders manifests and `GraphNodePaletteFactory` turns a pick into a
+  `GraphNodeInstance` + `node.add` command.
+- **Canvas.** `GraphDiagramAdapter` is the only document⇄ng-diagram bridge:
+  projection is a pure function of (document, manifest reader); every canvas
+  gesture goes through `GraphDiagramMutationTranslator` and becomes a document
+  command (`GraphDocumentCommands`) — the diagram is re-projected from the
+  store, never the reverse. Positions commit on drag-end; viewport lives in
+  the document's `ui` block; ghost nodes/selection/run overlays project from
+  the document without constructor copies.
+- **Parameters.** `GraphParameterRendererRegistry` resolves typed renderers
+  per `GraphParameterDefinition` (text, multiline, number, boolean, static and
+  dynamic options, collection, object, code, expression, resource locator,
+  credential, notice, hidden) with generic fallback;
+  `GraphParameterVisibilityEvaluator` evaluates the declarative visibility
+  DSL; `GraphParameterValidationMapper` applies manifest validation.
+- **Execution bridge.** The run path is remote and asynchronous:
+  `GraphRunClient.createRun({workflow: document, inputs})` → `202` with
+  `eventsUrl`/`resultUrl`; `GraphRunEventClient` replays run events from
+  sequence zero, reconnects from the last sequence, falls back to run-status
+  polling, and stops after the terminal event; `GraphRunStateStore` folds
+  envelopes into node/edge UI states. The deprecated
+  `GraphExecutionService.executeDocument` path (`POST /graph/execute`) is
+  retained for compatibility only.
+- **Persistence.** `GraphSaveService`/`GraphHistoryService`/
+  `GraphAutoSaveService`/`GraphMutationDetectorService` read from the document
+  store; history stores canonical documents (snapshot round-trip via the
+  `{document, editor}` wrapper), and legacy snapshots load through lossless
+  read-path conversion.
 
-### 7.1 Graph snapshot round-trip
+### 7.1 Canvas → run sequence
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant Editor as GraphRendererComponent
-    participant Util as utils.ts (buildGraphRendererModel)
-    participant State as signal stores (state/selection/ghost/viewport)
-    participant Exec as GraphExecutionService
+    participant Store as GraphWorkflowDocumentStore
+    participant Adapter as GraphDiagramAdapter
+    participant RC as GraphRunClient
+    participant EC as GraphRunEventClient
     participant Backend as NestJS graph backend
-    participant SSE as /graph/events
-    participant Mapper as GraphExecutionStateMapper
-    User->>Editor: load workflow model
-    Editor->>Util: graphWorkflowDefinitionOf + buildGraphRendererModel
-    Util-->>Editor: diagram model (boundary nodes, ghost nodes)
-    Editor->>State: merge runtime state (drags/viewport/selection) over fresh model
-    State-->>Editor: restored view
-    User->>Editor: run workflow
-    Editor->>State: markAllBlocked()
-    Editor->>Exec: execute(workflow, inputs)
-    Exec->>Backend: POST /graph/execute
-    Backend-->>Exec: runId
-    Exec->>SSE: streamEvents(runId)
-    loop GraphExecutionEvent (filtered by run id)
-        SSE-->>Exec: event
-        Exec->>Mapper: apply(event)
-        Mapper->>State: fold node/edge UI state; append run log
-    end
-    alt workflow.completed | failed
-        Editor->>Backend: GET /graph/results/:runId
-        Backend-->>Editor: results -> graphInspection
-    end
-    State-->>Editor: templates read stores reactively
+    participant RS as GraphRunStateStore
+    User->>Adapter: canvas gesture (add node / draw edge / drag)
+    Adapter->>Store: document command (node.add / edge.add / moveNode)
+    Store-->>Adapter: re-project diagram (never the reverse)
+    User->>RC: Run — snapshot() current document
+    RC->>Backend: POST /graph/runs {workflow, inputs}
+    Backend-->>RC: 202 {runId, eventsUrl, resultUrl}
+    RC->>EC: connect eventsUrl?afterSequence=0
+    Backend-->>EC: replay buffered envelopes, then live events
+    EC->>RS: fold node/edge states + run log
+    Backend-->>EC: terminal event (completed|failed|cancelled)
+    User->>RC: GET resultUrl → final outputs
 ```
 
 ## 8. Functional Requirements
@@ -329,13 +342,18 @@ sequenceDiagram
   key MUST resolve to the key itself or a configured fallback.
 - **FR-8 (i18n):** Field validation errors MUST resolve through an `errors.*`
   namespace using the validator's `{key, message}` result.
-- **FR-9 (graph, Angular only):** The editor MUST serialize the workflow to the
-  shape the backend executes and MUST NOT run execution logic locally.
-  Execution MUST be a remote POST + SSE stream; events MUST fold into frontend
-  state via a single mapper.
+- **FR-9 (graph, Angular only):** The editor MUST hold the current workflow as
+  a canonical `GraphWorkflowDocument`; every semantic mutation MUST be a
+  document command, and the diagram MUST be a pure projection of the store.
+  Execution MUST be remote and asynchronous (`POST /graph/runs` → `202`, then
+  run-scoped SSE with replay/reconnect); events MUST fold into frontend state
+  via the run state store; the executed document MUST be exactly the displayed
+  document.
 - **FR-10 (graph, Angular only):** The editor MUST preserve runtime state
-  (drags, viewport, selection) across re-renders by merging persisted state with
-  the rebuilt diagram model (snapshot round-trip).
+  (drags, viewport, selection) across re-renders via the document's `ui` state
+  and the `{document, editor}` snapshot wrapper; positions commit on drag-end
+  only. Node discovery MUST come from backend-provided manifests — never
+  constructors.
 
 ## 9. Acceptance Criteria
 
@@ -365,10 +383,11 @@ Feature: Frontend engine model-driven rendering
     Then the resolved string equals the key itself (or the configured fallback)
 
   Scenario: Graph snapshot restores runtime state across re-render
-    Given a loaded workflow with user drags, viewport, and selection
-    When the diagram model is rebuilt from the workflow definition
-    Then the editor merges the persisted runtime state over the fresh model
+    Given a loaded workflow document with user drags, viewport, and selection
+    When the diagram model is re-projected from the document store
+    Then the editor restores the document's ui state (positions, viewport)
     And drags, viewport, and selection are preserved
+    And the persisted/executed document equals the displayed document
 
   Scenario: Engine not initialized returns no engine
     Given no RenderingEngine has been booted for a flavour

@@ -93,8 +93,10 @@ decorator metadata (`@uimodel`/`@uilayout`/`@uielement`) into dynamically
 created Angular/Ionic components, so a decorated model renders as a full CRUD
 UI (form, fieldset, list, table, modal, stepped form) with no hand-written
 templates. It also ships a second, large subsystem — `src/graph` — an
-ng-diagram-based visual workflow editor that is a *thin client* of the graph
-execution engine in `@decaf-ts/integrations` (NestJS backend over HTTP + SSE).
+ng-diagram-based visual workflow editor that is a *document-native client* of
+the graph backend in `@decaf-ts/integrations`: it edits a canonical
+`GraphWorkflowDocument`, discovers nodes from backend manifests, and drives
+the asynchronous run lifecycle over HTTP + run-scoped SSE.
 
 `package.json` has no `description` field; the README's description is wrong
 (see Inaccuracies). Engines: node >=20, npm >=10.
@@ -326,59 +328,78 @@ will 404 (see Inaccuracies).
 ### 3.8 Graph workflow editor
 
 The graph editor lives in `src/graph` and is **not** part of the published
-package. Workflows are decorated model classes (`@graph`/`@node`/`@input`/`@output`
-from `@decaf-ts/ui-decorators/graph`).
+package. Since the canonical cutover it is document-native and manifest-driven:
+the editor's state is one `GraphWorkflowDocument`
+(`@decaf-ts/ui-decorators/graph`), node discovery comes from backend
+`GraphNodeManifest[]`, and no node constructors, legacy config-store state, or
+engine code reach the browser (`src/graph/bundle-wall.spec.ts` asserts both a
+static import wall and a runtime symbol wall over the production bundle).
 
-- **Node palette & canvas.** `GraphRendererComponent` (ng-diagram canvas) builds
-  the diagram model from `graphWorkflowDefinitionOf` +
-  `buildGraphRendererModel`, with boundary input nodes, ghost nodes for
-  foreach-loops, and runtime-state merging so drags/viewport survive re-renders.
-- **Execution bridge.** Execution is *remote*: `GraphExecutionService` POSTs the
-  serialized workflow to `${GRAPH_BACKEND_URL}/graph/execute` and streams
-  `GraphExecutionEvent`s over SSE (`/graph/events`) via `ServerEventConnector`
-  (for-http). No execution-engine code runs in the browser.
-- **Frontend state.** Module-level signal stores (`graphExecutionState`,
-  `graphRunLog`, `graphInspection`, `graphNodeConfig`, `graphSelection`,
-  `ghostNodeStore`); `GraphExecutionStateMapper.apply` folds events into
-  node/edge UI states. `blocked` is derived frontend-side (`markAllBlocked`).
-- **Snapshot round-trip.** View-model/snapshot builders live in
-  `src/graph/utils.ts`; the editor preserves runtime state (drags, viewport,
-  selection) across re-renders by merging persisted state with the freshly
-  rebuilt diagram model.
+- **Node palette & catalogue.** `GraphNodeCatalogService` loads/refreshes
+  manifests from the backend `GraphNodeCatalogApi` merged with offline
+  `GraphNodeManifestFixtures` via `GraphNodeCatalogCompositeSource`; the
+  palette renders manifests and `GraphNodePaletteFactory` turns a pick into a
+  `GraphNodeInstance` + `node.add` command.
+- **Document store & canvas.** `GraphWorkflowDocumentStore` holds the canonical
+  document; every semantic mutation is a command (`GraphDocumentCommands`).
+  `GraphDiagramAdapter` is the only document⇄ng-diagram bridge — projection is
+  a pure function of (document, manifest reader), canvas gestures go through
+  `GraphDiagramMutationTranslator` and become document commands, and the
+  diagram is re-projected from the store, never the reverse. Positions commit
+  on drag-end; the viewport lives in the document's `ui` block.
+- **Parameter renderers.** `GraphParameterRendererRegistry` resolves typed
+  renderers per `GraphParameterDefinition` (text, multiline, number, boolean,
+  static/dynamic options, collection, object, code, expression, resource
+  locator, credential, notice, hidden) with generic fallback; visibility is
+  the declarative DSL evaluated by `GraphParameterVisibilityEvaluator`;
+  `GraphParameterValidationMapper` applies manifest validation.
+- **Execution bridge.** Execution is *remote and asynchronous*:
+  `GraphRunClient.createRun({workflow: document, inputs})` → `202` with
+  `eventsUrl`/`resultUrl`; `GraphRunEventClient` replays run events from
+  sequence zero, reconnects from the last sequence (bounded retry budget),
+  falls back to run-status polling, and stops after the terminal event;
+  `GraphRunStateStore` folds envelopes into node/edge UI states. The
+  deprecated `GraphExecutionService.executeDocument` path
+  (`POST /graph/execute`) is retained for compatibility only.
+- **Persistence & history.** Save/history/autosave/mutation services
+  (`GraphSaveService`, `GraphHistoryService`, `GraphAutoSaveService`,
+  `GraphMutationDetectorService`) read from the document store; snapshots are
+  `{document, editor}` wrappers and legacy snapshots load through lossless
+  read-path conversion.
 
-*Why a shared graph editor contract:* the workflow *definition* is a decorated
-decaf model (the same `@graph`/`@node` metadata the `integrations` backend
-executes), so the editor renders and edits the same source of truth the backend
-runs — the editor never re-implements workflow semantics, it only visualizes a
-model and ships its serialized form to the backend over HTTP/SSE.
+*Why a canonical document contract:* the editor, the persistence layer, and
+the backend all consume the same `GraphWorkflowDocument`, so displayed state
+and executed state cannot silently diverge — the editor never re-implements
+workflow semantics, it projects a document, edits it through commands, and
+ships the exact same document to the backend's run lifecycle over HTTP/SSE.
 
 ```mermaid
 sequenceDiagram
+    participant User
+    participant Store as GraphWorkflowDocumentStore
+    participant Adapter as GraphDiagramAdapter
     participant Page as GraphPage
-    participant Exec as GraphExecutionService
+    participant RC as GraphRunClient
+    participant EC as GraphRunEventClient
     participant Backend as NestJS graph backend
-    participant SSE as ServerEventConnector (/graph/events)
-    participant Mapper as GraphExecutionStateMapper
-    participant Stores as signal stores (state/log/inspection/selection/ghost)
-    Page->>Page: markAllBlocked() (frontend-derived)
-    Page->>Exec: execute(workflow, inputs)
-    Exec->>Backend: POST {GRAPH_BACKEND_URL}/graph/execute (10s timeout)
+    participant RS as GraphRunStateStore
+    User->>Adapter: canvas gesture (add node / draw edge / drag)
+    Adapter->>Store: document command (node.add / edge.add / moveNode)
+    Store-->>Adapter: re-project diagram from store (never reverse)
+    User->>Page: Run
+    Page->>Store: snapshot() — current canonical document
+    Page->>RC: POST /graph/runs {workflow, inputs}
     alt POST fails
-        Exec-->>Page: GraphBackendUnavailableError
-    else POST ok
-        Backend-->>Exec: runId
-        Exec->>SSE: streamEvents(runId) open /graph/events
-        loop each GraphExecutionEvent (filtered by run id)
-            SSE-->>Exec: event
-            Exec->>Mapper: apply(event)
-            Mapper->>Stores: fold into node/edge UI state; append run log
-        end
-        alt workflow.completed | workflow.failed
-            Page->>Backend: GET /graph/results/:runId
-            Backend-->>Page: results -> graphInspection
-        end
+        RC-->>Page: GraphBackendUnavailableError
+    else 202 Accepted
+        Backend-->>RC: {runId, eventsUrl, resultUrl}
+        RC->>EC: connect eventsUrl?afterSequence=0
+        Backend-->>EC: replay buffered envelopes, then live events
+        EC->>RS: fold node/edge UI state; append run log
+        Backend-->>EC: terminal event (completed|failed|cancelled)
+        Page->>RC: GET resultUrl → results -> graphInspection
     end
-    Stores-->>Page: node/edge templates read stores reactively
+    RS-->>Page: node/edge templates read state reactively
 ```
 
 ### 3.9 Lifecycle, configuration, environment

@@ -23,7 +23,7 @@ always describes decaf-ts as it actually is.
 | 05 | [Auth & identity design](./05-auth-identity-design.md) | Guards/allow-block/identity/audit |
 | 06 | [HTTP & Nest design](./06-http-nest-design.md) | REST adapters/controllers/request pipeline/auth/webhooks/SSE |
 | 07 | [UI rendering design](./07-ui-rendering-design.md) | Renderable models/rendering engine/targets/list items |
-| 08 | [Graph design](./08-graph-design.md) | Graph decorators/ports/snapshots, execution bridge, and the execution engine (planning, executors, value store, pinning, loops, code sandbox, events, NestJS backend) |
+| 08 | [Graph design](./08-graph-design.md) | Canonical workflow documents & manifests, graph decorators (authoring layer), backend node catalogue, nine-stage validation gate, execution engine (planning, executors, value store, pinning, loops, code sandbox), async run lifecycle, NestJS graph API, Angular canonical frontend |
 | 09 | [Integrations design](./09-integrations-design.md) | Blob/secrets/keycloak/kibana/feature-flags/namespaces/loader |
 | 10 | [Frontend engines design](./10-frontend-engines-design.md) | Angular/React/Next/React-Native engines, forms, i18n, graph editor |
 | 11 | [Tooling & MCP design](./11-tooling-mcp-design.md) | utils/cli/MCP server/with-ai/templates/docker |

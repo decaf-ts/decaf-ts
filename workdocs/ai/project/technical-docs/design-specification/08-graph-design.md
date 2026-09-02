@@ -1,33 +1,159 @@
-# 08 — Graph Design (Metadata, Snapshot & Execution Engine)
+# 08 — Graph Design (Canonical Documents, Node Catalogue & Execution Engine)
 
-The architecture is detailed in the [Architecture Handbook](../architecture-handbook/06-ui-layer.md).
+The architecture is detailed in the [Architecture Handbook](../architecture-handbook/06-ui-layer.md) (metadata layer), [../architecture-handbook/07-integrations.md](../architecture-handbook/07-integrations.md) (engine/catalogue surface), and [../architecture-handbook/08-frontend-engines.md](../architecture-handbook/08-frontend-engines.md) (Angular editor).
 
-> **Scope note.** This design covers two related subsystems of the graph feature.
-> (1) The `./graph` subpath of `@decaf-ts/ui-decorators`: the framework-neutral
-> **graph metadata layer** (`@node`/`@graph`/`@port`/`@input`/`@output`/`@connection`/`@pinnable`),
-> the reader that derives `GraphNodeDefinition`/`GraphPortDefinition`/`GraphWorkflowDefinition`,
-> the category style registry, and the workflow snapshot serialization/round-trip
-> (§§1–7). (2) The **graph execution engine** — planning, `GraphNodeExecutor`/
-> `GraphNodeExecutorRegistry`, `GraphValueStore`, pinning service, loops, the
-> code sandbox, the event pipeline, and the NestJS execution backend — which
-> lives in `integrations/graph` and is specified in [§12 — Graph Execution
-> Engine](#12-graph-execution-engine) below. The execution *bridge*
-> (`RenderingEngine#renderAsNode`) that connects the two is covered in §6.
+> **Scope note.** This design covers four related subsystems of the graph feature.
+> (1) The `./graph` subpath of `@decaf-ts/ui-decorators`: the decorated
+> **authoring metadata layer** (`@node`/`@graph`/`@port`/`@input`/`@output`/`@connection`/`@pinnable`)
+> plus — since the canonical cutover — the **canonical document model**
+> (`src/graph/document/`) and the **manifest/parameter contracts**
+> (`src/graph/catalog/`). (2) The **backend node catalogue, nine-stage
+> validation gate, execution engine, and run lifecycle** in
+> `integrations/graph`. (3) The **NestJS graph backend** in
+> `integrations/nest/graph`. (4) The **canonical Angular frontend** in
+> `for-angular/src/graph`. The specification of record is
+> [DECAF_50.md](../../specifications/DECAF_50.md) (owned by the Delivery
+> Documentation Specialist); this document describes the delivered system and
+> references, never restates, that record.
 
 ## 1. Overview
 
-The graph layer reuses the same `Model` + `Metadata` + `@uimodel` backbone as form rendering to describe visual workflow nodes, ports, and workflows. A graph node *is* a renderable model carrying extra `GraphKeys` metadata; a workflow composes nodes the way `@uichild` composes nested models. The reader flattens Schema-typed `@input`/`@output` ports and resolves effective colors/icons from a category registry; the snapshot module serializes/restores workflow state with a JSON round-trip. The for-angular graph workflow editor is the primary frontend consumer, mapping these definitions and snapshots to a canvas editor.
+The graph system operates from **one canonical, serializable
+`GraphWorkflowDocument`**. The same document instance is the source for
+projecting the editor canvas, persisting workflows, history/undo-redo,
+autosave, backend validation, and execution; the ng-diagram canvas model is a
+**projection** of the document, never an independent source of workflow
+semantics.
+
+Three representations existed before the cutover — decorated model classes +
+`GraphWorkflowDefinition`, the mutable ng-diagram canvas + `GraphNodeConfigStore`,
+and `GraphWorkflowSnapshot` — and execution rebuilt the workflow from the
+decorated class rather than the canvas. That split is gone:
+
+- Decorated workflow classes remain an **authoring/compatibility input**:
+  `GraphDecoratedWorkflowCompiler` compiles them into a canonical document at
+  initialization/restore time only — never on every Run.
+- `GraphWorkflowSnapshot` is a `{ document, editor, metadata }` wrapper over
+  the canonical document; legacy persisted snapshots load through the lossless
+  `graphWorkflowDocumentFromLegacySnapshot` converter on the read path (no
+  destructive migration job).
+- `GraphNodeConfigStore` is removed; literal values and port/value modes live
+  on `GraphNodeInstance.parameters` and `inputBindings`/`outputBindings`.
+
+Node behavior is **backend-authoritative**. The frontend may choose which
+registered node `kind` to instantiate, set literal parameter values, binding
+modes, connections, layout state, and manifest-allowed metadata — never
+executor implementations, functions, trusted port definitions, credential
+values, or manifests. The backend resolves every node kind against its own
+`GraphNodeCatalogue` (one kind → registration map: serializable manifest +
+backend-only executor + declared methods), validates the whole document
+through a nine-stage gate, and only then plans and executes. The frontend
+palette renders `GraphNodeManifest[]` fetched from the catalogue HTTP API —
+node constructors no longer ship to the browser.
+
+Execution is **asynchronous and run-scoped**: `POST /graph/runs` returns
+`202 Accepted` with `eventsUrl`/`resultUrl` before completion; events stream
+over a run-scoped, authorized, replayable SSE endpoint with monotonic
+per-run sequence numbers; status, result, cancellation, events, and inspection
+are all ownership-checked server-side against the run's recorded owner.
 
 ## 2. Design Principles
 
-- **Graph as decorators, not a separate schema language.** *Why:* reusing `Model`/`Metadata`/`@uimodel` means ports, validation, ordering, and visibility reuse the exact same machinery as forms; one reflection backbone, one render path. *Enforcing test/spec:* `graph.test.ts` composes `@node` over `@model()` and reads node metadata through the same `Metadata` readers used for UI.
-- **Schema-flattening decouples the visual contract from the data contract.** *Why:* `@input`/`@output` mark a property as a Schema-typed port whose nested model's matching-direction ports are spliced **unprefixed** into the parent, so a structured payload exposes individual connectable ports on the canvas while the underlying model stays nested and validated. *Enforcing test/spec:* `graph.test.ts` asserts unprefixed splicing, that the carrier property is not itself a port, and `portGroups` one-vs-all (default `"all"`); `@port` on a Schema-typed property keeps the legacy prefixed-composite behaviour, and primitive `@input` is a no-op.
-- **Cycle-safe flattening.** *Why:* nested Schema ports could recurse; a `visited` guard in the reader prevents infinite expansion. *Enforcing test/spec:* the reader's `schemaGroupPorts` carries a `visited` set.
-- **Category style registry with explicit override.** *Why:* consistent visual identity per category with per-node escape hatches. *Enforcing spec:* resolution order is explicit node `color`/`icon` → category style → `GRAPH_DEFAULT_CATEGORY_STYLE`, via `resolveEffectiveColor`/`resolveEffectiveIcon` consumed by `graphDefinitionOf`/`graphWorkflowDefinitionOf`.
-- **Snapshots are versioned and idempotent.** *Why:* workflow state must round-trip across JSON, restore against the current definition, and merge caller overrides without duplication. *Enforcing test/spec:* `graphWorkflowSnapshotOf` deep-clones and idempotently merges; `GRAPH_WORKFLOW_SNAPSHOT_VERSION = 1`; `graph.test.ts` asserts snapshot serialization, restore, and JSON round-trip.
-- **Subpath isolation for augmentations.** *Why:* `Metadata.nodes()`/`Metadata.workflows()` and `RenderingEngine#renderAsNode` patch foreign prototypes; importing the root barrel must not pull graph. *Enforcing spec:* the augmentations are attached only when `@decaf-ts/ui-decorators/graph` is imported.
+- **One source of truth.** *Why:* displayed state and executed state can never
+  silently diverge if there is exactly one mutable representation. *Enforcing
+  tests:* document⇄diagram round-trip suites in `for-angular`
+  (`GraphRunLifecycle.spec.ts`, canvas-run E2E) and builder invariant tests in
+  `ui-decorators` (`tests/unit/graph/document-builder.test.ts`).
+- **Trusted catalogue, untrusted workflow instances.** *Why:* client input must
+  not be able to mislead execution dispatch. *Enforcing tests:* the planner
+  accepts only `GraphResolvedWorkflow`; a named test proves `graphDefinitionOf()`
+  absent from the planner and raw `GraphNodeDefinition` objects rejected
+  (`tests/unit/graph/GraphExecutionPlanner.test.ts`).
+- **Co-located authoring, separated runtime artifacts.** *Why:* a node author
+  writes manifest + executor in one module while only the serializable manifest
+  crosses the wire. *Enforcing structure:* `GraphNodeRegistration` pairs them;
+  built-in manifests re-export through `@decaf-ts/integrations/graph/shared`
+  (re-exports only, no divergent copies).
+- **Backend validation before execution.** *Why:* untrusted documents must be
+  fully resolved against trusted manifests before planning. *Enforcing source:*
+  `GraphWorkflowDocumentValidator.validate()` runs stages 1→9 inside
+  `GraphExecutionEngine.execute()` and at every persistence boundary.
+- **Run-scoped transport.** *Why:* long runs must be observable, reconnectable,
+  and race-free. *Enforcing source:* `GraphRunService`/`GraphRunController`
+  operate on a run resource; no global unfiltered event subject serves run
+  events.
+- **Engine-free shared contracts.** *Why:* browser bundles must carry no
+  engine/executor code. *Enforcing test:* `for-angular/src/graph/bundle-wall.spec.ts`
+  (static import wall + runtime symbol wall over the production bundle).
+- **Graph as decorators, not a separate schema language** (authoring layer).
+  *Why:* reusing `Model`/`Metadata`/`@uimodel` means ports, validation,
+  ordering, and visibility reuse the exact same machinery as forms.
+- **Schema-flattening decouples the visual contract from the data contract**
+  (authoring layer). *Why:* `@input`/`@output` splice a nested model's
+  matching-direction ports **unprefixed** into the parent so a structured
+  payload exposes connectable ports while the model stays nested and validated.
+- **Snapshots are idempotent and now document-derived.** *Why:* workflow state
+  must round-trip across JSON losslessly. *Enforcing:* `graphWorkflowSnapshotOf`
+  deep-clones and idempotently merges; canonical snapshots wrap the document.
+- **Subpath isolation for augmentations.** *Why:* `Metadata.nodes()`/
+  `Metadata.workflows()` and `RenderingEngine#renderAsNode` patch foreign
+  prototypes; importing the root barrel must not pull graph.
 
-## 3. Graph Decorator Design
+## 3. Package Ownership & Boundary Wall
+
+```text
+┌────────────────────────────────────────────────────────────────────┐
+│ @decaf-ts/ui-decorators/graph  (browser-safe contracts)            │
+│   src/graph/document/  GraphWorkflowDocument, GraphNodeInstance,   │
+│                        GraphEdgeInstance, GraphEndpoint, bindings, │
+│                        builder, reader, serializer,                │
+│                        GraphDecoratedWorkflowCompiler               │
+│   src/graph/catalog/   GraphNodeManifest, GraphPortManifest,       │
+│                        GraphParameterDefinition, GraphValueSchema, │
+│                        GraphVisibilityExpression,                  │
+│                        GraphDynamicPortRule, manifest compiler,    │
+│                        serializability helpers                     │
+└───────────────────────────┬────────────────────────────────────────┘
+                            │ frontend-safe contracts only
+          ┌─────────────────┴──────────────────┐
+          │                                    │
+┌─────────▼─────────────────────┐  ┌──────────▼──────────────────────┐
+│ for-angular/src/graph         │  │ integrations/src/graph          │
+│  catalog/  (Angular services) │  │  shared/nodes/  built-in        │
+│  document/ (store + adapter)  │  │    manifests (re-exported       │
+│  parameters/ (renderers)      │  │    through graph/shared only)   │
+│  runs/     (run clients)      │  │  engine/catalog/   catalogue    │
+│  components/ (editor UI)      │  │  engine/validation/ nine-stage   │
+│                               │  │  engine/runs/      run lifecycle│
+│  never imports engine/nest    │  │  engine/execution/ engine+plan   │
+└─────────┬─────────────────────┘  └──────────┬──────────────────────┘
+          │ HTTP/SSE (manifests, documents,   │
+          │ runs, events)                     │ backend-only
+          └─────────────────┬─────────────────┘
+                            ▼
+              integrations/src/nest/graph
+                catalogue / workflow / run controllers
+```
+
+Boundary rules (all lint- or test-enforced):
+
+- The `ui-decorators` `document/` and `catalog/` modules must not import
+  Angular, NestJS, Node-only APIs, the engine, or executors; the DECAF-35
+  ESLint `no-restricted-imports` wall extends to them.
+- `for-angular` production graph sources may import only
+  `@decaf-ts/ui-decorators/graph` and `@decaf-ts/integrations/graph/shared`.
+  Forbidden specifiers (asserted by `bundle-wall.spec.ts`):
+  `@decaf-ts/integrations/graph/engine`, `@decaf-ts/integrations/nest`,
+  `@decaf-ts/for-nest`, `@decaf-ts/for-server`, `node:`, `isolated-vm`, `vm:`.
+- The production browser bundle must contain no engine-side executable
+  symbols (`GraphExecutionEngine`, catalogue runtime, validators, run stores);
+  the bundle wall rebuilds `www/` when stale and self-attests its scanner with
+  probe symbols so a blind scan cannot silently pass.
+- Built-in manifests live in `integrations/src/graph/shared/nodes/` and reach
+  the frontend only through the `./graph/shared` re-export — no divergent
+  copies.
+
+## 4. Graph Decorator Design (authoring layer)
 
 | Decorator | Target | Role |
 |:----------|:-------|:-----|
@@ -38,306 +164,715 @@ The graph layer reuses the same `Model` + `Metadata` + `@uimodel` backbone as fo
 | `@connection({ category, ... })` | property | Declares connection rules / category. |
 | `@pinnable({ enabled?, strategy?, includeDependencies? })` | class/property | Pinning metadata (defaults `enabled: true`, `strategy: "manual"`, `includeDependencies: true`). |
 
-Decorators register with the `Decoration.for(...).define(...).apply()` DSL (discoverable/introspectable) and also write raw `Metadata` under `GraphKeys` (`graph`, `graph.node`, `graph.edge`, `graph.port`) for runtime lookup. Registries: `registerNode`, `registerWorkflow`, `graphNodes`, `graphWorkflows`, `resetGraphRegistries`. Re-decoration idempotency relies on the underlying `Set`.
+Decorators register with the `Decoration.for(...).define(...).apply()` DSL and
+write raw `Metadata` under `GraphKeys` for runtime lookup. Registries:
+`registerNode`, `registerWorkflow`, `graphNodes`, `graphWorkflows`,
+`resetGraphRegistries`. Since the cutover these registries drive **authoring
+and backend registration/compat flows only** — the Angular palette no longer
+derives from constructors.
 
 ### Port direction & groups
 
-`PortDirection` is `INPUT` | `OUTPUT`. `portGroups` carries the one-vs-all rendering toggle (default `"all"`); declared groups are merged with the default. Leaf-port helpers: `graphLeafPortsOf`, `graphWorkflowInputLeafPortsOf`, `graphWorkflowOutputLeafPortsOf`.
+`PortDirection` is `INPUT` | `OUTPUT`. `portGroups` carries the one-vs-all
+rendering toggle (default `"all"`). Leaf-port helpers: `graphLeafPortsOf`,
+`graphWorkflowInputLeafPortsOf`, `graphWorkflowOutputLeafPortsOf`.
 
 ### Category style registry
 
-`registerGraphCategoryStyle(category, style)` feeds `graphCategoryStyleOf`/`resolveEffectiveColor`/`resolveEffectiveIcon`. `GRAPH_VISUAL_STATE_STYLES` and `graphVisualStyleOf` provide visual-state styling. `GRAPH_DEFAULT_CATEGORY_STYLE` is the fallback.
+`registerGraphCategoryStyle(category, style)` feeds `graphCategoryStyleOf`/
+`resolveEffectiveColor`/`resolveEffectiveIcon`. `GRAPH_VISUAL_STATE_STYLES` and
+`graphVisualStyleOf` provide visual-state styling. `GRAPH_DEFAULT_CATEGORY_STYLE`
+is the fallback.
 
-## 4. Reader Design
+## 5. Reader Design (authoring/compatibility)
 
-`graphDefinitionOf(model)` reads `Model.uiModelOf` + `graphNodeMetadataOf`, then `graphPortsOf(model)`:
+`graphDefinitionOf(model)` reads `Model.uiModelOf` + `graphNodeMetadataOf`,
+then `graphPortsOf(model)`:
 
-- For `@input`/`@output` Schema ports → `schemaGroupPorts` splices the nested model's matching-direction ports **unprefixed** into the parent (carrier property is not a port), with a `visited` cycle guard.
-- For `@port` Schema ports → expands into prefixed composite children (legacy behaviour).
+- For `@input`/`@output` Schema ports → `schemaGroupPorts` splices the nested
+  model's matching-direction ports **unprefixed** into the parent (carrier
+  property is not a port), with a `visited` cycle guard.
+- For `@port` Schema ports → expands into prefixed composite children (legacy
+  behaviour).
 - For primitive `@input` → no-op.
-- Resolves `portGroups` (declared + defaulted `"all"`).
-- Resolves `effectiveColor`/`effectiveIcon` (node > category > default).
+- Resolves `portGroups` (declared + defaulted `"all"`) and
+  `effectiveColor`/`effectiveIcon` (node > category > default).
 
-Returns `GraphNodeDefinition` (`tag`, `ports: GraphPortDefinition[]`, metadata, resolved style).
+Returns a `GraphNodeDefinition`; `graphWorkflowDefinitionOf(model)`
+additionally splits ports into inputs/outputs/connections and attaches
+`nodes`/`relations` → `GraphWorkflowDefinition`.
 
-`graphWorkflowDefinitionOf(model)` additionally splits ports into inputs/outputs/connections and attaches `nodes`/`relations` → `GraphWorkflowDefinition`.
+**Post-cutover role:** these definitions feed the `graphNodeManifest`
+compiler (decorated class → published manifest shape) and the
+`GraphDecoratedWorkflowCompiler` (decorated workflow → canonical document).
+They are *not* execution inputs: the planner no longer calls `graphDefinitionOf`
+and rejects raw definition objects.
 
-Accessors: `graphNodeMetadataOf`, `graphWorkflowMetadataOf`, `graphPortMetadataOf`, `graphPortDefinitionOf`, `graphPortsOf`.
+## 6. Canonical Workflow Document
 
-## 5. Snapshot Design
+### 6.1 Document shape
 
-`graphWorkflowSnapshotOf(model, input?)` normalizes a `GraphWorkflowDefinition` plus caller-supplied state into a versioned `GraphWorkflowSnapshot`:
+`GraphWorkflowDocument` (`ui-decorators/src/graph/document/GraphWorkflowDocument.ts`)
+is a pure JSON contract — no class constructors, functions,
+`GraphNodeDefinition`/`GraphWorkflowDefinition`, or Angular component
+references may appear anywhere in it:
 
-- `definition` — derived workflow definition.
-- `state` — inputs/outputs keyed by path, nodes by id/ref, edges by relation.
-- Deep cloning and idempotent merge of supplied overrides.
-- `GRAPH_WORKFLOW_SNAPSHOT_VERSION = 1`.
-
-Helpers:
-
-| Helper | Role |
-|:-------|:-----|
-| `graphWorkflowSnapshotDefinitionOf` | Extract the definition from a snapshot. |
-| `graphWorkflowSnapshotRestore` | Re-derive a snapshot against the current definition. |
-| `graphWorkflowSnapshotToJSON` / `graphWorkflowSnapshotFromJSON` | JSON round-trip. |
-| `graphWorkflowSnapshotInputValuesOf` / `graphWorkflowSnapshotOutputValuesOf` | Extract input/output value maps. |
-
-## 6. Graph Execution Bridge
-
-The brief documents a single, narrow bridge between the graph metadata layer and execution/rendering: `RenderingEngine#renderAsNode` (attached by `graph/overrides/overrides.ts` when the `./graph` subpath is imported) lets a concrete engine render a model *as a graph node*. The full graph execution engine — planning, `GraphNodeExecutor`/`GraphNodeExecutorRegistry`, `GraphValueStore`, pinning service, SSE feedback, NestJS endpoints — lives in `integrations/graph` and is specified in [§12 — Graph Execution Engine](#12-graph-execution-engine) below. This section does not duplicate that surface; it only guarantees that the metadata produced here is the canonical input the execution engine consumes (`GraphNodeDefinition`/`GraphWorkflowDefinition`/`GraphWorkflowSnapshot`).
-
-## 7. Functional Requirements
-
-- **FR-1 (Build a workflow).** Decorating a `Model` with `@node`/`@graph`/`@port`/`@input`/`@output` and calling `graphDefinitionOf`/`graphWorkflowDefinitionOf` yields a `GraphNodeDefinition`/`GraphWorkflowDefinition` with ports split by direction, Schema-flattened ports spliced unprefixed, and effective color/icon resolved.
-- **FR-2 (Invalid port connection).** Port/connection rules are carried as `GraphConnectionRule` metadata on `@connection`/`@port`; the reader exposes them so the editor/execution layer can reject invalid connections. (Connection-rule *enforcement* is the editor/execution layer's responsibility; this layer only declares and exposes the rules.)
-- **FR-3 (Snapshot restore).** `graphWorkflowSnapshotRestore` re-derives a snapshot against the current definition; `graphWorkflowSnapshotToJSON` → `graphWorkflowSnapshotFromJSON` round-trips without loss.
-- **FR-4 (Execution result).** The execution engine (out of scope here) consumes `GraphWorkflowDefinition` + `GraphWorkflowSnapshot` inputs and produces outputs accessible via `graphWorkflowSnapshotOutputValuesOf`. This layer provides the canonical input/output value maps.
-
-### Build workflow → execute → snapshot
-
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant Dec as @node/@graph/@port decorators
-    participant Reg as NODE_REGISTRY / WORKFLOW_REGISTRY
-    participant GD as graphDefinitionOf
-    participant WF as graphWorkflowDefinitionOf
-    participant Snap as graphWorkflowSnapshotOf
-    participant Exec as Execution engine (see §12)
-    Caller->>Dec: decorate Model classes
-    Dec->>Reg: register constructors (Set, idempotent)
-    Dec->>Dec: write Metadata under GraphKeys
-    Caller->>GD: graphDefinitionOf(NodeModel)
-    GD->>GD: graphPortsOf (Schema-flatten unprefixed, cycle guard)
-    GD->>GD: resolveEffectiveColor/Icon
-    GD-->>Caller: GraphNodeDefinition
-    Caller->>WF: graphWorkflowDefinitionOf(WorkflowModel)
-    WF-->>Caller: GraphWorkflowDefinition (inputs/outputs/connections/nodes/relations)
-    Caller->>Snap: graphWorkflowSnapshotOf(WorkflowModel, input?)
-    Snap-->>Caller: GraphWorkflowSnapshot
-    Caller->>Exec: execute(definition, snapshot) (out of scope here)
-    Exec-->>Caller: outputs (graphWorkflowSnapshotOutputValuesOf)
+```ts
+interface GraphWorkflowDocument {
+  id: string;
+  name: string;
+  inputs: GraphWorkflowPortInstance[];   // workflow-owned boundary ports
+  outputs: GraphWorkflowPortInstance[];
+  nodes: GraphNodeInstance[];            // kind-referencing instances
+  edges: GraphEdgeInstance[];            // data | connection, explicit endpoints
+  settings?: Record<string, GraphJsonValue>;
+  metadata?: Record<string, GraphJsonValue>;
+  ui?: GraphWorkflowUiState;             // editor-only; engine ignores
+}
 ```
 
-### Snapshot round-trip
+Node instances reference the trusted catalogue by `kind` and carry only
+instance state:
 
-```mermaid
-sequenceDiagram
-    participant Caller
-    participant Snap as graphWorkflowSnapshotOf
-    participant ToJSON as graphWorkflowSnapshotToJSON
-    participant FromJSON as graphWorkflowSnapshotFromJSON
-    participant Restore as graphWorkflowSnapshotRestore
-    Caller->>Snap: graphWorkflowSnapshotOf(model, input)
-    Snap->>Snap: normalize definition + state; deep clone; idempotent merge
-    Snap-->>Caller: GraphWorkflowSnapshot (v1)
-    Caller->>ToJSON: ToJSON(snapshot)
-    ToJSON-->>Caller: JSON string
-    Caller->>FromJSON: FromJSON(json)
-    FromJSON-->>Caller: GraphWorkflowSnapshot
-    Caller->>Restore: Restore(snapshot)
-    Restore->>Restore: re-derive against current definition
-    Restore-->>Caller: restored GraphWorkflowSnapshot
+```ts
+interface GraphNodeInstance {
+  id: string;                       // unique inside one document
+  kind: string;                     // catalogue lookup key, e.g. "core.flow.switch"
+  label?: string;
+  parameters: Record<string, GraphJsonValue>;        // literals + operation choices
+  inputBindings?: Record<string, GraphInputBinding>; // edge | literal | expression
+  outputBindings?: Record<string, GraphOutputBinding>;
+  disabled?: boolean;
+  metadata?: Record<string, GraphJsonValue>;         // manifest-allowed keys only
+  loop?: GraphLoopConfiguration;                     // nested body is a document
+  ui?: GraphNodeUiState;                              // position/size/tabs; engine ignores
+}
 ```
 
-## 8. Acceptance Criteria
+Edges connect explicit `GraphEndpoint`s — `{ scope: "workflow", port }` or
+`{ scope: "node", nodeId, port }` — replacing the legacy `"$workflow"` string
+sentinel. Layout/presentation (`ui.*`) is document-carried but engine-ignored,
+excluded from pinning fingerprints, and asserted absent from semantic equality.
 
-| Criterion | Expected behaviour |
-|:----------|:-------------------|
-| Valid workflow | `graphWorkflowDefinitionOf(WorkflowModel)` returns a definition with ports split into inputs/outputs/connections, `nodes`/`relations` attached, Schema-flattened `@input`/`@output` ports spliced unprefixed, and effective color/icon resolved. |
-| Invalid port connection | `@connection`/`@port` carry `GraphConnectionRule` metadata exposed by the reader; an invalid connection is rejected by the editor/execution layer using that metadata. (This layer declares and exposes rules; it does not enforce them.) |
-| Snapshot restore | `graphWorkflowSnapshotRestore` re-derives a snapshot against the current definition; `graphWorkflowSnapshotToJSON` → `graphWorkflowSnapshotFromJSON` round-trips without loss; `graphWorkflowSnapshotInputValuesOf`/`OutputValuesOf` extract value maps. |
-| Execution result | The execution engine (out of scope) consumes the `GraphWorkflowDefinition` + snapshot inputs and produces outputs accessible via `graphWorkflowSnapshotOutputValuesOf`. |
+**JSON safety:** every wire-crossing field uses `GraphJsonValue`
+(`string | number | boolean | null | arrays | objects` thereof — not
+`unknown`). Dates serialize as ISO strings; binaries are references, never
+embedded runtime objects. Document parsing rejects the prototype-pollution
+keys `__proto__`, `prototype`, and `constructor`.
 
-## 9. Environment Variables
+### 6.2 Bindings
 
-**None.** The `./graph` subpath reads no environment variables. Notable defaults: `GRAPH_WORKFLOW_SNAPSHOT_VERSION = 1`; `pinnable` defaults `enabled: true`, `strategy: "manual"`, `includeDependencies: true`; `portGroups` default `"all"`.
+```ts
+type GraphInputBinding =
+  | { mode: "edge" }                                 // requires an incoming edge unless optional
+  | { mode: "literal"; value: GraphJsonValue }       // value stored on the instance
+  | { mode: "expression"; expression: string };      // engine's allowed-expression machinery
+```
 
-## 10. Usage Example
+Binding rules: a port cannot simultaneously use an incoming edge and a
+literal unless explicitly allowed; literal values are never redundantly
+stored in both `parameters` and `inputBindings`; non-port
+operation/configuration fields belong in `parameters`; data inputs
+switchable between connection and manual entry belong in `inputBindings`.
+Input bindings replace the old `GraphNodeConfigStore.values`/`.portModes`
+split. Output bindings record instance-level enablement/aliases (e.g.
+enabled Switch branches), not output-schema redefinition.
 
-```typescript
-import { Model, model, required } from "@decaf-ts/decorator-validation";
-import { uielement } from "@decaf-ts/ui-decorators";
-import { node, graph, port, input, output, graphDefinitionOf,
-         graphWorkflowDefinitionOf, PortDirection } from "@decaf-ts/ui-decorators/graph";
+### 6.3 Nested loop bodies
 
-@node("graph-tool", { kind: "tool", category: "AI", icon: "tool", color: "#2196f3" })
-@model()
-class GraphToolModel extends Model {
-  @required()
-  @uielement("input", { label: "Prompt" })
-  @port(PortDirection.INPUT, { handle: "prompt" })
-  prompt!: string;
+`GraphLoopConfiguration.body` is itself a `GraphWorkflowDocument`; nested
+documents run through the same nine-stage catalogue resolution and validation
+as the root (issues merge with a path prefix). Loop bodies are never embedded
+`GraphWorkflowDefinition`s.
 
-  @uielement("textarea", { label: "Result" })
-  @port(PortDirection.OUTPUT)
-  result!: string;
+### 6.4 Builder
+
+`GraphWorkflowDocumentBuilder` composes documents fluently
+(`addInput`/`addOutput`/`addNode`/`addEdge`/`setSettings`/`setMetadata`/`build`).
+`build()` performs local structural validation and throws a Decaf
+`ValidationError` on unique-ID violations or non-JSON-safe values, and omits
+`settings`/`metadata`/`ui` keys entirely when unset so raw `build()` output is
+JSON-safe without `undefined` values.
+
+### 6.5 Decorated-workflow compiler
+
+`GraphDecoratedWorkflowCompiler.compile()` converts member constructors to
+`{id, kind}`, relations to explicit endpoints, boundaries to workflow ports,
+defaults to parameters/bindings, layout to UI state, and nested workflows
+recursively — removing functions and constructors and verifying JSON
+serializability. Legacy loop metadata blocks (`graph.metadata.loop`) split:
+`body`/`maxIterations`/`timeoutMs`/`concurrency` become
+`GraphLoopConfiguration`, while operation keys (`condition`, `inputPort`,
+`outputPort`, `itemPort`, `resultPort`, `statePort`, `slice`) carry into
+`parameters` so legacy round-trips stay lossless. The compiler serves
+initialization and compatibility/restore only — it must not run on every Run
+press.
+
+### 6.6 Snapshot transition
+
+`GraphWorkflowSnapshot` is a `{ document, editor, metadata }` wrapper; the
+canonical document is the executable payload. Legacy (pre-cutover) snapshots
+load through `graphWorkflowDocumentFromLegacySnapshot` on the read/compile
+path — lossless, no destructive migration: legacy `node.data` maps into
+instance `parameters`, legacy `node.metadata` into instance `metadata`,
+canvas boundary badges (`input-{port}`) fold back onto the workflow port they
+were drawn for, and edge rows merged from canvas clones restore the relation's
+document-carried `label` instead of dropping it.
+
+## 7. Node Manifests & Parameter Schemas
+
+### 7.1 Manifest contract
+
+`GraphNodeManifest` (`ui-decorators/src/graph/catalog/GraphNodeManifest.ts`)
+is the serializable, frontend-safe description of a node kind:
+
+```ts
+interface GraphNodeManifest {
+  kind: string;
+  display: GraphNodeDisplayManifest;      // name, description, category, icon, size
+  inputs: GraphPortManifest[];
+  outputs: GraphPortManifest[];
+  connections?: GraphPortManifest[];      // structural @connection ports stay distinct
+  parameters: GraphParameterDefinition[];
+  dynamicPorts?: GraphDynamicPortRule[];
+  credentials?: GraphCredentialRequirement[];
+  capabilities?: GraphNodeCapability[];
+  methods?: GraphNodeMethodManifest[];    // loadOptions | listSearch | resourceLocator | resourceMapping | validateParameter | action
+  policies?: GraphNodePolicyManifest;
+  metadata?: Record<string, GraphJsonValue>;
+}
+```
+
+Ports carry optional `schema` (`GraphValueSchema`: any/string/number/boolean/
+array/object/enum/model), `required`, `hidden`, `category`, `handle`,
+`connectionPolicy` (allowSelf/allowMultiple/allowedNodeKinds/blockedNodeKinds/
+allowedPortCategories/maxConnections — enforced by the backend, applied
+optimistically by the frontend only), `configurable`, and
+`defaultMode: "edge" | "literal" | "expression"`. Icon references are
+`catalogue | url | data` — arbitrary filesystem paths are never exposed.
+Existing Decaf validation metadata compiles into `GraphValueSchema` where
+possible (`GraphValueSchemaDerivation`).
+
+### 7.2 Parameter schema system
+
+`GraphParameterDefinition` is a discriminated union over
+`GraphParameterBase` (id/label/description/required/defaultValue/placeholder/
+visibility/validation/metadata): `string` (multiline, length, pattern),
+`number` (integer/min/max/step), `boolean`, `options` (static list or
+`loadOptionsMethod`), `collection`, `object`, `code` (language +
+`validateMethod`), `expression`, `resourceLocator` (modes), `credential`,
+`notice`, `hidden`. Forms retain JSON types end-to-end.
+
+**Conditional visibility** is a serializable DSL only — no function-valued
+visibility ever crosses the wire:
+
+```ts
+type GraphVisibilityExpression =
+  | { op: "eq"|"neq"|"gt"|"gte"|"lt"|"lte"; parameter: string; value: GraphJsonPrimitive }
+  | { op: "in"|"notIn"; parameter: string; values: GraphJsonPrimitive[] }
+  | { op: "exists"; parameter: string }
+  | { op: "and"|"or"; expressions: GraphVisibilityExpression[] }
+  | { op: "not"; expression: GraphVisibilityExpression };
+```
+
+Backend validation of security-sensitive fields is invariant under visibility
+state — visibility cannot suppress backend validation.
+
+**Dynamic ports** are declarative rules (`repeatFromParameter` with
+`portIdTemplate`/`itemIdPath`, or `togglePort` on a parameter value); the
+frontend never executes class methods such as `GraphNode.applyMetadata()`.
+Cases that cannot be represented declaratively resolve through the backend
+(`POST /graph/node-types/{kind}/resolve`), which stays authoritative; the
+frontend may cache resolved results.
+
+**Credentials:** workflow documents store `GraphCredentialReference`s
+(`credentialId` + `credentialType`) only; secrets are resolved and authorized
+server-side and never appear in documents, manifests, method responses, logs,
+or error/inspection payloads.
+
+## 8. Backend Node Catalogue
+
+`integrations/src/graph/engine/catalog/` owns the trusted kind registry:
+
+```ts
+interface GraphNodeRegistration {
+  manifest: GraphNodeManifest;
+  executor: GraphNodeExecutor;                          // backend-only
+  methods?: Record<string, GraphNodeMethod>;
+  resolveManifest?: GraphResolvedManifestProvider;
 }
 
-const def = graphDefinitionOf(GraphToolModel);
-// def.tag === "graph-tool"
-// def.ports = [{ property: "prompt", direction: INPUT }, { property: "result", direction: OUTPUT }]
+class GraphNodeCatalogue {
+  register(registration): this;            // fail-fast validation
+  unregister(kind): this;
+  has(kind): boolean;
+  getManifest(kind): GraphNodeManifest;
+  getExecutor(kind): GraphNodeExecutor;
+  getMethod(kind, method): GraphNodeMethod;
+  listManifests(context?): GraphNodeManifest[];         // kind-sorted (deterministic)
+  resolveManifest(kind, instance, context?): Promise<GraphResolvedNodeManifest>;
+}
 ```
 
-## 11. Open Questions / Risks
+`GraphNodeExecutorRegistry` delegates to the catalogue — there is exactly one
+kind→registration map; two independently maintained kind maps are forbidden
+(the drift vector the cutover eliminates). The `defineGraphNode` helper lets
+node authors co-locate manifest + executor while the registration (with the
+executor) stays backend-only and the manifest remains separately exportable.
 
-- **`@pinnable` long-term home.** The brief records `@pinnable` in `ui-decorators/graph`, while [§12 — Graph Execution Engine](#12-graph-execution-engine) recommends moving `@pinnable` to a backend-only `engine/decorators.ts`. Unresolved (cross-referenced as a pinning open question in §12).
-- **Connection-rule enforcement.** This layer declares `GraphConnectionRule` metadata but does not enforce it; enforcement is the editor/execution layer's job. Consumers must not assume the reader rejects invalid connections.
-- **Category-style registry coverage.** `registerGraphCategoryStyle`, the resolvers, and `GRAPH_VISUAL_STATE_STYLES` are not directly asserted by `graph.test.ts` (per the brief's coverage-gap notes).
-- **`@connection` and `@pinnable` test coverage.** Both are present in the API but not directly asserted in `graph.test.ts`.
-- **Execution engine boundary.** Only `RenderingEngine#renderAsNode` is the documented bridge here; the rest of the execution surface is owned by `integrations/graph` (see [§12 — Graph Execution Engine](#12-graph-execution-engine)).
+**Registration validation fails fast with Decaf errors when:** `manifest.kind`
+is empty; the kind is already registered without an explicit replacement
+policy; the manifest is not JSON-serializable or contains
+functions/constructors; a declared backend method has no implementation or an
+implementation is not declared; duplicate parameter or static-port IDs exist;
+a static port has an invalid default binding mode; a dynamic-port rule
+references a missing parameter; credential requirements are malformed; the
+executor is absent; a port/parameter id is a prototype-pollution key.
 
-## 12. Graph Execution Engine
+**Built-in registrations** (`GraphBuiltInRegistrations.ts`) pair every shipped
+kind: `core.flow.map|delay|return|merge|if|parallel|errorBoundary|humanApproval|break|code|log|switch`,
+`core.agent`, `core.trigger.manual|webhook|schedule|event|form|chat`, and
+`core.utility.log`. `GraphNodeManifestResolver` resolves per-instance
+effective manifests (dynamic ports applied); `GraphNodeMethodRegistry` pairs
+declared methods with implementations.
 
-The execution engine lives in `@decaf-ts/integrations/graph` (`integrations/src/graph/engine/`)
-and consumes the metadata layer defined in §§1–7 as its canonical input. This
-section is grounded in the research brief (`_research-briefs/08-integrations.md`,
-graph section) and the live source under `integrations/src/graph/` (plus the
-NestJS backend in `integrations/src/nest/graph/`). Where the brief is thin on a
-detail, the gap is stated explicitly rather than inventing an API.
+## 9. Backend Validation — the Nine-Stage Gate
 
-### 12.1 Overview
+`GraphWorkflowDocumentValidator`
+(`integrations/src/graph/engine/validation/`) is the only door from a client
+document to an executable workflow. It runs nine stages in the exact
+normative order and accumulates structured `GraphValidationIssue`s
+(`code`, `path`, `message`, `nodeId?`, `edgeId?`, `details?`) instead of
+failing abruptly:
 
-`GraphExecutionEngine` is a reference, backend-agnostic execution engine for
-graph workflows. It takes a `GraphWorkflowDefinition` plus workflow inputs,
-plans it into topological layers, seeds inputs into a `GraphValueStore`,
-executes layer-by-layer with configurable concurrency, routes values along
-edges, emits structured events through Decaf's `Observable` pipeline, and
-returns a `GraphExecutionResult`. The engine is constructed from injected
-dependencies — a `GraphNodeExecutorRegistry`, a `GraphValueStoreAdapter`, an
-optional `GraphExecutionEventEmitter`, an optional `CodeSandboxEvaluator`, and
-default `GraphExecutionOptions` — so the same graph definitions run in-process
-for tests and behind a Nest controller in production (`GraphExecutionEngine.ts:53-104`).
+1. **Workflow structure** — non-empty id; unique node/edge/workflow-input/
+   workflow-output IDs; JSON-safe values; prototype-key rejection;
+   configurable document-size, nesting-depth, node/edge-count limits
+   (`GraphWorkflowDocumentLimits`); nested loop bodies recurse through the
+   full gate with path-merged issues.
+2. **Kind resolution** — every `kind` exists in the backend catalogue
+   (trusted resolution; unknown kinds are issues, not lookups of client data).
+3. **Parameters** — declared-ness unless allowed, required presence, typing
+   against the parameter schemas; visibility cannot bypass
+   security-sensitive validation.
+4. **Dynamic ports** — binding IDs refer to effective (post-resolution) ports.
+5. **Edge endpoints** — endpoints and referenced nodes/ports exist; directions
+   valid; data and structural edges use compatible ports; duplicate/conflicting
+   edges rejected.
+6. **Connection policies** — policy rules and max-connection counts enforced.
+7. **Topology** — acyclicity preserved (Kahn's algorithm; loop constructs
+   excepted, loop bodies independently acyclic); boundary routing valid;
+   required values satisfiable.
+8. **Credential-reference authorization** — references exist, are authorized,
+   and match the manifest's credential types; plain credentials never appear.
+9. **Capability validation** — declared manifest capabilities hold.
 
-Public surface (`./graph`): `GraphExecutionEngine` + config; planning
-(`GraphExecutionPlanner`/`GraphExecutionPlan`/`GraphTopology`/`GraphRelationResolver`);
-pinning (`GraphPinningService`/`GraphPinningPolicy`/`GraphPinningDependencyResolver`);
-store (`GraphValueStore`/`GraphValueStoreAdapter`/`InMemoryGraphValueStoreAdapter`);
-loops (`Foreach`/`While`/`UntilGraphNodeExecutor`, `GraphConditionEvaluator`/
-`ConditionExpressionEvaluator`); executors (`CodeGraphNodeExecutor`/
-`SwitchGraphNodeExecutor`/`LogGraphNodeExecutor`/`BreakGraphNodeExecutor`,
-`CodeSandboxEvaluator`/`IsolatedVmCodeSandboxEvaluator`); registry
-(`GraphNodeExecutorRegistry`/`GraphNodeExecutorResolver`); events
-(`GraphExecutionEventEmitter`/`GraphExecutionEventFactory`/`GraphExecutionObserver`);
-snapshots (`GraphExecutionSnapshotMapper`); validation
-(`GraphDefinitionValidator`/`GraphPortSchemaResolver`/`GraphValueValidator`);
-errors; engine constants. `./graph/shared` exposes frontend-safe node
-declarations, `GraphExecutionStateMapper`, and visual-state styles.
+The output is a `GraphWorkflowValidationResult`
+(`{ valid, issues, resolved? }`); `GraphResolvedWorkflow` (instances paired
+with resolved manifests + executors, adjacency maps) is **backend-only** and
+the only input the planner accepts. Validation runs server-side at every
+boundary: inside `GraphExecutionEngine.execute()` before planning, and in
+`GraphWorkflowService` before persistence. The normative error hierarchy is
+Decaf-only: `GraphDocumentValidationError extends ValidationError`,
+`GraphNodeNotFoundError extends NotFoundError`,
+`GraphNodeRegistrationError extends InternalError`,
+`GraphConnectionValidationError extends ValidationError`,
+`GraphCredentialAuthorizationError extends AuthorizationError`,
+`GraphRunNotFoundError extends NotFoundError`,
+`GraphRunAuthorizationError extends AuthorizationError`,
+`GraphRunStateError extends InternalError`.
 
-### 12.2 Design principles
+## 10. Planner & Execution Engine
 
-- **Engine is a registry + value store + sandbox evaluator, injected.** *Why:* the engine never wires its own executors or sandbox by default; consumers (e.g. `createDemoEngineConfig`) register what they need. This keeps executor wiring explicit and avoids import-order surprises. *Enforcing source:* `GraphExecutionEngineConfig.registry` is required; `codeSandboxEvaluator` is optional (`GraphExecutionEngine.ts:54-65,93-101`).
-- **Imperative executor registry, dispatched by `kind`.** *Why:* there is no `@executor` decorator; executors are plain objects implementing `GraphNodeExecutor` and registered via `registry.register(kind, executor)`. The engine resolves the executor at run time with `registry.resolve(planNode.kind)` (`GraphExecutionEngine.ts:420`; `GraphNodeExecutorRegistry.ts:13-49`). Resolution throws `GRAPH_EXECUTOR_NOT_FOUND` when no executor is registered for a kind.
-- **Topological planning with Kahn cycle detection.** *Why:* a workflow must execute in dependency order; cycles are unsupported and rejected at plan time. *Enforcing source:* `GraphExecutionPlanner.plan` validates unique node ids, resolves node definitions (decorated Model via `graphDefinitionOf`, or a raw `GraphNodeDefinition` stub), resolves relations via `GraphRelationResolver`, then builds layers with Kahn's algorithm; un-plannable nodes throw `GraphCycleError`, duplicate ids throw `GraphTopologyError` (`GraphExecutionPlanner.ts:40-244`). Workflow-boundary edges (`GRAPH_WORKFLOW_BOUNDARY = "$workflow"`) are excluded from inter-node dependency counting.
-- **Layer execution with bounded concurrency.** *Why:* nodes within a layer are independent and may run in parallel; layers run sequentially. *Enforcing source:* `executeLayer` slices the layer into batches of `concurrency` and runs each batch with `Promise.all` (`GraphExecutionEngine.ts:314-333`).
-- **Value store separates runtime values from persistent cache.** *Why:* runtime values (workflow inputs, node outputs, workflow outputs) live in memory for the run; cached/pinned values are delegated to a `GraphValueStoreAdapter` so a run can be replayed or persisted. *Enforcing source:* `GraphValueStore` keeps an in-memory `runtimeValues` map keyed by node id (workflow boundary keyed by `GRAPH_WORKFLOW_BOUNDARY`) and forwards `readCached`/`writeCached`/`deleteCached` to the adapter (`GraphValueStore.ts:19-87`); the default adapter is `InMemoryGraphValueStoreAdapter`.
-- **Pinning is all-or-nothing across upstream pin sets, fingerprint-keyed, TTL'd.** *Why:* a pinned node must stay valid only if every upstream dependency that produced its inputs is also pinned and unchanged. *Enforcing source:* `GraphPinningService.pinNode` builds the pin set via `GraphPinningDependencyResolver.getPinSet`, validates every member is pinnable (`GraphPinningPolicy.canPin`), pins in topological order, and writes a `GraphCachedValue` keyed by `{workflowId, nodeId, fingerprint, namespace}`; `readPinnedValue` returns `undefined` when the cached entry is expired (`GraphPinningService.ts:40-121`). Fingerprints are computed by `computeFingerprint` over `workflowId`/`nodeId`/`nodeKind`/definition version/inputs/dependency fingerprints, using a deterministic non-cryptographic `simpleHash` (browser/Node portable) and stable key-sorted serialization (`GraphPinningService.ts:144-239`).
-- **Loops re-enter the engine with `parentRunId` propagation.** *Why:* a loop body is itself a workflow executed through the same engine, so its events carry the parent run id and a path. *Enforcing source:* `ForeachGraphNodeExecutor` (constructed with the engine) calls `engine.execute(bodyWorkflow, ..., { parentRunId, path })` per item/slice, collects results in order, honours a `maxIterations` limit (`GRAPH_DEFAULT_MAX_FOREACH_ITERATIONS = 1000`), and terminates early on a `GraphBreakSignal` from a `core.flow.break` node (`ForeachGraphNodeExecutor.ts:38-60`; `While`/`Until` executors follow the same re-entry pattern). The brief records that `While`/`Until` executors are not unit-tested — a known gap, not a verified guarantee.
-- **Code execution is sandboxed and opt-in.** *Why:* Code/Switch node bodies are user-authored; the engine does *not* wire a sandbox by default — consumers pass `codeSandboxEvaluator` in config or Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED`. *Enforcing source:* `CodeSandboxEvaluator` is a pluggable interface (`evaluate(ctx)`) enforcing no system-API access, placeholder syntax (`{{ $input.foo }}`, `{{ $node["Name"].output }}`, `{{ $vars.bar }}`), and static validation (`CodeSandboxEvaluator.ts`). `IsolatedVmCodeSandboxEvaluator` is the reference implementation: it transpiles TS via `typescript`, validates the AST with `acorn`/`acorn-walk` (rejecting `import`/`export`/`eval`/`new Function` and a blocked-identifier set including `process`/`require`/`global`/`fetch`/`module`/`exports`), and runs the code in an `isolated-vm` V8 isolate with a timeout (default `1000ms`) and memory limit (default `32MB`) (`IsolatedVmCodeSandboxEvaluator.ts:1-70`). `isolated-vm` is a native addon requiring a build toolchain.
-- **Events ride a single `Observable` pipeline.** *Why:* one observer pipeline serves execution progress, visual-state updates, and run logs; there is no second out-of-band channel. *Enforcing source:* `GraphExecutionEngine implements Observable<[GraphExecutionObserver], [GraphExecutionEvent]>` with `observe`/`unObserve`/`updateObservers` delegating to `GraphExecutionEventEmitter` (`GraphExecutionEngine.ts:86-134`). Event types (`GraphExecutionEventType`) cover workflow lifecycle (`WORKFLOW_STARTED`/`PLANNED`/`COMPLETED`/`FAILED`/`CANCELLED`), node lifecycle (`NODE_STARTED`/`OUTPUT`/`COMPLETED`/`FAILED`/`SKIPPED`/`CACHE_HIT`/`PINNED`/`UNPINNED`), edges (`EDGE_VALUE_ROUTED`), visual state (`NODE_STATE_CHANGED`/`EDGE_STATE_CHANGED`), run logs (`GRAPH_RUN_LOG`), loops (`LOOP_*`), validation, and store ops (`shared/constants.ts:104-144`). SSE topics are derived by `graphRunTopicOf`: `graph.run`, `graph.run.log`, `graph.run.state`.
+### 10.1 Planner
 
-### 12.3 Execution sequence
+`GraphExecutionPlanner.plan(workflow: GraphResolvedWorkflow)` builds
+topological layers with Kahn cycle detection. It no longer accepts
+`GraphWorkflowDefinition`, no longer calls `graphDefinitionOf()`, and rejects
+inline raw `GraphNodeDefinition` objects — the deleted `GraphRelationResolver`
+and raw-definition fallback are gone. Workflow-boundary edges
+(`GRAPH_WORKFLOW_BOUNDARY`) are excluded from inter-node dependency counting.
+
+### 10.2 Engine
+
+```ts
+class GraphExecutionEngine {
+  async execute(
+    document: GraphWorkflowDocument,
+    inputs: GraphExecutionValues = {},
+    options: GraphExecutionOptions = {}
+  ): Promise<GraphExecutionResult>;
+}
+```
+
+The public engine accepts a canonical document and performs resolution
+internally: it emits `VALIDATION_STARTED`, runs the nine-stage gate, and on
+failure emits `VALIDATION_FAILED` (with the structured issues) and throws
+`GraphDocumentValidationError` carrying every issue. Execution then proceeds
+layer-by-layer with bounded concurrency (`concurrency=4` default), routing
+values through the `GraphValueStore` and emitting the event types preserved
+from DECAF-32/DECAF-48 (`WORKFLOW_*`, `NODE_*`, `EDGE_VALUE_ROUTED`,
+`NODE_STATE_CHANGED`, `GRAPH_RUN_LOG`, `LOOP_*`, …).
+
+**Executor contract (§4.9):** `GraphNodeExecutor.execute(request, context)`
+receives a `GraphNodeExecutionRequest` that separates `inputs` (routed edge
+values, literals, allowed expressions, manifest defaults) from `parameters`,
+`credentials` (resolved server-side), and `metadata`. The legacy input-only
+executor adapter was removed at cutover. Outputs are validated against the
+effective output manifest — unknown outputs rejected by default, missing
+required outputs fail the node. Disabled nodes use the explicit
+`GraphDisabledNodeBehavior` enum (`skip | passThroughFirstInput |
+emitDefaults`). Loop executors (`Foreach`/`While`/`Until`) receive nested
+canonical documents and re-enter the same validation/resolution/planning/
+execution pipeline with `parentRunId`/`path` propagation; `maxIterations`
+limits and the `core.flow.break` `GraphBreakSignal` behave as before.
+
+**Value store & pinning.** Runtime values live in memory per run; cached/
+pinned values delegate to a `GraphValueStoreAdapter`. Pinning stays
+all-or-nothing across upstream pin sets with TTL'd entries, but fingerprints
+now derive from the canonical instance — node kind, parameters, bindings,
+effective inputs, relevant metadata, and dependency fingerprints.
+Presentation-only UI state is excluded: the instance `ui` record is never
+read and a `ui` key inside metadata is stripped, so moving a node on the
+canvas never invalidates its pin.
+
+**Code sandbox.** Code/Switch node bodies run through the pluggable
+`CodeSandboxEvaluator`; `IsolatedVmCodeSandboxEvaluator` transpiles TS,
+validates the AST (rejecting `import`/`export`/`eval`/`new Function` and a
+blocked-identifier set), and runs in an `isolated-vm` isolate with
+timeout/memory limits. The engine still does not wire a sandbox by default —
+consumers pass `codeSandboxEvaluator` or Code/Switch nodes throw
+`GRAPH_CODE_SANDBOX_NOT_CONFIGURED`. Code values are parameters, never
+manifest methods.
+
+## 11. Run Lifecycle (Asynchronous Execution)
+
+### 11.1 Run creation
+
+`POST /graph/runs` accepts either an unsaved canonical document plus inputs,
+or a saved `workflowId` plus inputs — supplying both is rejected as
+ambiguous, as is a request with neither. The endpoint authenticates, checks
+size and the concurrent-run limit, allocates the run, records initial state,
+and returns **`202 Accepted` before completion**:
+
+```json
+{
+  "runId": "run-123",
+  "workflowId": "workflow-1",
+  "status": "queued",
+  "eventsUrl": "/graph/runs/run-123/events",
+  "resultUrl": "/graph/runs/run-123"
+}
+```
+
+Validation and execution then proceed asynchronously
+(`GraphRunExecutor.schedule`). `GraphRun` carries `runId`, `workflowId`,
+`ownerUser`, `status` (`queued | validating | running | succeeded | failed |
+cancelled`), timestamps, `result?`, `error?`, and the executed document's
+`documentFingerprint` (SHA-256 over a stable key-sorted serialization) for
+audit/reproducibility.
+
+### 11.2 Events
+
+```http
+GET /graph/runs/{runId}/events?afterSequence={n}
+```
+
+Every event rides a `GraphRunEventEnvelope` (`runId`, `workflowId`,
+monotonic `sequence`, `type`, `timestamp`, optional `nodeId`/`edgeId`/
+`payload`/`error`). Sequence numbers are assigned by a single writer per run
+(`GraphRunEventPublisher`) — incremented atomically at publish, so no gaps or
+reordering under concurrency. The event store (`GraphRunEventStore`:
+`append`/`listAfter`/`subscribe`; `InMemoryGraphRunEventStore` is the
+reference implementation with retention enforcement) buffers for replay:
+clients replay from sequence 0 (initial subscription), from `afterSequence`
+(reconnect mid-run, duplicates excluded after acknowledged sequences), and
+terminal events replay after the run finishes. Cancellation emits a
+replayable terminal event. Nested runs carry parent/path information. The
+SSE endpoint replays the buffered prefix, then streams live envelopes.
+
+There is **no global unfiltered subject** for run events: the run-scoped
+endpoint is the canonical transport. The legacy global `GET /graph/events`
+stream (DECAF-42 subscription mode, broadcast default) is deprecated at
+cutover — kept, not removed — and no new features route through it.
+
+### 11.3 Ownership & authorization
+
+Every run records an owner from `DecafRequestContext`
+(`ownerUser: string | null`; null/system tolerated for standalone module
+runs per the DECAF-48 pattern). Ownership is enforced **server-side** on
+status, result, cancellation, events, and inspection — client-side filtering
+is a convenience, never a security control.
+
+### 11.4 Cancellation & status
+
+`DELETE /graph/runs/{runId}` is authorized, idempotent for terminal runs,
+signals the executor's abort controller, marks the run `cancelled`, and emits
+the replayable terminal event. `GET /graph/runs/{runId}` returns status
+(and `result` once terminal). Execution duration is bounded by a configurable
+timeout armed per run.
+
+### 11.5 Run persistence (DECAF-36 Req-B1–B7)
+
+Runs persist through `GraphRunModel` (`@table("graph_run")`: runId,
+workflowId, owner, status, documentFingerprint, inputs, result, error,
+timestamps) via `GraphRunModelService` — a `@service(GraphRunModel)`
+`ModelService` with constructor DI, automatic context propagation, no
+repository injection tokens, and `@Optional()` request context. The engine
+module is adapter-agnostic: `GraphRunStore`/`GraphRunEventStore` are ports
+with in-memory reference implementations.
+
+### 11.6 Deprecated synchronous path
+
+`POST /graph/execute` is deprecated, not removed: it accepts **canonical
+documents only** (legacy definition/snapshot shapes and inline
+`node`/`definition`/`executor`/`execute`/`ports`/`component` fields are
+rejected with a Decaf `ValidationError` before the engine sees them) and
+delegates to the run service (`executeAndWait`) so old clients keep working.
+It is not the primary Angular path.
+
+## 12. NestJS HTTP API Surface
+
+All controllers live in `integrations/src/nest/graph/` under `@Controller("graph")`.
+
+**Catalogue** (`GraphNodeCatalogueController`; authenticated context required
+by default, `DecafRequestContext` propagated):
+
+| Route | Behaviour |
+|:------|:----------|
+| `GET /graph/node-types` | Deterministic kind-sorted manifest list; `ETag` = manifest digest, `If-None-Match` → `304` so catalogue caching stays stable. |
+| `GET /graph/node-types/{kind}` | Single manifest. |
+| `GET /graph/node-types/{kind}/icon` | Manifest-resolved icon. |
+| `POST /graph/node-types/{kind}/resolve` | Resolved manifest for an instance subset; rate-limited; client input is never definition material. |
+| `POST /graph/node-types/{kind}/methods/{method}` | Invokes a declared, registered method; verifies declaration + type; rate-limited; credentials resolved server-side. |
+
+**Workflows** (`GraphWorkflowController`; authenticated by default):
+
+| Route | Behaviour |
+|:------|:----------|
+| `PUT /graph/workflows/{workflowId}` | Saves a canonical document (or a `{document, …}` wrapper); validates before persistence; asserts ownership; path/document IDs must match. |
+| `GET /graph/workflows/{workflowId}` | Returns the persisted canonical document (ownership-checked). |
+| `POST /graph/workflows/validate` | Runs the nine-stage gate; returns structured issues (`code`/`path`/`nodeId`/`edgeId`/`message`/safe details). |
+
+**Runs** (`GraphRunController`; auth configurable, default optional):
+`POST /graph/runs` (202), `GET /graph/runs/{runId}`, `DELETE
+/graph/runs/{runId}` (cancel), `@Sse GET /graph/runs/{runId}/events?afterSequence=`
+— as specified in §11.
+
+`GraphExecutionModule` bundles the controllers with the catalogue, engine,
+run services, and persistence services; `GraphExecutorRegistryFactory`
+(`createGraphNodeCatalogue`, the `createGraphExecutorRegistry` compatibility
+facade, `createDemoEngineConfig`) builds a populated catalogue with the
+built-in registrations and wires `IsolatedVmCodeSandboxEvaluator` (loops,
+Code, and Switch executors are engine-bound and registered through
+`createDemoEngineConfig`'s `onEngineCreated` hook). `main.ts` boots on
+`GRAPH_BACKEND_PORT` / `argv[2]` / default `3000`.
+
+## 13. Angular Canonical Frontend
+
+The editor in `for-angular/src/graph` is manifest-driven and document-native
+— no node constructors, no legacy config store, no rollout-flag mechanics
+reach the browser.
+
+- **Catalogue (`catalog/`).** `GraphNodeCatalogService` (`@service()` registry
+  singleton paired with an Angular root `Injectable` via
+  `graphAngularServiceShare`) loads/refreshes `GraphNodeManifest[]`; the
+  palette consumes manifests and `GraphNodePaletteFactory` turns a palette
+  pick into a `GraphNodeInstance` plus a `node.add` command. Sources compose
+  through `GraphNodeCatalogCompositeSource`: the backend
+  `GraphNodeCatalogApi` plus offline `GraphNodeManifestFixtures` (compiled
+  from the demo's decorated classes with the ui-decorators manifest
+  compiler).
+- **Document layer (`document/`).** `GraphWorkflowDocumentStore` holds the
+  canonical document; **every semantic mutation is a command**
+  (`GraphDocumentCommands`: node.add/remove/update, edge.add/remove,
+  moveNode, viewport, replace, reset). `GraphDiagramAdapter` is the *only*
+  component translating between the document and ng-diagram: projection
+  (`toDiagram`/`reconcile`) is a pure function of (document, manifest
+  reader); canvas gestures go through `GraphDiagramMutationTranslator` and
+  become document commands — the diagram is re-projected from the store,
+  never the reverse. Positions commit on drag-end only; the viewport lives in
+  the document's `ui` block; canvas-only artifacts (ghost nodes, selection,
+  run overlays) project from the document without constructor copies.
+  Divergence controls: command-only mutation policy, dev-mode diagram⇄document
+  assertions, semantic round-trip tests per built-in kind, and
+  restore-invariance on semantic hash even when UI deltas differ.
+- **Parameter renderers (`parameters/`).** `GraphParameterRendererRegistry`
+  resolves a typed renderer per `GraphParameterDefinition` type — text,
+  multiline, number, boolean, static/dynamic options, collection, object,
+  code, expression, resource locator, credential selector, notice, hidden —
+  with generic fallback rendering. `GraphParameterFormBuilder`,
+  `GraphParameterVisibilityEvaluator` (the declarative DSL), and
+  `GraphParameterValidationMapper` apply manifest validation, evaluate
+  visibility, preserve hidden values, and reload dynamic options when
+  dependencies change.
+- **Runs (`runs/`).** `GraphRunClient` (create/status/result/cancel),
+  `GraphRunEventClient` (SSE), and `GraphRunStateStore` wire the editor
+  document to the run API. The event client connects after the `202`
+  response, replays from sequence zero, reconnects from the last received
+  sequence under a bounded retry budget, falls back to run-status polling
+  when SSE is unavailable, and stops after the terminal event; the SSE
+  implementation is injectable so jsdom tests can drive it. The graph demo
+  page runs the canonical path: `runClient.createRun({ workflow: document,
+  inputs })` from the current document-store snapshot.
+- **Editing (`components/`).** The node edit modal, switch case editor, and
+  node templates seed from the document's `GraphNodeInstance`/canvas data
+  and save through the store (`GraphNodeEditResult`: nodeId, parameters,
+  inputBindings, optional outputBindings/metadata).
+
+### Canvas → run sequence
 
 ```mermaid
 sequenceDiagram
-    participant App
-    participant E as GraphExecutionEngine
-    participant P as GraphExecutionPlanner
-    participant VS as GraphValueStore
-    participant Reg as GraphNodeExecutorRegistry
-    participant Em as GraphExecutionEventEmitter
-    App->>E: execute(workflow, inputs, options)
-    E->>E: mergeOptions (defaults + overrides)
-    E->>VS: seedWorkflowInputs(inputs)
-    E->>P: plan(workflow) (Kahn topo + cycle detection)
-    E->>Em: emit WORKFLOW_STARTED, WORKFLOW_PLANNED
-    loop each topological layer
-        E->>E: executeLayer (concurrency batch)
-        loop each node
-            E->>Em: emit NODE_STARTED + NODE_STATE_CHANGED
-            E->>VS: resolveNodeInputs (incoming edges)
-            alt usePinnedValues && cache hit
-                E->>Em: emit NODE_CACHE_HIT
-            else
-                E->>Reg: resolve(planNode.kind)
-                E->>E: executor.execute(inputs, GraphExecutionContext)
-            end
-            E->>VS: setNodeOutputs + routeOutgoingEdges
-            E->>Em: emit EDGE_VALUE_ROUTED + EDGE_STATE_CHANGED
-            E->>Em: emit NODE_COMPLETED + NODE_STATE_CHANGED
-        end
-    end
-    E->>E: buildGraphExecutionResult
-    E->>Em: emit WORKFLOW_COMPLETED (or WORKFLOW_FAILED)
-    E-->>App: GraphExecutionResult
+    participant User
+    participant Store as GraphWorkflowDocumentStore
+    participant Adapter as GraphDiagramAdapter
+    participant Page as GraphPage
+    participant RC as GraphRunClient
+    participant EC as GraphRunEventClient
+    participant BE as NestJS graph backend
+    User->>Adapter: canvas gesture (add node / draw edge / drag)
+    Adapter->>Store: document command (node.add / edge.add / moveNode)
+    Store-->>Adapter: re-project diagram from store (never reverse)
+    User->>Page: Run
+    Page->>Store: snapshot() — current canonical document
+    Page->>RC: POST /graph/runs {workflow, inputs}
+    BE-->>RC: 202 {runId, eventsUrl, resultUrl}
+    RC->>EC: connect eventsUrl?afterSequence=0
+    BE-->>EC: replay buffered envelopes, then live events
+    EC-->>Store: fold node/edge states (GraphRunStateStore)
+    BE-->>EC: terminal event (completed|failed|cancelled)
+    Page->>RC: GET resultUrl → final outputs
 ```
 
-### 12.4 Functional requirements
+## 14. Functional Requirements
 
-- **FR-E1:** `GraphExecutionEngine.execute(workflow, inputs, options)` plans the workflow into topological layers (Kahn cycle detection), seeds inputs into a `GraphValueStore`, executes layer-by-layer with concurrency, routes values along edges, and emits structured events.
-- **FR-E2:** Executors are registered imperatively in a `GraphNodeExecutorRegistry` (no `@executor` decorator) and resolved by node `kind`; an unregistered kind throws `GRAPH_EXECUTOR_NOT_FOUND`.
-- **FR-E3:** Pinning is all-or-nothing across upstream pin sets with TTL'd cached values; when `usePinnedValues` is set and a valid pinned value exists, the node is short-circuited and emits `NODE_CACHE_HIT`.
-- **FR-E4:** Loops re-enter the engine via `engine.execute(bodyWorkflow, ...)` with `parentRunId` propagation; `Foreach` honours `maxIterations` and terminates early on a `GraphBreakSignal`.
-- **FR-E5:** Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED` when no `codeSandboxEvaluator` is supplied; when `IsolatedVmCodeSandboxEvaluator` is supplied, user code is transpiled, AST-validated, and run in an `isolated-vm` isolate with timeout/memory limits.
-- **FR-E6:** All execution and visual-state events flow through the single `Observable` pipeline (`observe`/`updateObservers`); run logs resolve to the `graph.run.log` SSE topic and node/edge state to `graph.run.state`.
-- **FR-E7 (NestJS backend):** `GraphExecutionController` exposes `POST /graph/execute` (runs the engine and persists the result), `GET /graph/events` (SSE stream of all engine events), `GET /graph/results/:runId` (retrieves a persisted result), and `PUT /graph/workflow/:id` (saves a workflow snapshot).
+- **FR-1 (Author a workflow).** Decorating a `Model` with
+  `@node`/`@graph`/`@port`/`@input`/`@output` and compiling via
+  `GraphDecoratedWorkflowCompiler` (or building via
+  `GraphWorkflowDocumentBuilder`) yields a canonical, JSON-safe
+  `GraphWorkflowDocument`; `build()` rejects duplicate IDs and non-JSON-safe
+  values with a Decaf `ValidationError`.
+- **FR-2 (Edit on canvas).** Every canvas mutation becomes a document command;
+  the diagram is a pure projection of (document, manifest reader); the
+  persisted/executed workflow is exactly the displayed workflow.
+- **FR-3 (Discover nodes).** The palette renders `GraphNodeManifest[]` from
+  the catalogue API (ETag-cached); adding a node instantiates a
+  `GraphNodeInstance` referencing a registered `kind` — no constructors in
+  the browser path.
+- **FR-4 (Validate).** `POST /graph/workflows/validate` (and every save and
+  execution) runs the nine-stage gate and returns structured
+  `GraphValidationIssue`s in stage order.
+- **FR-5 (Execute).** `POST /graph/runs` returns `202` with
+  `eventsUrl`/`resultUrl` before completion; the engine resolves kinds,
+  credentials, ports, and behavior exclusively from the trusted catalogue.
+- **FR-6 (Observe).** Run events are run-scoped, authorized, ordered
+  (single-writer monotonic sequences), replayable from 0 or `afterSequence`,
+  and terminal events replay; cancellation emits a terminal event.
+- **FR-7 (Persist).** `PUT/GET /graph/workflows/{id}` persist and restore the
+  canonical document (plus editor state) without functions; legacy snapshots
+  load losslessly; runs persist via `GraphRunModelService`.
+- **FR-8 (Trust boundary).** Client-provided node definitions, executors,
+  functions, authoritative ports, and component references are rejected at
+  the boundary; prototype-pollution keys are rejected; documents carry
+  credential references only.
 
-### 12.5 Acceptance criteria
+## 15. Acceptance Criteria
 
 | Criterion | Expected behaviour |
 |:----------|:-------------------|
-| Linear workflow | A registry with `math.add`/`math.multiply` executors and a linear workflow yields `result.outputs.result === 10` for `execute(linearWorkflow(), {a:2,b:3})`. |
-| Cycle | A workflow with a cycle is rejected by the planner with a `GraphCycleError`. |
-| Code node, no sandbox | Execution reaching a Code node with no `codeSandboxEvaluator` throws `GRAPH_CODE_SANDBOX_NOT_CONFIGURED`. |
-| Pinned cache hit | With `usePinnedValues` and a valid pinned value, the node emits `NODE_CACHE_HIT` and skips executor invocation. |
-| SSE backend | `GET /graph/events` streams engine events as SSE `message` frames; `POST /graph/execute` returns `{runId, status, outputs}`. |
+| Canonical state | Exactly one `GraphWorkflowDocument` represents current semantics; canvas mutations, Save, autosave, history, undo/redo, and Run all use it; the diagram is a projection. |
+| Added/removed node & edges | A node added from the palette executes with its edited literal; a removed node and its edges disappear from execution; drawn/deleted edges route data accordingly (12-step canvas→run E2E). |
+| Node catalogue | Every executable kind has a manifest+executor registration; the frontend receives serializable manifests without constructors; client definitions are rejected; manifest/executor drift fails fast at registration. |
+| Parameter forms | All parameter control types render generically with JSON types retained end-to-end; visibility is declarative; dynamic options use authorized backend methods; binding modes are canonical instance state. |
+| Async runs | Run creation returns before completion (`202` + `eventsUrl`/`resultUrl`); events are live, ordered, replayable, reconnectable, and ownership-filtered server-side; cancellation emits a terminal event. |
+| Nested loops | Loop bodies are canonical documents recursing the same validation/resolution pipeline; loop bodies are independently acyclic. |
+| Pinning | Pinned cache hits short-circuit execution; moving a node (UI state) never changes its fingerprint. |
+| Bundle wall | Production browser bundles contain no engine/executor/catalogue-runtime/validator/run-store code (bundle-wall spec, self-attested scan). |
+| Legacy restore | Any pre-cutover saved workflow loads, restores, and executes with zero user-visible data loss (lossless read-path conversion). |
 
-### 12.6 NestJS execution backend
-
-`@decaf-ts/integrations/nest/graph` wires the engine behind a Nest controller
-(`integrations/src/nest/graph/`):
-
-- `GraphExecutionController` (`@Controller("graph")`) subscribes to the engine's event pipeline in its constructor and exposes:
-  - `POST /graph/execute` — calls `engine.execute(workflow, inputs)`, persists the result via `GraphResultService` (persistence failures are swallowed so they never mask a successful execution), and returns `{runId, status, outputs}`.
-  - `@Sse("events") GET /graph/events` — streams every engine event through an RxJS `Subject` as a `MessageEvent` whose `data` is a JSON array `["graph", eventType, runId, {...}]`.
-  - `GET /graph/results/:runId` — returns a persisted result or `NotFoundException`.
-  - `PUT /graph/workflow/:id` — saves a workflow snapshot via `GraphWorkflowService`.
-- `GraphExecutionModule` bundles the controller, the engine, `GraphResultService`, and `GraphWorkflowService`.
-- `GraphExecutorRegistryFactory` (`createGraphExecutorRegistry`, `createDemoEngineConfig`) builds a populated registry: demo `math.*`/`core.flow.*`/`core.agent` executors, plus loop/Code/Switch/Break executors registered in `onEngineCreated` (they need an engine back-reference), and wires `IsolatedVmCodeSandboxEvaluator` so the Code node runs in a real isolate.
-- `main.ts` bootstraps the backend on `GRAPH_BACKEND_PORT` / `argv[2]` / default `3000`.
-- Result/workflow persistence uses `GraphExecutionResultModel`/`GraphWorkflowModel` via `GraphResultService`/`GraphWorkflowService`.
-
-### 12.7 Environment variables
+## 16. Environment Variables
 
 | Variable | Reader | Purpose |
 |:---------|:-------|:--------|
 | `GRAPH_BACKEND_PORT` (or `argv[2]`) | `src/nest/graph/main.ts` | Overrides the default graph backend port `3000`. |
+| `GRAPH_BACKEND_URL` | `for-angular/src/graph/execution/GraphExecutionService` | Base URL of the graph backend for browser clients. |
 
-The engine itself reads no environment variables. Run-option defaults:
-`concurrency=4` (`GRAPH_DEFAULT_CONCURRENCY`), `failFast=true`,
-`usePinnedValues=true`, `validateInputs=true`, `validateOutputs=true`,
-`writeThroughCache=false` (`GraphExecutionEngine.ts:726-741`). The
-`GRAPH_WORKFLOW_BOUNDARY` constant (`"$workflow"`) is the synthetic node id used
-for workflow-level inputs/outputs in the value store and plan.
+The engine itself reads no environment variables. Run limits
+(`DEFAULT_GRAPH_RUN_LIMITS`: concurrent runs, execution timeout, event
+retention, payload bounds) and document limits
+(`GraphWorkflowDocumentLimits`: size, depth, node/edge counts) are
+configurable through their option objects and enforced backend-side. Run-option
+defaults: `concurrency=4`, `failFast=true`, `usePinnedValues=true`.
+`GRAPH_WORKFLOW_BOUNDARY` (`"$workflow"`) remains the synthetic boundary id in
+the value store and plan; documents use the explicit `GraphEndpoint` union.
 
-### 12.8 Usage example
+## 17. Usage Examples
 
 ```typescript
-import { GraphNodeExecutorRegistry, GraphExecutionEngine } from "@decaf-ts/integrations/graph";
+import {
+  GraphWorkflowDocumentBuilder,
+  GraphDecoratedWorkflowCompiler,
+} from "@decaf-ts/ui-decorators/graph";
 
-const registry = new GraphNodeExecutorRegistry();
-registry.register("math.add", { execute: (i) => ({ sum: Number(i.a) + Number(i.b) }) });
-registry.register("math.multiply", { execute: (i) => ({ product: Number(i.x) * 2 }) });
-const engine = new GraphExecutionEngine({ registry });
-const result = await engine.execute(linearWorkflow(), { a: 2, b: 3 }); // outputs.result === 10
+// Build a canonical document (fails fast on invalid input)
+const document = new GraphWorkflowDocumentBuilder("wf-1", "Demo")
+  .addInput({ id: "a" })
+  .addNode({ id: "n1", kind: "core.flow.map", parameters: { expression: "$input.a" } })
+  .addNode({ id: "n2", kind: "core.flow.log", parameters: { message: "mapped" } })
+  .addEdge({
+    id: "e1", type: "data",
+    source: { scope: "workflow", port: "a" },
+    target: { scope: "node", nodeId: "n1", port: "value" },
+  })
+  .build();
+```
+
+```typescript
+import {
+  GraphNodeCatalogue,
+  GraphNodeExecutorRegistry,
+  GraphExecutionEngine,
+  registerBuiltInGraphNodes,
+} from "@decaf-ts/integrations/graph";
+
+const catalogue = new GraphNodeCatalogue();
+registerBuiltInGraphNodes(catalogue); // pairs every built-in kind's manifest
+// with its backend-only executor (fail-fast on drift); loops/Code/Switch are
+// engine-bound and registered via createDemoEngineConfig's onEngineCreated hook
+const engine = new GraphExecutionEngine({
+  registry: new GraphNodeExecutorRegistry(catalogue), // facade over the catalogue
+});
+const result = await engine.execute(document, { a: 2 }); // nine-stage gate runs first
 engine.observe({ refresh: async (event) => console.log(event.type, event.nodeId) });
 ```
 
-### 12.9 Open questions / risks
+```typescript
+// Angular run path (for-angular/src/graph/runs)
+const created = await runClient.createRun({ workflow: document, inputs });
+// → 202 { runId, eventsUrl, resultUrl }
+runEventClient.listen(created.runId, {
+  onEvent: (envelope) => runStateStore.apply(envelope),
+  onTerminal: (envelope) => runClient.fetchRunResult(created.runId),
+});
+```
 
-- **`@pinnable` long-term home.** The metadata layer declares `@pinnable` in `ui-decorators/graph`, but pinning is a backend concern; the recommended long-term home is a backend-only `engine/decorators.ts`. Unresolved (cross-referenced from §11).
-- **Validation options are silently ignored.** `mergeOptions` defaults `validateInputs`/`validateOutputs` to `true`, but `execute()` never invokes `GraphValueValidator`/`GraphDefinitionValidator`/`GraphPortSchemaResolver` — the validators exist but are not wired (recorded inaccuracy, see the handbook Integrations chapter `§17` `[graph]` entries).
-- **Code sandbox not wired by default.** `IsolatedVmCodeSandboxEvaluator` is described as "the default" in some shared node declarations, but the engine leaves `codeSandboxEvaluator` `undefined` unless supplied; Code/Switch nodes throw out of the box (recorded inaccuracy).
-- **Event `nodeId` inconsistency.** Engine node events use `planNode.id`, but executor-emitted events go through `GraphExecutionContext.emit` which hard-codes `nodeId: this.node.name`; when a node id differs from its definition `name`, `NODE_STARTED`/`NODE_COMPLETED` carry a different `nodeId` than `LOOP_*`/`NODE_OUTPUT` events (recorded inaccuracy).
-- **`GraphTopology.isBoundary` hard-codes `"$workflow"`** instead of the `GRAPH_WORKFLOW_BOUNDARY` constant, and `GraphPinningService` imports `GRAPH_PINNING_METADATA_KEY` only to `void` it (recorded inaccuracies).
-- **Untested execution paths.** The brief records that `While`/`Until` executors, the validators, the snapshot mapper, `LogGraphNodeExecutor`, `GraphNodeExecutorResolver`, the pinned cache-hit path, and the `validateInputs/Outputs` options are not covered by unit tests; requirements depending on those paths are stated against documented source behaviour and flagged as gaps, not verified guarantees.
+## 18. Open Questions / Risks
+
+- **`@pinnable` long-term home.** The metadata layer declares `@pinnable` in
+  `ui-decorators/graph`; pinning is a backend concern. Still unresolved.
+- **Code sandbox not wired by default.** By design, `IsolatedVmCodeSandboxEvaluator`
+  must be supplied by the consumer; Code/Switch nodes throw
+  `GRAPH_CODE_SANDBOX_NOT_CONFIGURED` out of the box. `isolated-vm` is a
+  native addon requiring a build toolchain.
+- **`GraphTopology.isBoundary` hard-codes `"$workflow"`** instead of the
+  `GRAPH_WORKFLOW_BOUNDARY` constant (recorded inaccuracy, still present).
+- **Dead import in `GraphPinningService`.** `GRAPH_PINNING_METADATA_KEY` is
+  imported only to be `void`-ed (recorded inaccuracy, still present).
+- **`GraphWorkflowModel.updatedAt` undeclared.** The service sets
+  `updatedAt` via an inherited `BaseModel` field without an explicit
+  `@column()` declaration (recorded inaccuracy, still present).
+- **In-memory run stores are the reference implementation.** Production
+  deployments needing durable run/event history across restarts must provide
+  a persistent `GraphRunStore`/`GraphRunEventStore`; retention bounds and
+  backpressure are configurable but bounded.

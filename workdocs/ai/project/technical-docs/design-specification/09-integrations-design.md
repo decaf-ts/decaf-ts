@@ -441,7 +441,7 @@ sequenceDiagram
 - `KeycloakModule`/`AuthModule` (plain classes, not Nest `@Module()`-decorated; `create()` returns a `KeycloakNamespaceAuthHandler`).
 - `namespace()` decorator + `AUTH_NAMESPACE_KEY`.
 - Utils `extractKeycloakRoles`/`extractKeycloakNamespaces`/`getRealmFromIssuer`/`getClientRoles`.
-- `./nest/graph`: `GraphExecutionController`/`GraphExecutionModule`, `GraphResultService`/`GraphWorkflowService`, `GraphExecutionResultModel`/`GraphWorkflowModel`, `GraphExecutorRegistryFactory` (`createGraphExecutorRegistry`, `createDemoEngineConfig`).
+- `./nest/graph`: `GraphExecutionController`/`GraphExecutionModule` (deprecated synchronous path), `GraphNodeCatalogueController` (manifests API with ETag digest), `GraphRunController`/`GraphRunModel`/`GraphRunModelService` (async run lifecycle), `GraphWorkflowController`/`GraphWorkflowService`/`GraphWorkflowModel`/`GraphWorkflowDocumentLimits` (canonical document persistence), `GraphResultService`/`GraphExecutionResultModel`, `GraphExecutorRegistryFactory` (`createGraphNodeCatalogue`, `createGraphExecutorRegistry`, `createDemoEngineConfig`).
 
 ### 9.2 Functional requirements
 
@@ -484,21 +484,22 @@ sequenceDiagram
 
 ## 10. Graph Engine Design (integrations surface)
 
-The full graph design is specified in [08 — Graph Design (§12 Graph Execution Engine)](./08-graph-design.md#12-graph-execution-engine). This section records only the integrations-package surface and consumer contracts.
+The full graph design is specified in [08 — Graph Design](./08-graph-design.md) (canonical documents & manifests §6–§7, backend catalogue §8, nine-stage validation §9, planner & engine §10, run lifecycle §11, NestJS API §12). This section records only the integrations-package surface and consumer contracts.
 
 ### 10.1 Public API (integrations)
 
-- `./graph`: `GraphExecutionEngine` + config; planning (`GraphExecutionPlanner`/`GraphExecutionPlan`/`GraphTopology`/`GraphRelationResolver`); pinning (`GraphPinningService`/`GraphPinningPolicy`/`GraphPinningDependencyResolver`); store (`GraphValueStore`/`GraphValueStoreAdapter`/`InMemoryGraphValueStoreAdapter`); loops (`Foreach/While/UntilGraphNodeExecutor`, `GraphConditionEvaluator`/`ConditionExpressionEvaluator`); executors (`CodeGraphNodeExecutor`/`SwitchGraphNodeExecutor`/`LogGraphNodeExecutor`/`BreakGraphNodeExecutor`, `CodeSandboxEvaluator`/`IsolatedVmCodeSandboxEvaluator`); registry (`GraphNodeExecutorRegistry`/`GraphNodeExecutorResolver`); events (`GraphExecutionEventEmitter`/`GraphExecutionEventFactory`/`GraphExecutionObserver`); snapshots (`GraphExecutionSnapshotMapper`); validation (`GraphDefinitionValidator`/`GraphPortSchemaResolver`/`GraphValueValidator`); errors; engine constants.
-- `./graph/shared`: frontend-safe node declarations, `GraphExecutionStateMapper`, visual-state styles.
+- `./graph`: `GraphExecutionEngine` + config; catalogue (`GraphNodeCatalogue`/`GraphNodeRegistration`/`GraphNodeManifestResolver`/`GraphNodeMethodRegistry`, built-in registrations via `registerBuiltInGraphNodes`); planning (`GraphExecutionPlanner`/`GraphExecutionPlan`/`GraphTopology` — accepts `GraphResolvedWorkflow` only); validation (the nine-stage `GraphWorkflowDocumentValidator` + per-scope validators + `GraphResolvedWorkflow`); runs (`GraphRunService`/`GraphRunExecutor`/`GraphRunEventPublisher`/`GraphRunEventStore`/`GraphRunStore` + in-memory reference implementations); pinning (`GraphPinningService`/`GraphPinningPolicy`/`GraphPinningDependencyResolver` — fingerprints exclude UI state); store (`GraphValueStore`/`GraphValueStoreAdapter`/`InMemoryGraphValueStoreAdapter`); loops (`Foreach/While/UntilGraphNodeExecutor`, `GraphConditionEvaluator`/`ConditionExpressionEvaluator`); executors (`CodeGraphNodeExecutor`/`SwitchGraphNodeExecutor`/`LogGraphNodeExecutor`/`BreakGraphNodeExecutor`, `CodeSandboxEvaluator`/`IsolatedVmCodeSandboxEvaluator`); registry (`GraphNodeExecutorRegistry` facade over the catalogue/`GraphNodeExecutorResolver`); events (`GraphExecutionEventEmitter`/`GraphExecutionEventFactory`/`GraphExecutionObserver`); snapshots (`GraphExecutionSnapshotMapper`); errors (incl. `GraphDocumentValidationError`, `GraphRunCancelledError`); engine constants.
+- `./graph/shared`: frontend-safe built-in node manifests (`shared/nodes/`), `GraphExecutionStateMapper`, run wire contracts (`GraphRunStatus`/`GraphRunEventEnvelope`), visual-state styles.
 
 ### 10.2 Functional requirements (integrations-specific)
 
-- **FR-G1:** `GraphExecutionEngine.execute(workflow, inputs, options)` plans the workflow into topological layers (Kahn cycle detection), seeds inputs into a `GraphValueStore`, executes layer-by-layer with concurrency, routes values along edges, and emits structured events.
-- **FR-G2:** Executors are registered imperatively in a `GraphNodeExecutorRegistry` (no `@executor` decorator).
-- **FR-G3:** Pinning is all-or-nothing across upstream pin sets with TTL'd cached values; a cache hit emits `NODE_CACHE_HIT`.
-- **FR-G4:** Loops re-enter the engine via `engine.execute(bodyWorkflow, ...)` with `parentRunId` propagation.
+- **FR-G1:** `GraphExecutionEngine.execute(document, inputs, options)` takes a canonical `GraphWorkflowDocument`, runs the nine-stage validation gate (resolving every kind against the trusted catalogue), plans the resolved workflow into topological layers (Kahn cycle detection), seeds inputs into a `GraphValueStore`, executes layer-by-layer with concurrency, routes values along edges, and emits structured events.
+- **FR-G2:** Executors are registered as manifest+executor pairs in the `GraphNodeCatalogue` (no `@executor` decorator); registration fails fast on drift (duplicate kinds, functions/constructors in manifests, undeclared/unimplemented methods, duplicate IDs, missing executors). The `GraphNodeExecutorRegistry` is a facade over the catalogue — one kind map.
+- **FR-G3:** Pinning is all-or-nothing across upstream pin sets with TTL'd cached values; a cache hit emits `NODE_CACHE_HIT`; fingerprints derive from kind/parameters/bindings/effective inputs and exclude presentation-only UI state.
+- **FR-G4:** Loops re-enter the engine via `engine.execute(bodyDocument, ...)` with `parentRunId` propagation; nested documents recurse the same validation/resolution pipeline.
 - **FR-G5:** Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED` when no `codeSandboxEvaluator` is supplied.
 - **FR-G6:** `IsolatedVmCodeSandboxEvaluator` transpiles TS, validates the AST, and runs in an `isolated-vm` isolate with timeout/memory limits.
+- **FR-G7:** Run creation (`POST /graph/runs`) returns `202` with `eventsUrl`/`resultUrl` before completion; run events are run-scoped, ownership-checked server-side, monotonically sequenced by a single writer per run, and replayable via `afterSequence`.
 
 ### 10.3 Execution sequence
 
@@ -506,22 +507,27 @@ The full graph design is specified in [08 — Graph Design (§12 Graph Execution
 sequenceDiagram
     participant App
     participant E as GraphExecutionEngine
+    participant V as GraphWorkflowDocumentValidator
     participant P as GraphExecutionPlanner
     participant VS as GraphValueStore
-    participant Reg as GraphNodeExecutorRegistry
-    App->>E: execute(workflow, inputs, options)
-    E->>P: plan(workflow) (Kahn topo + cycle detection)
+    participant Cat as GraphNodeCatalogue
+    App->>E: execute(document, inputs, options)
+    E->>V: validate(document) — nine-stage gate (1→9)
+    V->>Cat: resolve kinds + manifests + executors
+    V-->>E: GraphResolvedWorkflow (or structured issues)
     E->>VS: seedWorkflowInputs(inputs)
+    E->>P: plan(resolved) (Kahn topo + cycle detection)
     loop each topological layer
         E->>E: executeLayer (concurrency batch)
         loop each node
             E->>E: emit NODE_STARTED
-            E->>VS: resolve inputs
+            E->>VS: resolve inputs (edges + literals + expressions)
             alt pinned & cache hit
                 E->>E: emit NODE_CACHE_HIT
             end
-            E->>Reg: resolve executor
-            E->>E: run executor
+            E->>Cat: executor resolved from plan node
+            E->>E: run executor (§4.9 request contract)
+            E->>E: validate outputs vs effective manifest
             E->>VS: routeOutgoingEdges -> emit EDGE_VALUE_ROUTED
             E->>E: emit NODE_COMPLETED
         end
@@ -531,21 +537,28 @@ sequenceDiagram
 
 ### 10.4 Acceptance criteria
 
-- **Given** a registry with `math.add` and `math.multiply` executors and a linear workflow, **when** `execute(linearWorkflow(), {a:2, b:3})` is called, **then** `result.outputs.result === 10`.
-- **Given** a workflow with a cycle, **when** `execute` is called, **then** the planner rejects with a cycle error.
+- **Given** a catalogue with `math.add` and `math.multiply` registrations and a linear canonical document, **when** `execute(linearDocument(), {a:2, b:3})` is called, **then** `result.outputs.result === 10`.
+- **Given** a document with a cycle, **when** `execute` is called, **then** stage-7 topology validation rejects it with a structured issue.
+- **Given** a document referencing an unregistered kind or carrying an inline node definition, **when** `execute` is called, **then** the nine-stage gate rejects it before planning.
 - **Given** a Code node and no `codeSandboxEvaluator` configured, **when** execution reaches the node, **then** it throws `GRAPH_CODE_SANDBOX_NOT_CONFIGURED`.
 
 ### 10.5 Usage example
 
 ```ts
-const registry = new GraphNodeExecutorRegistry();
-registry.register("math.add", { execute: (i) => ({ sum: Number(i.a) + Number(i.b) }) });
-registry.register("math.multiply", { execute: (i) => ({ product: Number(i.x) * 2 }) });
-const engine = new GraphExecutionEngine({ registry });
-const result = await engine.execute(linearWorkflow(), { a: 2, b: 3 }); // outputs.result === 10
+import {
+  GraphNodeCatalogue, GraphNodeExecutorRegistry, GraphExecutionEngine,
+  registerBuiltInGraphNodes,
+} from "@decaf-ts/integrations/graph";
+
+const catalogue = new GraphNodeCatalogue();
+registerBuiltInGraphNodes(catalogue);            // built-in manifest+executor pairs
+catalogue.registerExecutor("math.add", { execute: (r) => ({ sum: Number(r.inputs.a) + Number(r.inputs.b) }) });
+catalogue.registerExecutor("math.multiply", { execute: (r) => ({ product: Number(r.inputs.x) * 2 }) });
+const engine = new GraphExecutionEngine({ registry: new GraphNodeExecutorRegistry(catalogue) });
+const result = await engine.execute(linearDocument(), { a: 2, b: 3 }); // outputs.result === 10
 ```
 
-> Defaults `concurrency=4`, `failFast=true`, `usePinnedValues=true`, `validateInputs/Outputs=true` (`GraphExecutionEngine.ts:726-741`); `validateInputs/Outputs` are silently ignored (handbook §graph-70). `IsolatedVmCodeSandboxEvaluator` is not wired by default (handbook §graph-72).
+> Defaults `concurrency=4`, `failFast=true`, `usePinnedValues=true`. Validation is wired: the nine-stage gate runs on every `execute()` and at every persistence boundary (the legacy `validateInputs/Outputs` silently-ignored gap was fixed by the canonical cutover). `IsolatedVmCodeSandboxEvaluator` is still not wired by default (handbook §graph-72).
 
 ---
 
@@ -651,7 +664,7 @@ The brief is explicit about coverage limits. The following are under-documented 
 - **`KibanaAuthService`, dashboard clone/embed/`verifySpaceSetup`, `setDefaultDataView`, and `setupOrganization` end-to-end** have no tests; their behavior is described from source, not verified (handbook §kibana testing gaps).
 - **Namespaces `BootstrapService`, `EffectivePermissionService.rebuildForPrincipal` (incl. inheritance-block + group expansion), `OrgUnitService` closure ops, `RoleAssignmentService`, `SystemManagementService`, `ResourceLifecycleService`** have no unit tests (handbook §namespaces testing gaps).
 - **Loader URL/`data:` sources, single-named-export fallback, `withOptions`, `createLoaderHookContext`** are untested (handbook §loader testing gaps).
-- **Graph `While/Until` executors, validators, snapshot mapper, `LogGraphNodeExecutor`, `GraphNodeExecutorResolver`, pinned cache-hit path, `validateInputs/Outputs`** are untested (handbook §graph testing gaps).
+- **Graph catalogue/validation/run suites** cover registrations, the nine-stage gate, the engine, the planner, pinning, loops, and the Nest run lifecycle; the `While`/`Until` executors and the snapshot mapper remain lightly covered (handbook §graph testing gaps).
 - **Superset `build:true` in-process path and `boot-plugin.mjs`** are unverified by automated tests (handbook §plugins testing gaps).
 
 Where a requirement above depends on an untested path, the acceptance criteria are stated against the documented source behavior and flagged as a known gap rather than a verified guarantee.
@@ -670,7 +683,7 @@ The complete inaccuracies list (79 entries) is reproduced in the [Architecture H
 - **[namespaces]** `AuthzService.canAccess` scope branch doesn't enforce tenant scoping. | Evidence: authz.service.ts:31-43, authz.service.ts:52 | Suggested fix: add the tenant predicate.
 - **[nest]** workdocs claim `AuthService` exists in `src/nest` — it does not. | Evidence: workdocs/services/nest.md:7 | Suggested fix: document `JwtService` injection.
 - **[loader]** `ObjectLoaderExportSelection` exported twice from the same barrel. | Evidence: src/loader/index.ts:8, src/loader/ObjectLoader.ts:193 | Suggested fix: drop line 193.
-- **[graph]** validation options silently ignored — `mergeOptions` defaults `validateInputs:true`/`validateOutputs:true` but `execute()` never invokes the validators. | Evidence: GraphExecutionEngine.ts:732-733 | Suggested fix: wire validation in or remove the unused options.
+- **[graph]** `GraphTopology.isBoundary` hard-codes the `"$workflow"` literal instead of the `GRAPH_WORKFLOW_BOUNDARY` constant. | Evidence: src/graph/engine/planning/GraphTopology.ts:63-65 | Suggested fix: import and compare against the constant. (The former "validation options silently ignored" entry was fixed by the DECAF-50 canonical cutover — the nine-stage gate now runs on every execute.)
 - **[plugins]** Superset manifest doc/comment is stale — says "stub" but the plugin is fully implemented. | Evidence: src/plugins/superset/manifest.ts:3-7, src/plugins/superset/installer.ts:127-271 | Suggested fix: drop the stub wording and `status:"stub"` field.
 - **[docker]** `DockerComposeServiceConfig` and `DockerHealthCheckOptions` are declared without `export`. | Evidence: src/docker/DockerComposeService.ts:13, src/docker/DockerComposeService.ts:18 | Suggested fix: add `export` to both interfaces.
 - **[package]** `package.json` has no `description` field, so the npm registry description will be empty. | Evidence: package.json (no description) | Suggested fix: add a `description`.
