@@ -666,6 +666,16 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 
 ---
 
+## DECAF-51 — with-ai MCP/CLI — mcp-server Redesign and Port
+- **Priority:** Medium
+- **Goal:** Retire `./mcp-server` and redesign its full capability surface into `./with-ai`: with-ai stays authoritative for skills/agents/markdown (coverage validated, not assumed); TS functionality becomes decaf-cli commands; MCP boot is a fully detached CLI command exposing only jira/xray + common tooling under `src/mcp/{jira,xray,common}` with per-module self-registration; per-request client boot with lazy credential loading (user hard requirement); latest MCP SDK + new transports; multi-project Jira access (`JIRA__PROJECT_KEY` restriction removed); industry-standard MCP policy with clearly displayed destructive tools; `@decaf-ts/crypto`-based build-time encryption of all AI-value content (never committed); CLI installs harness skills via symlinks to decrypted md files in the installed package; TS + inspector testing against the production artifact; live Jira/Xray tests idempotent, self-reverting, with loud cleanup-failure warnings and minimal live noise; no functionality lost, measured at the capability level.
+- **Status:** Planned — specification initialized 2026-09-02 for domain root [SAA-560](/SAA/issues/SAA-560); Product Manager scope approved and CTO technical governance approved (with binding conditions); four user scoping questions pending on the root's `ask_user_questions` interaction; implementation decomposition by CTO pending.
+- **Link:** [Specification Details](./specifications/DECAF_51.md)
+- **Tasks:**
+  - [ ] Pending decomposition by the domain-root owner after the user's scoping answers land (recommended phases per the CTO governance verdict: foundation CLI+crypto+build; jira module; xray module; common+registration; tests+inspector; legacy-functionality inventory throughout).
+
+---
+
 ## Documentation
 
 - **Status:** Completed — the `5-HowToUse.md` guides for `core`, `for-nano`, `for-typeorm`, `for-http`, `for-nest`, and `for-fabric` now surface the updated TaskEngine/Migration configuration semantics plus the CLI-task mode migration guardrails.
@@ -718,6 +728,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
 - DECAF-47: ⏳ for-fabric Mirror Allow Predicate (spec added for decorator-level bypass contract; implementation pending)
 - DECAF-48: ✅ Graph Engine Logging Display & Visual Run Feedback (live logs widget, visual run feedback, node I/O inspection delivered engine-agnostic on existing Observable + DECAF-42 SSE ownership segregation; back-end SAA-59 and front-end SAA-60 done; all reviews and security follow-ups done; committed by board under DECAF-809)
 - DECAF-50: ⏳ Canonical Workflow Documents, Backend Node Catalogue & Remote Graph Execution (spec initialized 2026-08-31 under [SAA-385](/SAA/issues/SAA-385); PM scope + CTO governance approved; phases P1–P7 pending implementation)
+- DECAF-51: ⏳ with-ai MCP/CLI — mcp-server Redesign and Port (spec initialized 2026-09-02 under [SAA-560](/SAA/issues/SAA-560); PM scope + CTO governance approved; user scoping answers + implementation pending)
 
 **Build Status:** All modules build successfully
 **Test Status:** Targeted tests/builds pass; one known inspector CLI transport integration check remains flaky in `mcp-server`
