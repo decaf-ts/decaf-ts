@@ -56,6 +56,10 @@ Execution is **asynchronous and run-scoped**: `POST /graph/runs` returns
 over a run-scoped, authorized, replayable SSE endpoint with monotonic
 per-run sequence numbers; status, result, cancellation, events, and inspection
 are all ownership-checked server-side against the run's recorded owner.
+Ownership **fails closed**: a resource that carries an owner is denied to
+every other caller — including callers with no resolved identity — unless
+the host explicitly enables the standalone anonymous tolerance
+(`allowAnonymousAccess`, default `false`).
 
 ## 2. Design Principles
 
@@ -82,6 +86,12 @@ are all ownership-checked server-side against the run's recorded owner.
   and race-free. *Enforcing source:* `GraphRunService`/`GraphRunController`
   operate on a run resource; no global unfiltered event subject serves run
   events.
+- **Fail-closed resource ownership.** *Why:* an ownership check that
+  tolerates a missing caller identity is an open door — any unauthenticated
+  request would slip past it. *Enforcing source:* the centralized
+  `assertGraphResourceOwnership` check denies owned resources to absent
+  identities; anonymous access is an explicit, default-off option
+  (`allowAnonymousAccess`) reserved for standalone module runs.
 - **Engine-free shared contracts.** *Why:* browser bundles must carry no
   engine/executor code. *Enforcing test:* `for-angular/src/graph/bundle-wall.spec.ts`
   (static import wall + runtime symbol wall over the production bundle).
@@ -465,6 +475,15 @@ failing abruptly:
    required values satisfiable.
 8. **Credential-reference authorization** — references exist, are authorized,
    and match the manifest's credential types; plain credentials never appear.
+   Authorization runs through the host-supplied `GraphCredentialAuthorizer`
+   (engine config → stage-8 validator); without one the stage is
+   shape/type-only — a well-formed, type-matched reference is accepted
+   without verifying that the credential exists or that the run may use it,
+   so production hosts MUST wire one through
+   `GraphExecutionModule.forRoot({ credentialAuthorizer })`. The
+   plain-secret scan walks node parameters and metadata recursively
+   (objects and arrays, depth cap 8, cycle-guarded) — deny-listed keys are
+   issues at any nesting depth, not just at the top level.
 9. **Capability validation** — declared manifest capabilities hold.
 
 The output is a `GraphWorkflowValidationResult`
@@ -552,8 +571,8 @@ manifest methods.
 `POST /graph/runs` accepts either an unsaved canonical document plus inputs,
 or a saved `workflowId` plus inputs — supplying both is rejected as
 ambiguous, as is a request with neither. The endpoint authenticates, checks
-size and the concurrent-run limit, allocates the run, records initial state,
-and returns **`202 Accepted` before completion**:
+size and the per-caller concurrent-run limit, allocates the run, records
+initial state, and returns **`202 Accepted` before completion**:
 
 ```json
 {
@@ -571,6 +590,13 @@ Validation and execution then proceed asynchronously
 cancelled`), timestamps, `result?`, `error?`, and the executed document's
 `documentFingerprint` (SHA-256 over a stable key-sorted serialization) for
 audit/reproducibility.
+
+The concurrent-run limit (`maxConcurrentRuns`) is enforced **per caller**:
+`GraphRunService` buckets in-flight runs by a caller key — the run's owner
+user for authenticated callers, a per-IP key (`ip:{address}`) supplied by
+the HTTP layer for anonymous callers, or a shared `"anonymous"` bucket when
+neither is available. A caller whose bucket is exhausted receives a Decaf
+`ValidationError` on run creation.
 
 ### 11.2 Events
 
@@ -591,18 +617,67 @@ terminal events replay after the run finishes. Cancellation emits a
 replayable terminal event. Nested runs carry parent/path information. The
 SSE endpoint replays the buffered prefix, then streams live envelopes.
 
+Event state is bounded by an auto-release cycle: when a run finishes,
+`GraphRunService` schedules release of the run's retained bookkeeping —
+caller-bucket membership, executor/publisher sequencing, and the event
+store's replay buffers (via the optional `GraphRunEventStore.release(runId)`
+hook) — after `eventReplayWindowMs` (`DEFAULT_GRAPH_RUN_LIMITS`: 5 minutes).
+Clients can reconnect and replay the terminal sequence inside that window;
+afterwards the state is gone. In-memory stores drop the retained events on
+release; durable stores may no-op the hook and keep events for audit.
+
 There is **no global unfiltered subject** for run events: the run-scoped
 endpoint is the canonical transport. The legacy global `GET /graph/events`
-stream (DECAF-42 subscription mode, broadcast default) is deprecated at
-cutover — kept, not removed — and no new features route through it.
+stream (DECAF-42 subscription mode, broadcast default) is deprecated and
+**disabled by default** — the route answers `404` unless the host
+explicitly sets `GraphExecutionControllerOptions.enableGlobalEventStream`
+(transition aid only). When enabled, every event is ownership-gated at
+emit: the controller resolves each event's run and only forwards events
+for runs the connected caller owns. No new features route through the
+global stream.
 
 ### 11.3 Ownership & authorization
 
 Every run records an owner from `DecafRequestContext`
-(`ownerUser: string | null`; null/system tolerated for standalone module
-runs per the DECAF-48 pattern). Ownership is enforced **server-side** on
+(`ownerUser: string | null`). Ownership is enforced **server-side** on
 status, result, cancellation, events, and inspection — client-side filtering
-is a convenience, never a security control.
+is a convenience, never a security control — through the single centralized
+`assertGraphResourceOwnership` check (`engine/runs/ownership.ts`), shared by
+the run service, the workflow service, the persisted-result read path, and
+the opt-in global stream:
+
+- **Fail-closed default.** A resource that carries an owner is accessible
+  only to that owner. An absent caller identity (null/undefined/empty) is
+  **denied** on owned resources — the check never falls back to "tolerate
+  missing identity". Owner-less resources remain accessible to everyone.
+- **Explicit standalone tolerance.** `allowAnonymousAccess` (default
+  `false`) admits anonymous callers on owned resources for standalone
+  module runs — the DECAF-50 §4.15 tolerance following the DECAF-48
+  pattern. Hosts opt in per API surface (`runs`/`workflows` module
+  options, wired through to the owning service); the standalone `main.ts`
+  demo profile pairs `auth: "optional"` with `allowAnonymousAccess: true`,
+  while the controller defaults are `auth: "required"` with the tolerance
+  off.
+
+```mermaid
+sequenceDiagram
+    participant C as Caller (user / anonymous)
+    participant API as Graph controllers (runs / workflows / execute)
+    participant Own as assertGraphResourceOwnership
+    C->>API: request (runId / workflowId / SSE connect)
+    API->>API: resolve caller owner (graphWorkflowOwnerOf)
+    API->>Own: { resource.owner, callerOwner, options }
+    alt owner-less resource
+        Own-->>API: allow
+    else caller is the owner
+        Own-->>API: allow
+    else anonymous caller and allowAnonymousAccess=true
+        Own-->>API: allow (explicit standalone tolerance)
+    else any other caller (incl. anonymous, default)
+        Own-->>API: ForbiddenError
+    end
+    API-->>C: payload / 403
+```
 
 ### 11.4 Cancellation & status
 
@@ -622,6 +697,14 @@ repository injection tokens, and `@Optional()` request context. The engine
 module is adapter-agnostic: `GraphRunStore`/`GraphRunEventStore` are ports
 with in-memory reference implementations.
 
+Execution results persist separately through `GraphResultService` into
+`GraphExecutionResultModel` (`runId`, `workflowId`, `owner`, `status`,
+`inputs`, `outputs`, …). `saveResult` stamps the owning user resolved from
+the request context onto the row — absent for legacy/anonymous results,
+which carry no enforceable ownership — and the result read path gates
+`GET /graph/results/{runId}` through the centralized run ownership check
+before the row is returned.
+
 ### 11.6 Deprecated synchronous path
 
 `POST /graph/execute` is deprecated, not removed: it accepts **canonical
@@ -636,7 +719,10 @@ It is not the primary Angular path.
 All controllers live in `integrations/src/nest/graph/` under `@Controller("graph")`.
 
 **Catalogue** (`GraphNodeCatalogueController`; authenticated context required
-by default, `DecafRequestContext` propagated):
+by default, `DecafRequestContext` propagated; rate-limit identity prefers
+the authenticated owner — `graphWorkflowOwnerOf` — over raw request user/IP
+fields, so the expensive `resolve`/`methods` quotas bucket by real
+identity first):
 
 | Route | Behaviour |
 |:------|:----------|
@@ -646,7 +732,10 @@ by default, `DecafRequestContext` propagated):
 | `POST /graph/node-types/{kind}/resolve` | Resolved manifest for an instance subset; rate-limited; client input is never definition material. |
 | `POST /graph/node-types/{kind}/methods/{method}` | Invokes a declared, registered method; verifies declaration + type; rate-limited; credentials resolved server-side. |
 
-**Workflows** (`GraphWorkflowController`; authenticated by default):
+**Workflows** (`GraphWorkflowController`; authenticated by default —
+`auth` defaults to `"required"`, `"optional"` tolerates anonymous callers
+for standalone runs — with the `allowAnonymousAccess` fail-closed tolerance
+defaulting to `false`):
 
 | Route | Behaviour |
 |:------|:----------|
@@ -654,19 +743,44 @@ by default, `DecafRequestContext` propagated):
 | `GET /graph/workflows/{workflowId}` | Returns the persisted canonical document (ownership-checked). |
 | `POST /graph/workflows/validate` | Runs the nine-stage gate; returns structured issues (`code`/`path`/`nodeId`/`edgeId`/`message`/safe details). |
 
-**Runs** (`GraphRunController`; auth configurable, default optional):
-`POST /graph/runs` (202), `GET /graph/runs/{runId}`, `DELETE
-/graph/runs/{runId}` (cancel), `@Sse GET /graph/runs/{runId}/events?afterSequence=`
-— as specified in §11.
+**Runs** (`GraphRunController`; `auth` defaults to `"required"` —
+SAA-595 secure-defaults alignment, `"optional"` admits anonymous callers
+for standalone runs — and `allowAnonymousAccess` defaults to `false`):
+`POST /graph/runs` (202, per-caller concurrency-bucketed), `GET
+/graph/runs/{runId}`, `DELETE /graph/runs/{runId}` (cancel), `@Sse GET
+/graph/runs/{runId}/events?afterSequence=` — as specified in §11.
 
-`GraphExecutionModule` bundles the controllers with the catalogue, engine,
-run services, and persistence services; `GraphExecutorRegistryFactory`
+**Execution & results** (`GraphExecutionController`; deprecated
+synchronous surface kept for transition):
+
+| Route | Behaviour |
+|:------|:----------|
+| `POST /graph/execute` | Deprecated; canonical documents only; delegates to the run service (`executeAndWait`) under the same ownership and per-caller concurrency rules. |
+| `GET /graph/results/{runId}` | Gated through the centralized run ownership check before the persisted result row is returned — cross-user/anonymous callers get `403` on owned runs. |
+| `GET /graph/events` (SSE) | Deprecated global stream, **disabled by default (`404`)**. The opt-in `enableGlobalEventStream` option re-exposes it with per-event ownership gating at emit. |
+| `PUT /graph/workflow/{id}` | Legacy workflow save path delegating to `GraphWorkflowService`. |
+
+`GraphExecutionModule.forRoot` bundles the controllers with the catalogue,
+engine, run services, and persistence services, and takes per-surface
+options — `catalogue`, `workflows`, `runs`, `execution`
+(`enableGlobalEventStream`) — plus the engine-level `credentialAuthorizer`,
+wired into the engine config so the stage-8 validator can check credential
+references against the host credential store. Because `@service`-decorated
+classes resolve through the injectable-decorators singleton registry, which
+does not forward constructor arguments, the module applies
+`GRAPH_WORKFLOW_OPTIONS` to `GraphWorkflowService` via its `configure()`
+method in the provider factory — the deterministic path by which
+`allowAnonymousAccess` and document limits actually reach the service.
+`GraphExecutorRegistryFactory`
 (`createGraphNodeCatalogue`, the `createGraphExecutorRegistry` compatibility
 facade, `createDemoEngineConfig`) builds a populated catalogue with the
 built-in registrations and wires `IsolatedVmCodeSandboxEvaluator` (loops,
 Code, and Switch executors are engine-bound and registered through
-`createDemoEngineConfig`'s `onEngineCreated` hook). `main.ts` boots on
-`GRAPH_BACKEND_PORT` / `argv[2]` / default `3000`.
+`createDemoEngineConfig`'s `onEngineCreated` hook). The standalone `main.ts`
+boots on `GRAPH_BACKEND_PORT` / `argv[2]` / default `3000`, binds
+`127.0.0.1` only, admits only `http://localhost`/`http://127.0.0.1` CORS
+origins, and runs its demo surfaces under the explicit standalone profile
+(`auth: "optional"` + `allowAnonymousAccess: true`).
 
 ## 13. Angular Canonical Frontend
 
@@ -799,10 +913,14 @@ sequenceDiagram
 | `GRAPH_BACKEND_URL` | `for-angular/src/graph/execution/GraphExecutionService` | Base URL of the graph backend for browser clients. |
 
 The engine itself reads no environment variables. Run limits
-(`DEFAULT_GRAPH_RUN_LIMITS`: concurrent runs, execution timeout, event
-retention, payload bounds) and document limits
+(`DEFAULT_GRAPH_RUN_LIMITS`: per-caller concurrent runs, execution timeout,
+event retention, payload bounds, event replay window) and document limits
 (`GraphWorkflowDocumentLimits`: size, depth, node/edge counts) are
-configurable through their option objects and enforced backend-side. Run-option
+configurable through their option objects and enforced backend-side.
+`maxConcurrentRuns` counts per caller bucket (owner user, per-IP anonymous,
+shared `"anonymous"` fallback); `eventReplayWindowMs` (default 5 minutes)
+bounds how long a terminal run's event state stays replayable before
+auto-release. Run-option
 defaults: `concurrency=4`, `failFast=true`, `usePinnedValues=true`.
 `GRAPH_WORKFLOW_BOUNDARY` (`"$workflow"`) remains the synthetic boundary id in
 the value store and plan; documents use the explicit `GraphEndpoint` union.
@@ -865,6 +983,12 @@ runEventClient.listen(created.runId, {
   must be supplied by the consumer; Code/Switch nodes throw
   `GRAPH_CODE_SANDBOX_NOT_CONFIGURED` out of the box. `isolated-vm` is a
   native addon requiring a build toolchain.
+- **Stage-8 credential authorization needs a host authorizer.** With no
+  host-supplied `credentialAuthorizer`, stage 8 validates only reference
+  shape and credential type: it cannot confirm a referenced credential
+  exists or that the run is authorized to use it. Production hosts must
+  wire one through `GraphExecutionModule.forRoot({ credentialAuthorizer })`
+  — the engine ships no default, mirroring the code-sandbox rule.
 - **`GraphTopology.isBoundary` hard-codes `"$workflow"`** instead of the
   `GRAPH_WORKFLOW_BOUNDARY` constant (recorded inaccuracy, still present).
 - **Dead import in `GraphPinningService`.** `GRAPH_PINNING_METADATA_KEY` is
@@ -875,4 +999,6 @@ runEventClient.listen(created.runId, {
 - **In-memory run stores are the reference implementation.** Production
   deployments needing durable run/event history across restarts must provide
   a persistent `GraphRunStore`/`GraphRunEventStore`; retention bounds and
-  backpressure are configurable but bounded.
+  backpressure are configurable but bounded. Terminal runs' event state
+  auto-releases after `eventReplayWindowMs` (default 5 minutes); a durable
+  store can keep events for audit by no-oping the optional `release()` hook.
