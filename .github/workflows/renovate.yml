@@ -9,7 +9,7 @@ jobs:
   renovate:
     name: Renovate security updates
     if: github.event.action != 'renovate-dep-trigger'
-    uses: decaf-ts/reusable-actions/.github/workflows/renovate.yml@main
+    uses: decaf-ts/reusable-actions/.github/workflows/renovate.yml@master
     with:
       pr-strategy: bump-dependents
       clear-stale-overrides: false
