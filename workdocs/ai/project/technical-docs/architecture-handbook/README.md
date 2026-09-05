@@ -26,7 +26,7 @@ the full picture, or jump to the area you need.
 | 06 | [UI layer](./06-ui-layer.md) | `ui-decorators` (rendering, components, graph, user-requests) |
 | 07 | [Integrations](./07-integrations.md) | blob, secrets, keycloak, kibana, feature-flags, namespaces, plugins, loader |
 | 08 | [Frontend engines](./08-frontend-engines.md) | `for-angular`, `for-react`, `for-nextjs`, `for-react-native`, `styles` |
-| 09 | [Tooling & infrastructure](./09-tooling-infra.md) | `utils`, `cli`, `mcp-server`, `with-ai`, reusable-actions, templates, `bin`, `docker` |
+| 09 | [Tooling & infrastructure](./09-tooling-infra.md) | `utils`, `cli`, `with-ai` (decaf CLI module + detached MCP server; the legacy `mcp-server` is retired), reusable-actions, templates, `bin`, `docker` |
 | 10 | [Apps & demos](./10-apps-demos.md) | `web-page`, `demo` |
 | 11 | [Cross-cutting concerns](./11-cross-cutting-concerns.md) | logging, crypto, as-zod, versioning, metadata self-registration |
 | 12 | [Glossary](./12-glossary.md) | Terms and acronyms used across the handbook |

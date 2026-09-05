@@ -1,16 +1,21 @@
 # 09 — Tooling, CLI, MCP Server & Infra
 
 This chapter documents the tooling / DevOps / infra layer of the decaf-ts
-monorepo and the decaf-ts MCP server. It is grounded in two read-only research
-briefs:
+monorepo, including the decaf CLI + MCP tooling surface delivered in
+`with-ai`. It was originally grounded in two read-only research briefs:
 
-- `_research-briefs/09-mcp-server.md` — `@decaf-ts/mcp-server`
+- `_research-briefs/09-mcp-server.md` — the retired `@decaf-ts/mcp-server`
 - `_research-briefs/10-tooling-infra.md` — `utils`, `cli`, `with-ai`,
   `reusable-actions`, `ts-template`, `as-infra`, `bin`, `docker`
 
-Where a brief is thin or self-contradictory, this handbook says so explicitly
-rather than fabricating. No tests or builds were executed and no source files
-were modified while preparing this chapter.
+Sections 4 and 5 have since been brought current with the DECAF-51 port
+(retire `mcp-server`; redesign its capability surface into `with-ai`) by
+direct source review of the `with-ai` submodule. The approved scope, goals,
+requirements, and decision provenance live in the specification record
+[`workdocs/ai/project/specifications/DECAF_51.md`](../../specifications/DECAF_51.md)
+(domain root [SAA-560](/SAA/issues/SAA-560)) — this chapter documents the
+delivered architecture and does not restate them. Where a brief is thin or
+self-contradictory, this handbook says so explicitly rather than fabricating.
 
 ## 1. Layering & Relationships
 
@@ -22,8 +27,10 @@ flowchart TD
     utils["@decaf-ts/utils<br/>Command framework, fs/http, release-chain, ./tests"]
     logging["@decaf-ts/logging<br/>(leaf dependency of utils & cli)"]
     cli["@decaf-ts/cli<br/>CliWrapper + decaf bin"]
-    mcp["@decaf-ts/mcp-server<br/>MCP server + agent orchestration"]
-    withai["@decaf-ts/with-ai<br/>Paperclip company + skills/agents"]
+    core["@decaf-ts/core<br/>(injectable @service DI)"]
+    crypto["@decaf-ts/crypto<br/>CryptoService (AES-256-GCM + PBKDF2)"]
+    dbdec["@decaf-ts/db-decorators<br/>(decaf error hierarchy)"]
+    withai["@decaf-ts/with-ai<br/>decaf with-ai CLI module + detached MCP server<br/>+ authoritative skills/agents content"]
     template["@decaf-ts/ts-workspace<br/>(ts-template scaffold)"]
     asinfra["as-infra<br/>Terraform/Helm/Argo IaC"]
     bin["bin/<br/>workspace orchestration scripts"]
@@ -33,12 +40,11 @@ flowchart TD
     utils --> logging
     cli --> logging
     cli -.dev.-> utils
-    mcp --> logging
-    mcp --> cli
-    mcp -.runtime.-> mcp
-    withai -.dev.-> utils
-    withai -.dev.-> cli
-    withai -.runtime-in-container.-> mcp
+    withai --> logging
+    withai --> core
+    withai --> crypto
+    withai --> dbdec
+    withai --> cli
     template -.dev.-> utils
     asinfra -.inherits template manifest.-> template
     bin -->|npx build-scripts| template
@@ -46,10 +52,10 @@ flowchart TD
     docker -->|local-originals for| asinfra
 
     classDef edge fill:#eee,stroke:#999
-    class bin,reusable,docker,asinfra,template,withai edge
+    class bin,reusable,docker,asinfra,template edge
 ```
 
-Key relationship facts (from the briefs):
+Key relationship facts (from the briefs, updated for the DECAF-51 port):
 
 - **`utils` is the foundation.** It depends only on `@decaf-ts/logging` and is
   consumed by virtually every sibling package for CLI scaffolding, release
@@ -58,15 +64,16 @@ Key relationship facts (from the briefs):
 - **`cli` sits on `utils` + `logging`.** `@decaf-ts/cli` wraps Commander with a
   discovery layer; its built-in `build`/`release`/`utils` modules forward to
   `@decaf-ts/utils` command classes.
-- **`mcp-server` sits on the decaf-ts foundation** (`logging`,
-  `decorator-validation`, `decoration`, `injectable-decorators`,
-  `db-decorators`, `cli`, `core`) and bridges decaf-ts to the MCP ecosystem
-  (`@modelcontextprotocol/sdk`) and to external AI provider CLIs. It is a leaf
-  application package — nothing in the monorepo depends on it at runtime; it is
-  consumed as the `decaf-mcp` CLI/standalone MCP server by external AI agents.
-- **`with-ai` is a leaf operational package.** It consumes `utils`, `cli`, and
-  `mcp-server` only as dev/in-container tooling; no decaf-ts module imports it.
-  Its published `src/` is the unchanged `ts-workspace` template (see §6).
+- **`mcp-server` is retired.** Its capability surface was redesigned and
+  ported into `with-ai` (§4–§5) under specification DECAF-51; it is no longer
+  part of the workspace submodule manifest (`.gitmodules`), and nothing in
+  the monorepo depends on it at runtime.
+- **`with-ai` is the decaf CLI/MCP tooling package and the authoritative
+  content bundle.** It is a decaf-cli module package (`decaf with-ai
+  <command>`), hosts the detached MCP server (`src/mcp/`), and remains the
+  single authoritative source for skills/agents/markdown. It consumes the
+  decaf-ts foundation (`logging`, `core`, `crypto`, `db-decorators`, `cli`)
+  as runtime dependencies; no decaf-ts module imports it (see §5).
 - **`ts-template` is the scaffold** every decaf-ts TS package is created from.
 - **`as-infra` is the deployment layer** (Terraform/Helm/Argo) beneath the
   application repos; it is a deployment target, not a library import.
@@ -411,384 +418,356 @@ decaf utils print-all-banners
   consumers building themselves must run the documented `build`/`build:prod`
   scripts (not just `tsc`).
 
-## 4. mcp-server — `@decaf-ts/mcp-server`
+## 4. mcp-server — `@decaf-ts/mcp-server` (retired)
 
-> "mcp server for code assistance of decaf-ts projects". License AGPL-3.0
-> (`package.json`); README states an MIT-with-AGPL-trigger hybrid. Binary
-> `decaf-mcp` → `./dist/mcp-server.cjs`.
+> **Retired.** The legacy MCP server package is retired from the decaf-ts
+> architecture: it is no longer part of the workspace submodule manifest
+> (`.gitmodules`), and its entire user-facing capability surface was
+> redesigned and ported into `with-ai` (§5) under specification DECAF-51.
+> The approved goals, requirements, user stories, and the disposition of
+> every legacy tool/prompt/resource/module live in the specification record
+> [`workdocs/ai/project/specifications/DECAF_51.md`](../../specifications/DECAF_51.md)
+> (domain root [SAA-560](/SAA/issues/SAA-560)); this section records the
+> retirement and the capability mapping only. The legacy package directory
+> may still exist on disk in a workspace checkout, but nothing in the
+> monorepo architecture depends on it, and the npm deprecation/publish
+> disposition of the legacy package name remains an open operational
+> question tracked in that record (§6 there).
 
-### 4.1 Purpose & role
+### 4.1 Capability mapping
 
-A Model Context Protocol (MCP) server built on `@modelcontextprotocol/sdk`. It
-exposes decaf-ts–aware **tools**, **prompts**, and **resources** to AI coding
-agents (Codex/Claude/Copilot), plus an **agent orchestration** layer that
-drives an opinionated SPEC/TASK workflow via behavior trees (mistreevous) or
-GOAP planning (goap-solver). It also bundles a comprehensive **Jira/Xray**
-integration and a **file-summarizer** that delegates to a provider CLI. It sits
-at the application/integration layer of the decaf-ts stack and is consumed by AI
-tooling rather than by other decaf packages.
+Loss is measured at the **capability level**, not the tool level: where a
+legacy tool is dropped from the MCP surface, the with-ai skills catalog plus
+Paperclip orchestration demonstrably cover the capability (validated in the
+DECAF-51 legacy-functionality inventory, Req-8 of the record).
 
-### 4.2 Architecture & structure
-
-Top-level `src/` layout:
-
-- `mcp-server.ts` — `McpServer` class: owns the underlying `MCP` client (stored
-  in a `WeakMap`), `boot(transport, options)` lifecycle, and `load()` which
-  registers prompts/tools/resources and (optionally) agent-mode assets.
-- `cli-module.ts` + `bin/cli.ts` — Commander-based CLI (`decaf-mcp`) with
-  `start`, `agent` (subcommands: `setup`, `start`, `do`, `manage`, `plan`,
-  `review`, `create-specs`, `implement`, `execute`), `md-to-ast`, and
-  `repo:init`.
-- `builders/` — fluent builder hierarchy: `Builder`/`UsableBuilder` (base,
-  `decorator-validation` `Model`s), `ToolBuilder`, `PromptBuilder`,
-  `NamedPromptBuilder`, `AgentBuilder`. `ToolBuilder`/`PromptBuilder` wrap the
-  MCP SDK `registerTool`/`registerPrompt` with validation, usage-meta injection
-  (`reasoning`/`effort`/`cost`), and duplicate-registration tolerance.
-- `prompts/` — prompt registry (`Prompts` array): `interactive-jsdoc`, the
-  `JsDocPrompts` (`NamedPromptBuilder`-based, loaded from
-  `assets/prompts/documentation/*.json`), `TsCodeDesignPatterBuilder`, plus
-  Jira/summarization prompts.
-- `tools/` — `registerTools(server)` aggregator: registers summarization,
-  server-info, and Jira tools. Also `tools/decoration/` (a lightweight in-repo
-  decoration builder used only by unit tests) and `tools/server-info.ts`.
-- `resources/` — `Resources` array + `register-resources.ts`. Resources:
-  `repo.metadata`, decoration schematics, golden overrides, and Jira ticket
-  templates. Assets load from `src/assets/resources/` with obfuscated `.enc`
-  fallbacks decrypted via `utils/obfuscation.ts`.
-- `modules/` — bulk of the domain logic, re-exported as `Agent`, `Jira`,
-  `Summarization`, `TemplateModule`.
-  - `modules/agent/` — agent orchestration: `Agent` (behavior-tree + GOAP
-    execution), `Blackboard` (shared key/value store), `runtime/` (workspace
-    bootstrap, catalog loading, registry, commands, model-type/provider
-    resolution, agent-mode registration), and standalone stdin-driven
-    behavior-tree agent processes (`architect/`, `build/`, `main/`, `oversight/`,
-    `summarization/`, `task/`, `testing/`).
-  - `modules/jira/` — `makeJiraClient` via `jira.js` `Version3Client`,
-    `XrayClient` (GraphQL), Markdown↔ADF pipeline, schemas, ~25 tool modules,
-    prompts, env/error/rate-limit helpers, and `register-utils.ts` which
-    registers all Jira tools centrally.
-  - `modules/summarization/` — `file-summarizer` tool + prompt that shells out
-    to a provider CLI (`runProviderPrompt`).
-  - `modules/template-module/` — empty placeholder exporting empty
-    `Tools`/`Resources`/`Prompts` arrays.
-- `utils/` — `LoggedEnvironment` accumulation, asset path resolution, asset
-  reader (`@injectable`), obfuscation, repo-init, project-root, stdio error
-  logger, icons, banner, module-loader.
-- `constants.ts` — `ReasoningLevel`/`EffortLevel`/`Cost` enums + `SystemPrompt`.
-- `environment.ts` → re-exports `Environment`/`DefaultMcpEnvironment`
-  (`utils/environment.ts`), which holds server identity, icons, Jira/Xray
-  config, and initializes `Logging`.
-
-### 4.3 Public API surface
-
-The top barrel `src/index.ts` re-exports only `./mcp-server`. Meaningful public
-symbols:
-
-- **`McpServer`** — main class; `boot(transportType, options)` is the entry
-  point. `McpServerRuntimeOptions` (`agentMode`, `workspacePath`,
-  `agentProvider`, `modelType`, `executeSpec`, `entryFile`).
-- **`Environment` / `DefaultMcpEnvironment`** — `LoggedEnvironment`-accumulated
-  config (name, title, version, jira, xray, icons, …).
-- **Builders** (via `builders/index.ts`, not the top barrel): `Builder`,
-  `UsableBuilder`, `ToolBuilder`, `PromptBuilder`, `NamedPromptBuilder`,
-  `AgentBuilder`. Each provides a static `builder` factory and fluent setters.
-- **`Prompts`** — ordered array of prompt builders loaded at boot.
-- **`Resources`** — ordered array of resource builders.
-- **`registerTools` / `registerResources`** — central registrars used by
-  `McpServer.load()`.
-- **Agent module** (`modules/agent/index.ts`): `Agent`, `Blackboard`,
-  `AgentRuntime` (alias of `Agent`), `AGENT_OPERATION_TO_NAME`,
-  `createAgentRuntime`, `listAgentDefinitions`, `runAgent`, `runAgentCommand`,
-  `runAgentExecution`, `resolveAgentModelType`, `registerAgentModeAssets`,
-  `emitProgressNotification`, plus standalone agent entrypoints (`runMainAgent`,
-  etc.).
-- **Jira module** (`modules/jira/index.ts`): `makeJiraClient`,
-  `normalizeJiraError`, `registerJiraTools`, the Jira prompt builders, and named
-  tool exports (`JiraIssueCreate`, `JiraIssueRead`, …).
-- **Summarization module**: `registerSummarizationTools`, `summarizeFile`,
-  `FileSummarizerInputSchema`, `FileSummarizerPrompt`.
-- **CLI** (`cli-module.ts`): default export `decafMcp()` returning the Commander
-  tree; `runStandardServer`, `runAgentServer`, `executeAgentOperation` helpers.
-
-### 4.4 Patterns and WHY
-
-- **Builder + Model validation.** `Builder` extends `decorator-validation`'s
-  `Model`; required fields (`name`, `title`, `description`) enforced with
-  `@required()`. `ToolBuilder.build()` runs `hasErrors()` and throws on
-  validation failure before calling `server.registerTool`. This guarantees every
-  registered tool is well-formed before it reaches the MCP SDK. Schemas must be
-  canonical `ZodObject`s; `modules/jira/schema-utils.ts`
-  (`ensureZodObject`/`extractShape`) unwraps `ZodOptional`/`ZodEffects`/
-  `ZodDefault` and extracts the raw shape expected by the MCP SDK.
-- **Usage meta.** `UsableBuilder` carries `reasoning`/`effort`/`cost`
-  (`constants.ts` enums) serialized into `_meta.usage` on every tool/prompt
-  invocation, so clients can reason about cost/effort.
-- **Centralized registration.** A deliberate migration away from per-module
-  `registerAll()` (see the commented `modules/jira/register.ts` and the large
-  commented block in `McpServer.load()`) toward centralized `registerTools`/
-  `registerResources`/`registerAgentModeAssets` called from `McpServer.load()`.
-  WHY: a single registration site makes the registered surface auditable and
-  avoids ordering surprises.
-- **Asset system.** Prompts/resources are authored as JSON/Markdown in
-  `src/assets/` and, for public builds, obfuscated into `.enc` files
-  (`obfuscate-prompts.cjs`) decrypted at read time with `ENCRYPTION_KEY`.
-  `AssetReader` (`@injectable`) is injected into `PromptBuilder`.
-  `NamedPromptBuilder` loads a named prompt plus optional `prefix`/`suffix`
-  fragments from a category dir, then `sf(...)`-substitutes placeholders. WHY:
-  keep prompt IP out of plaintext public distributions while preserving a single
-  authoring source.
-- **Agent runtime.** `Agent` accepts an `AgentBehaviorDefinition` (behavior tree
-  string + GOAP state/goal/actions + action list) and a set of behaviour
-  handlers. `run()` dispatches to `runWorkflow()` (mistreevous `BehaviourTree`,
-  stepped with a 50-iteration safety bound) or `runGoap()` (`goap-solver`
-  `planner` producing an action sequence). A `Blackboard` carries state between
-  actions; progress reported via `onProgress`. `AgentBuilder` constructs and
-  registers an `Agent` in a process-wide `registry` keyed by
-  `workspaceRoot::agentName`.
-- **Agent-mode MCP assets.** `registerAgentModeAssets` reads a catalog
-  (`assets/resources/agent/catalog.json`, copied into the repo workspace under
-  `workdocs/ai/project/agent/`), then registers a `resource://agent.catalog`,
-  per-agent `resource://agent.behavior.<name>` and `resource://agent.prompt.<name>`
-  resources, an `agent-<name>` prompt, and `agent.do`/`agent.notify` plus
-  per-operation `agent.<operation>` tools that dispatch through
-  `runAgentCommand`.
-- **Provider abstraction.** `runtime/provider.ts` resolves a CLI command per
-  provider (`codex` → `codex -s workspace-write exec`, `claude`, `copilot`) and
-  `runProviderPrompt` spawns it, piping the prompt to stdin and returning
-  `{exitCode, stdout, stderr, command}`. WHY: keep the MCP server
-  provider-agnostic so the same agent definitions drive Codex/Claude/Copilot.
-- **Duplicate-registration tolerance.** Both `ToolBuilder.build()` and the
-  agent-mode `register*` helpers swallow errors whose message includes
-  `"already registered"`, returning lightweight placeholders. WHY: tolerate
-  re-`load()` and overlapping registrations without crashing the server.
-
-### 4.5 Lifecycle / configuration / environment
-
-Boot. `McpServer.boot(transportType, options)`:
-
-1. If stdio, swaps the `Logging` factory to a stderr-only logger so stdout stays
-   protocol-clean.
-2. Builds `Implementation`/`ServerOptions` (instructions = agent system prompt
-   when `agentMode`, else the static `SystemPrompt`).
-3. Constructs the SDK `MCP` client, stores it in the `WeakMap`.
-4. Resolves the transport (`StdioServerTransport` or
-   `StreamableHTTPServerTransport`, or validates a passed-in `Transport`
-   duck-type).
-5. `load()` → registers prompts (iterating `Prompts`), `registerTools`,
-   `registerResources`, and (if `agentMode`) `registerAgentModeAssets`.
-6. `client.connect(transport)`; optional `MCP_DEBUG_TOOLS=1` lists tools.
-   `MCP_DEBUG_BOOT=1` appends a boot trace to `/tmp/mcp-boot.log`.
-
-CLI: `decaf-mcp start [--transport] [--path] [--entryFile] [--agent]
-[--agent-provider] [--model-type] [--goap] [--execute]`; `decaf-mcp agent
-<subcommand>`; `decaf-mcp md-to-ast` (stdin Markdown → ADF JSON); `decaf-mcp
-repo:init [targetPath] [--orchestration] [--skills] [--agent ...]`.
-
-Environment variables actually read by `mcp-server` (from `utils/environment.ts`):
-
-| Area | Env vars |
+| Legacy `@decaf-ts/mcp-server` capability | Disposition |
 |---|---|
-| Jira | `JIRA__HOST`, `JIRA__EMAIL`, `JIRA__API_KEY` (alias `JIRA__APIKEY`), `JIRA__PROJECT_KEY`, `JIRA__ISSUE_TYPE`, `JIRA__PARENT_ISSUE`, `JIRA__TIMEOUT`, `JIRA__RATE_LIMIT_RETRY_DELAY_MS`; `JIRA_ENABLED=true` gates agent→Jira comment sync |
-| Xray | `XRAY__HOST`, `XRAY__API_HOST`, `XRAY__API_USER`, `XRAY__API_SECRET` |
-| Agent | `AGENT_PROVIDER` (default `codex`), `AGENT_MODEL_TYPE` (default `prompt`; valid `prompt`/`goap`/`workflow`), `AGENT_WORKSPACE_PATH` (default `workdocs/ai`), `AGENT_ENTRY_FILE` (default `./AGENTS.md`) |
-| Assets | `DECAF_ASSET_DIR` / `MCP_ASSET_DIR` / `ASSET_DIR` |
-| Secrets | `ENCRYPTION_KEY` for `.enc` asset decryption; `DANGEROUSLY_OMIT_AUTH` for the inspector scripts |
-| Debug | `MCP_DEBUG_TOOLS`, `MCP_DEBUG_BOOT` |
+| MCP server boot (`McpServer.boot`, `decaf-mcp start`) | Ported — detached boot in `with-ai`: `decaf with-ai mcp` or the `with-ai-mcp` bin (`with-ai/src/mcp/McpBoot.ts`) |
+| Jira tooling (~25 tool modules, zod input schemas, rate limiting, Markdown↔ADF pipeline, `XrayClient`) | Ported — `with-ai/src/mcp/jira/` (21 jira tools, ADF↔markdown pipeline, per-request clients) and `with-ai/src/mcp/xray/` (4 step tools) |
+| Jira ticket-template resources | Ported — template resources read from the canonical skills assets (`skills/common/maintain-domain-docs/assets`), single-sourced, never duplicated |
+| Central `registerTools`/`registerResources` registration | Replaced — per-module self-registration (`@mcpModule()` decorator + `McpModuleRegistry`); see §5.4 |
+| Asset obfuscation (`obfuscate-prompts.cjs`, raw node crypto: `scryptSync` + AES-256-GCM) | Replaced — `with-ai/src/crypto/EncryptionService.ts` on `@decaf-ts/crypto` `CryptoService` (AES-256-GCM + PBKDF2, JSON envelope); see §5.6 |
+| Prompts (interactive-jsdoc, JSDoc prompts, Jira/summarization prompts) | Dropped, not ported — with-ai exposes no prompts; capability covered by the skills catalog + Paperclip orchestration |
+| Agent orchestration (GOAP planner, mistreevous behavior trees, agent-mode assets, provider shell-out) | Dropped, not ported — replaced by the skills catalog + Paperclip orchestration |
+| Summarization (`file-summarizer`), server-info, repo-metadata | Dropped — protocol- or harness-native capabilities |
+| `JIRA__*` / `XRAY__*` env contract incl. the single-project `JIRA__PROJECT_KEY` lock | Replaced — new `JIRA_*` / `XRAY_*` names and the `JIRA_PROJECT_KEYS` multi-project allowlist; see §5.5 |
 
-Defaults: log level `error`; Jira timeout 1000ms; rate-limit retry delay 3000ms;
-Xray host `https://xray.cloud.getxray.app`; `file-summarizer` default target
-`README.md`; workflow safety bound 50 iterations; GOAP confidence 90 on success
-/ 35 when blocked. No persistence/adapter flavours.
-
-### 4.6 MCP tool invocation flow
-
-```mermaid
-sequenceDiagram
-    participant CLI as decaf-mcp start
-    participant Srv as McpServer.boot
-    participant Load as McpServer.load
-    participant Reg as registerTools → registerJiraTools
-    participant SDK as MCP SDK client
-    participant Tool as jira tool runTool
-    participant Jira as jira.js v3 / Xray GraphQL
-    CLI->>Srv: boot("stdio", options)
-    Srv->>Load: register prompts/tools/resources (+agent assets)
-    Load->>Reg: makeJiraClient() (may throw MissingJiraEnvironmentError; tools still register)
-    Reg->>SDK: server.registerTool(name, {title,description,inputSchema,annotations}, cb)
-    SDK->>Tool: invoke callback with args
-    Tool->>Tool: parse args with Zod schema
-    Tool->>Jira: issueSearch.searchForIssuesUsingJqlEnhancedSearchPost (e.g.)
-    Jira-->>Tool: results
-    Tool-->>SDK: CallToolResult via toCallToolResult
-```
-
-Agent `execute` operation:
-
-1. `runAgentCommand({ operation: "execute", … })` → `runAgentExecution` creates
-   a `git worktree`, ensures the agent workspace inside it, loads the catalog,
-   and iterates
-   `["manager","orchestrator","architect","implementation","reviewer","documentation"]`.
-2. For each agent: in `prompt` model it builds a stage prompt and shells out
-   via `runProviderPrompt`; in `goap`/`workflow` model it builds an `Agent`
-   runtime and calls `agent.run()` (behavior-tree or GOAP). Blocker detection
-   scans stdout/stderr for `clarification`/`blocker`/`needs input`.
-3. Progress is appended to the SPEC/TASK markdown files and optionally synced to
-   Jira as a comment; the worktree is cleaned up in a `finally`.
-
-### 4.7 Testing
-
-`tests/unit/` (Jest) and `tests/integration/` (spawns the built
-`dist/mcp-server.cjs` over stdio via the SDK client; `_serverHelper.ts` runs
-`npm run build:dist` on demand). `tests/e2e/jira/` holds an e2e Jira create
-test. Coverage spans agent runtime, Jira per-tool unit tests + many integration
-tests against a real Jira instance, auto-generated smoke tests, and a dist-asset
-test (`mcp-dist-assets.test.ts`, gated by `RUN_DIST_TEST=1`).
-
-Notable gaps (per brief): `ts-morph`-based AST/JSDoc tooling tests are all
-`test.skip`/`describe.skip` and no `ast-jsdoc.generate` tool exists in `src/`;
-the standalone stdin agents (`architect`, `build`, `oversight`, `summarization`,
-`task`, `testing`) have no dedicated tests; the HTTP transport
-(`StreamableHTTPServerTransport`) is implemented in `boot` but unreachable from
-the CLI and untested; `prompts/code/design-patterns/builder.ts` and most
-`prompts/jsdocs/*.ts` stubs are not exercised beyond import smoke tests.
-
-### 4.8 Minimal usage examples
-
-Minimal boot (from `tests/integration/central-registration.test.ts` +
-`_serverHelper.ts`):
-
-```ts
-import { McpServer } from '@decaf-ts/mcp-server';
-const server = new McpServer();
-await server.boot('stdio', { workspacePath: 'workdocs/ai' });
-// ... MCP client connects over stdio; tools/prompts/resources are registered.
-```
-
-Programmatic tool dispatch in agent mode (from
-`tests/unit/agent/runtime/commands.test.ts`):
-
-```ts
-import { runAgentCommand } from '@decaf-ts/mcp-server/modules/agent/runtime/commands';
-const result = await runAgentCommand({
-  operation: 'plan',
-  provider: 'codex',
-  modelType: 'workflow',      // skips provider shell-out; runs behavior tree
-  workspacePath: workspaceRoot,
-  entryFile: './AGENTS.md',
-});
-// result.blocked === false, result.modelType === "workflow"
-```
-
-### 4.9 Consumer notes / trade-offs
-
-- **Dual distribution.** Ships a bundled CLI (`dist/mcp-server.cjs`, built via
-  `build:dist` with the SDK externalized) and a library build (`lib/esm`,
-  `lib/cjs` referenced by `exports`).
-- **Assets are mandatory.** Boot resolves an assets dir (`resolveAssetsDir`).
-  Without `src/assets` (or a `DECAF_ASSET_DIR` override) the server cannot load
-  named prompts or resources. `.enc` decryption requires `ENCRYPTION_KEY`.
-- **Jira is opt-in per call.** Tools register even without credentials; each
-  invocation throws `MissingJiraEnvironmentError` with a descriptive env summary
-  until `JIRA__HOST`/`JIRA__EMAIL`/`JIRA__API_KEY` are set.
-- **Agent workspace is repo-copied.** `ensureAgentWorkspace` copies the bundled
-  agent prompts/behaviors/catalog into `workdocs/ai/project/agent/` on first run
-  (preserving existing files unless `preserveExisting` is false). The catalog
-  (`catalog.json`) drives which agents exist.
-- **Model type semantics.** `prompt` shells out to a provider CLI (requires the
-  CLI on PATH); `goap` runs the GOAP planner against the behavior definition;
-  `workflow` runs the mistreevous behavior tree in-process. Only `prompt`
-  actually drives an external LLM.
-- **Maturity / versioning.** Active migration residue (large commented-out
-  `registerAll` blocks, `toMigrate/` directory, stub `jsdocs/*.ts` and
-  `template-module`). The README and `workdocs/` are inherited from the
-  `ts-workspace` template and do not describe this package.
+The research brief `_research-briefs/09-mcp-server.md` and the §11.1
+inaccuracies below remain as the historical record of the retired package;
+they describe code that is no longer part of this architecture.
 
 ## 5. with-ai — `@decaf-ts/with-ai`
 
 > "Expose decaf-ts related skills and agents for selected decaf-ts developers,
 > plus a lightweight MCP and CLI path for future tooling." ESM, MIT. Node
-> `>=20`, npm `>=10`.
+> `>=20`, npm `>=10`. Bin `with-ai-mcp` → `lib/cjs/bin/mcp.cjs`.
 
 ### 5.1 Purpose & role
 
-The packaging/distribution vehicle for the "Decaf as an Organization" Paperclip
-agent company: it bundles a roster of agent instruction bundles (`agents/`), a
-large catalog of skills (`skills/`), a company package (`company/`,
-`COMPANY.md`), and a full Paperclip runtime built via `docker/Dockerfile` +
-`docker/docker-compose.yml`, orchestrated through npm scripts (`boot:claude|
-codex|opencode`, `company:sync`, `init`). The "lightweight MCP and CLI path" is
-realized through the bundled `docker/mcp/managed-mcp.json` (which pulls
-`@decaf-ts/mcp-server`) and the `bin/init.mjs` interactive initializer. It is a
-leaf: it consumes decaf-ts modules (utils/cli/mcp-server) as dev tooling and is
-not depended on by other framework packages (no `bin`, no runtime
-`dependencies`, only `devDependencies`).
+`with-ai` is the single authoritative source for decaf skills, agents, and
+markdown content — and, since the DECAF-51 port, also the home of the decaf
+CLI/MCP tooling surface. It is a decaf-cli module package: its command modules
+live under `src/cli/` and are auto-picked-up by the `decaf` CLI
+(`@decaf-ts/cli` discovery) as `decaf with-ai <command>`. It additionally
+hosts a fully detached MCP server (`src/mcp/`) exposing jira/xray/common
+tooling for AI harnesses. The published package now carries the real product
+code — CLI commands, the MCP runtime, the `@decaf-ts/crypto`-based encryption
+pipeline, and the symlinking skill installer — alongside the operational
+bundle (`agents/`, `skills/`, `company/`, docker orchestration). It consumes
+the decaf-ts foundation (`logging`, `core`, `crypto`, `db-decorators`, `cli`)
+as runtime dependencies; no decaf-ts module imports it.
+
+The approved scope, goals, requirements, and decision provenance live in the
+DECAF-51 specification record
+[`workdocs/ai/project/specifications/DECAF_51.md`](../../specifications/DECAF_51.md);
+this chapter documents the delivered architecture only.
 
 ### 5.2 Architecture & structure
 
-The published `src/` is the **unmodified decaf-ts `ts-workspace` template**
-(every JSDoc tag references `module:ts-workspace`), not domain logic for
-"with-ai". The real product is operational/data content plus scripts:
+| Area | Contents |
+|---|---|
+| `src/cli/` | `cli-module.ts` (the `decaf with-ai` command group auto-discovered by `@decaf-ts/cli`) and `commands/`: `mcp` (boots the MCP server), `encrypt-assets` (build-time content encryption), `install-skills` (harness skill installation) |
+| `src/mcp/` (core) | `McpBoot.ts` (detached boot + transport selection), `McpServerService.ts` (SDK server + the per-module registration surface), `McpModuleRegistry.ts` (`@mcpModule()` self-registration), `McpPolicyService.ts` (destructive-tool policy), `RequestClientFactory.ts` (per-request lazy-credential clients), `StderrLogging.ts` (stderr-only logger factory), `McpContentResolver.ts` (packaged-content reader with `.enc` decryption), `McpTypes.ts` (module/tool/template contracts), `modules.ts` (the module manifest) |
+| `src/mcp/common/` | `CommonModule` — the `with-ai-ping` health-check/reference tool |
+| `src/mcp/jira/` | `JiraModule` (21 tools + ticket-template resources), `JiraClientFactory` (per-request `Version3Client`/`XrayClient` builders), `JiraEnvironment` (lazy credentials, multi-project allowlist, defaults, rate-limit delay), `JiraErrors`, `JiraLogging` (axios logging), `rate-limit`, `create-issue`, `ticket-create`, `ticket-templates` (canonical skills-asset templates), `tool-result`, `adf/` (markdown→ADF pipeline), `markdown/` (ADF→markdown), `schemas/` (zod input schemas ported from the legacy jira module), `tools/` (one file per tool) |
+| `src/mcp/xray/` | `XrayModule` (4 tools: `jira-xray-step-{add,update,list,delete}`), `XrayStepApi`, `tools/` |
+| `src/crypto/` | `EncryptionService` — `@decaf-ts/crypto` `CryptoService.encrypt/decrypt`, JSON envelope, `encryptTree`/`decryptTree` |
+| `src/skills/` | `SkillInstaller` — decrypt-at-install + symlink into harness skill directories |
+| `src/bin/` | `mcp.ts` — the standalone `with-ai-mcp` bin (boots the MCP server without the decaf CLI wrapper) |
+| `src/index.ts`, `src/utils.ts`, `src/namespace/`, `src/version.ts` | template scaffold barrel (`complexFunction` etc.) + the `VERSION` build placeholder |
 
-- `src/` — template barrel (`index.ts`), `utils.ts` (`complexFunction`), `namespace/`
-  (`Class`, `Interface`, `type.ts`, `children/`), `bin/cli.ts` (60s countdown demo).
-- `bin/` — `init.mjs` (interactive env-file generator + harness boot),
-  `sync-codex.sh`, `tag-release.sh`.
-- `docker/` — `Dockerfile`, `docker-compose.yml` (+ override/production),
-  `paperclip/{claude,codex,opencode}.yaml` harness manifests, `mcp/managed-mcp.json`
-  + README, `bootstrap-company.sh` entrypoint, and `scripts/` (sync-company,
-  reconcile-stuck-agents, watch-company-skills, switch-harness, ensure-env-files,
-  install-agent-pixels, enforce-isolated-workspace-gate, patch-plugin-ui-static,
-  harness-login, down).
-- Top-level data dirs: `agents/` (43 agent instruction bundles, each
-  `AGENTS.md`/`SOUL.md`/`HEARTBEAT.md`/`TOOLS.md`); `skills/` (244 `SKILL.md`
-  files across 19 namespaces: `decaf-ts` 110, `common` 39, `elastic` 35,
-  `hashicorp` 16, …); `company/` (runtime company package, gitignored);
-  `paperclip/` (`README.md`, `application.yaml`); `paperclip-data/` (live
-  instance DB/auth/instances/plugins, gitignored); `projects/` (`decaf-ts`
-  project definition); `helm/paperclip/` Kubernetes chart; `terraform/local/`
-  local minikube provisioning; `vendor/fable-method/` vendored eval repo used by
-  integration tests.
+Top-level data dirs (`agents/`, `skills/`, `company/`, `paperclip/`,
+`projects/`, `helm/`, `terraform/`, `vendor/`, `docker/`, `bin/`) are the
+operational Paperclip bundle described in the original research brief; the
+docker/company orchestration is unchanged by the DECAF-51 port.
 
-### 5.3 Public API surface
+### 5.3 The CLI/MCP split
 
-From `src/index.ts` (the template API, unrelated to the AI/skills/Paperclip
-functionality in the package description): `complexFunction(arg1="default")`;
-`Class`; `Interface`; `Type<T>`; `ChildClass<T>`; `ChildInterface<T>`; `Enum`;
-`something<T extends Class,V>(...)`; `VERSION` (placeholder `"##VERSION##"`).
+Two invocation surfaces share one package but are strictly detached:
 
-### 5.4 Patterns and WHY
+- **CLI surface** — `decaf with-ai mcp|encrypt-assets|install-skills`,
+  registered through standard decaf-cli discovery (`src/cli/cli-module.ts`).
+- **MCP surface** — everything under `src/mcp/`, booted either via
+  `decaf with-ai mcp` or the standalone `with-ai-mcp` bin.
 
-- **Skills packaging** — each skill is a directory with a `SKILL.md` carrying
-  YAML frontmatter (`name`, `description`, optional explicit `key:` for
-  `common/*` and `paperclipai/*`, `categories`) plus optional `references/`/
-  `scripts/`/`assets/` siblings (synced by `copySiblingAssetDirs`).
-  `decaf-ts/*` skills have no explicit key; their live slug is the repo path
-  with `/` flattened to `-`, with a `SLUG_EXCEPTIONS` map for legacy divergences.
-  WHY: a single authoring format drives both the catalog and the live instance.
-- **Agents packaging** — each agent dir has `AGENTS.md` (frontmatter: `name`,
-  `title`, `reportsTo`, `skills:` list) plus `SOUL.md`/`HEARTBEAT.md`/`TOOLS.md`;
-  frontmatter is consumed at import time, only the body is stored as the agent
-  prompt; the active harness manifest supplies `adapter.type`/`config`,
-  `runtime`, `permissions` per agent slug.
-- **MCP server integration** — `docker/mcp/managed-mcp.json` is baked into the
-  image at `/etc/claude-code/managed-mcp.json` and is the exclusive, zero-trust
-  MCP allowlist for in-container agents; it defines read/write-split servers
-  (github, google, microsoft mail/calendar/teams), single `playwright`, and
-  `@decaf-ts/mcp-server`-routed `xray`/`jira` entries; credentials resolve from
-  container env via `${VAR:-}`. WHY: a single declarative allowlist makes the
-  in-container MCP surface auditable.
-- **CLI init (`bin/init.mjs`)** — parses `.env.secret.template`/
-  `.env.projects.template`, generates `openssl rand -hex 32` secrets, fills
-  `USER_GID`/`USER_UID`, rewrites `PAPERCLIP_DATA_DIR`/
-  `COMPANY_REPOSITORY_PATH`, prompts for a harness, runs `npm run boot:<harness>`,
-  waits for health, scrapes the board-claim URL from `docker logs`, and tries to
-  open a browser.
-- **Docker compose orchestration** (`boot:claude|codex|opencode`) — each runs
-  `ensure-env-files.sh` then `PAPERCLIP_HARNESS=<h> docker compose --env-file
-  .env --env-file .env.secret --env-file .env.projects -f docker/docker-compose.yml
-  -f docker/docker-compose.override.yml up --build --detach`.
+Detachment rules (DECAF-51):
 
-### 5.5 Lifecycle / configuration / environment
+- **MCP code must not import CLI command modules** — no shared
+  process-lifecycle state. Enforced by an ESLint `no-restricted-imports` rule
+  scoped to `src/mcp/**/*.ts` that forbids `**/cli/**` and `**/cli-module*`
+  imports. The dependency direction is one-way: the `mcp` CLI command is a
+  thin launcher that calls `bootMcpServer`; the MCP runtime never references
+  the CLI layer.
+- **stdout is reserved for MCP JSON-RPC under the stdio transport** (Req-4).
+  Under stdio, `applyStderrOnlyLogging()` swaps the decaf `Logging` factory
+  to a stderr-writing `MiniLogger` subclass for every logging context in the
+  process, before anything else happens at boot — no log level can ever
+  pollute the protocol channel.
+- **The decaf CLI wrapper prints a farewell to stdout when a command
+  resolves**, so under `decaf with-ai mcp` the command action stays pending
+  until the transport closes — stdout stays pure JSON-RPC for the entire
+  session. The `with-ai-mcp` bin (`src/bin/mcp.ts`) avoids the wrapper
+  entirely and is the entry point harnesses should spawn directly.
+- **Transports** — stdio (default) and Streamable HTTP
+  (`StreamableHTTPServerTransport`, JSON-response mode, UUID session ids,
+  default port 3111; the bin reads `MCP_PORT`). Any other transport value
+  fails with a clear decaf error. The port is specified in
+  `workdocs/ai/project/specifications/DECAF_51.md`; the two transports carry
+  different security postures:
+
+  - **stdio is unaffected by the http security model** — the process pipe is
+    the protocol channel, so no token is required and logging is
+    stderr-only.
+  - **The http transport binds loopback only by default** (`127.0.0.1`);
+    binding any other interface is an explicit `--host` opt-in.
+  - **The http transport requires a bearer token** — `--token <value>` or
+    the `WITH_AI_MCP_TOKEN` environment variable (the `with-ai-mcp` bin
+    also honors `--host`/`MCP_HOST`); boot fails fast when neither is
+    given. Every request is authenticated before it reaches the transport:
+    a timing-safe `Bearer` comparison rejects missing/wrong tokens with
+    `401` plus a `WWW-Authenticate` challenge, and any request carrying a
+    browser `Origin` header is rejected with `403` (the surface targets
+    programmatic clients, for which an `Origin` header is always
+    cross-origin).
+
+```mermaid
+sequenceDiagram
+    participant Harness as AI harness / operator
+    participant Bin as with-ai-mcp (or decaf with-ai mcp)
+    participant Boot as bootMcpServer
+    participant Log as applyStderrOnlyLogging
+    participant Srv as McpServerService.load
+    participant SDK as MCP SDK server
+    Harness->>Bin: spawn process (stdio)
+    Bin->>Boot: bootMcpServer({transport:"stdio"})
+    Boot->>Log: swap Logging factory (stderr only)
+    Boot->>Srv: load() — no credentials read here
+    Srv->>SDK: new SdkMcpServer + register every module's tools/templates
+    Boot->>SDK: connect(StdioServerTransport)
+    loop until transport closes
+        SDK-->>Harness: JSON-RPC on stdout (all logging on stderr only)
+    end
+```
+
+### 5.4 Per-module self-registration
+
+MCP capabilities are organized per module under `src/mcp/{jira,xray,common}`
+and self-register against the server core (Req-2: adding a module requires no
+core changes):
+
+- `@mcpModule()` is a class decorator that instantiates the decorated
+  `McpModule` implementation and registers it in the shared
+  `defaultMcpModuleRegistry` at import time.
+- `src/mcp/modules.ts` is the module manifest; `McpServerService.load()`
+  imports it purely for its side effects, then iterates whatever is
+  registered. The core never references concrete modules.
+- Each module receives an `McpModuleContext` registration surface —
+  `registerTool`, `registerTemplate`, plus the shared
+  per-request `clientFactory`. Modules never touch the SDK server directly.
+- **Failure isolation:** a module whose `register()` throws is logged and
+  skipped; it never takes the server down. Credentials are never read during
+  registration.
+- **Tools** are defined by name/title/description, a zod `inputSchema`
+  (normalized to a raw zod shape for the SDK), MCP SDK annotations
+  (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`), and
+  a `run` handler.
+- **Templates** are registered both in an in-memory registry and as MCP
+  resources under the `with-ai://templates/{id}` URI scheme with
+  `text/markdown` content.
+- **Prompts:** none — per the DECAF-51 scope amendment the prompts
+  registration surface was removed from `McpServerService` entirely;
+  `McpModuleContext` exposes a tools/templates-only surface.
+
+**Adding a new module** requires no core changes: create `src/mcp/<name>/`,
+implement `McpModule` (a `name` plus `register(context)`), decorate the class
+with `@mcpModule()`, and add one export line to `src/mcp/modules.ts`.
+
+**Destructive-tool policy (US-5).** `McpPolicyService` flags destructive
+tools in their advertised description (a `[DESTRUCTIVE]` prefix plus a policy
+note, so they are clearly displayed even in MCP clients that ignore SDK
+annotations) and gates every invocation server-side before the module handler
+runs: tool calls must pass `confirm: true`, or the operator sets
+`MCP_DESTRUCTIVE_POLICY` to `allow` (disable the gate) or `block`
+(hard-fail). The mode is resolved per call, never cached, so operators can
+flip the variable without restarting the server.
+
+### 5.5 Per-request clients and the Jira allowlist
+
+**Per-request client construction with lazy credentials** is a hard
+requirement of the DECAF-51 delivery: boot must never read credentials, and
+missing or invalid credentials must never break boot — they fail only the
+individual tool call while the server keeps running.
+
+- `EnvRequestClientFactory` (the default `RequestClientFactory`) holds one
+  builder per client kind (`jira`, `xray`). Modules register their builders
+  at boot; registering a builder reads no credentials.
+- `createClient(kind)` is invoked inside each tool's `run` handler: it reads
+  the kind's credential variables from the environment at that moment
+  (`JIRA_HOST`/`JIRA_EMAIL`/`JIRA_API_TOKEN` for jira;
+  `XRAY_HOST`/`XRAY_CLIENT_ID`/`XRAY_CLIENT_SECRET` for xray), throws a clear
+  decaf error naming the missing variables when incomplete, and otherwise
+  builds a fresh client for the request.
+- `JiraClientFactory` builds a `jira.js` `Version3Client` (basic auth, host
+  normalization, axios logging attached) and the GraphQL `XrayClient` (default
+  host `https://eu.xray.cloud.getxray.app`) per request.
+- The xray module builds its jira client even more lazily — only when a step
+  request actually needs to resolve an issue key to its id.
+- Optional per-kind credential providers can override environment resolution
+  (`registerCredentialProvider`).
+
+**Multi-project Jira allowlist.** The legacy single-project
+`JIRA__PROJECT_KEY` lock is gone: one server operates across projects/spaces
+of a Jira instance, optionally constrained by `JIRA_PROJECT_KEYS`
+(comma- or whitespace-separated project keys; unset/empty means unrestricted
+multi-project access).
+
+- `JiraModule` pre-checks project-sensitive arguments against the allowlist
+  **before** the per-request client is built — a disallowed project fails
+  with the allowlist error even when credentials are also missing — and the
+  tools re-check internally (defense in depth).
+- JQL arguments are scanned for `project = "X"` / `project in (A, B)` clauses
+  and each referenced project is allowlist-checked; list queries can be
+  constrained with a generated `project IN (...)` clause.
+- `JIRA_DEFAULT_PROJECT_KEY` / `JIRA_DEFAULT_ISSUE_TYPE` provide create-time
+  fallbacks (the default project key must be inside the allowlist when one is
+  configured); `JIRA_RATE_LIMIT_RETRY_DELAY_MS` (default 3000) governs
+  rate-limit retries.
+
+### 5.6 Encryption pipeline and skill installation
+
+**Build-time encryption (`src/crypto/`).** `EncryptionService` wraps
+`@decaf-ts/crypto`'s `CryptoService.encrypt/decrypt` (AES-256-GCM with
+PBKDF2-SHA256 key derivation), replacing the legacy raw-node-crypto
+`obfuscate-prompts.cjs`. Every encrypted file is a JSON envelope
+(`{v, alg, kdf, salt, data}`) where `data` holds the base64 IV+ciphertext and
+`salt` is the PBKDF2 salt required for decryption. The key is the
+out-of-band `ENCRYPTION_KEY` environment variable; a missing key fails fast
+with a clear error.
+
+- `decaf with-ai encrypt-assets [--targets skills,agents] [--out dist/content]
+  [--in-place] [--remove-original]` encrypts every file under each target
+  tree. Out-mode (the default `--out dist/content` flow) writes only the
+  `.enc` envelopes — plaintext is never materialized in the output tree at
+  all, so even an interrupted build cannot ship cleartext AI content, and
+  `--remove-original` is a no-op there; `--in-place` writes `.enc` files
+  next to their sources instead.
+- `build:public` = `build:prod` + `encrypt-assets --targets skills,agents
+  --out dist/content --remove-original` — the public npm artifact ships ALL
+  AI-value content encrypted; only decryption-key holders can use the CLI and
+  decrypt/link skills.
+- Repo-access users keep seeing/editing cleartext markdown in the repo;
+  generated `.enc` outputs and the `.decrypted/` staging directory are
+  gitignored and never committed (Req-6).
+
+**Skill installation (`src/skills/`).** `SkillInstaller` installs skills into
+an AI harness by decrypting the packaged `.enc` content **at install time,
+inside the installed `@decaf-ts/with-ai` node_modules package**, then
+symlinking harness skill-directory entries to the decrypted markdown (US-3;
+installation is gated on holding the decryption key):
+
+1. Resolve the installed package root (walking up from the module location;
+   `--package-dir` overrides).
+2. Locate the encrypted content root (`dist/content` or `lib/content`).
+3. Fail fast when `ENCRYPTION_KEY` is missing or invalid.
+4. Decrypt the tree into `<package>/.decrypted/content` (gitignored).
+5. Discover skill directories (directories containing a `SKILL.md`) and
+   symlink each wanted skill into the harness skills directory
+   (`--harness claude|codex|opencode`; default target `.claude/skills`,
+   `.codex/skills`, or `.opencode/skills`; `--target` overrides; `--skills`
+   selects a subset). An existing real (non-symlink) directory at a target is
+   refused rather than overwritten.
+
+**Packaged-content reads (`McpContentResolver`).** MCP-side content (e.g.
+ticket templates) resolves from the first available content root:
+`WITH_AI_CONTENT_ROOT` override → installed `dist/content` → `lib/content` →
+the repo package root (plaintext). Each candidate path is tried
+plaintext-first, then as `.enc` (decrypted via `EncryptionService`). The
+canonical ticket templates live once in the skills catalog —
+`skills/common/maintain-domain-docs/assets/{bug,incident,release,specification,test}-template.md`
+— and `jira-ticket-create` reads them from there; no duplicate ticket-template
+copies exist anywhere (Req-3; the `feature` ticket type is backed by the
+`specification` domain-record template, the catalog's canonical name for
+product/feature work).
+
+### 5.7 MCP tool invocation flow
+
+```mermaid
+sequenceDiagram
+    participant Client as MCP client (AI harness)
+    participant SDK as MCP SDK server
+    participant Policy as McpPolicyService
+    participant Module as jira/xray tool run handler
+    participant Factory as EnvRequestClientFactory
+    participant Env as process.env
+    participant Jira as Jira REST (jira.js) / Xray GraphQL
+    Client->>SDK: tools/call jira-issue-list {projectKey, jql}
+    SDK->>Policy: enforce(definition, args)
+    Policy->>Policy: destructive? mode confirm/allow/block
+    SDK->>Module: run(args)
+    Module->>Module: assertRequestWithinAllowlist (pre-client, defense in depth)
+    Module->>Factory: createClient("jira")
+    Factory->>Env: read JIRA_HOST / JIRA_EMAIL / JIRA_API_TOKEN (now, not at boot)
+    Env-->>Factory: values (or missing → clear decaf error, server keeps running)
+    Factory->>Jira: new Version3Client (fresh, per request)
+    Module->>Jira: tool API call (rate-limit aware)
+    Jira-->>Module: results
+    Module-->>SDK: CallToolResult (toCallToolResult)
+    SDK-->>Client: tool result on stdout (JSON-RPC)
+```
+
+### 5.8 Lifecycle / configuration / environment
+
+CLI/MCP lifecycle and environment:
+
+- **Boot**: `decaf with-ai mcp
+  [--transport stdio|http] [--port] [--host] [--token] [--endpoint]` or the
+  `with-ai-mcp` bin (stdio by default; `--transport http` with
+  `MCP_PORT`/`MCP_HOST`/`WITH_AI_MCP_TOKEN` — loopback bind and a bearer
+  token are required, see §5.3). `npm run mcp` is `BANNER=false decaf with-ai mcp`.
+- **Build**: `npm run build` (dev) / `build:prod`; `npm run build:public`
+  produces the encrypted public artifact.
+- **Tests**: `test:unit` / `test:all` (jest; the default test regex covers
+  `tests/` only); `test:dist-assets` validates the production artifact
+  (`RUN_DIST_TEST=1`); `server:inspect` / `server:inspect:dist` run the MCP
+  inspector against the dev/production artifact; `test:live:jira` /
+  `test:live:xray` run the idempotent, self-reverting live suites with
+  manually injected credentials (their npm scripts also accept the legacy
+  `JIRA__*`/`XRAY__*` variable names as fallbacks).
+
+Environment variables read by the with-ai CLI/MCP surface:
+
+| Area | Env vars |
+|---|---|
+| Jira credentials (lazy, per request) | `JIRA_HOST`, `JIRA_EMAIL`, `JIRA_API_TOKEN` |
+| Jira policy | `JIRA_PROJECT_KEYS` (multi-project allowlist; unset = unrestricted), `JIRA_DEFAULT_PROJECT_KEY`, `JIRA_DEFAULT_ISSUE_TYPE`, `JIRA_RATE_LIMIT_RETRY_DELAY_MS` (default 3000) |
+| Xray credentials (lazy, per request) | `XRAY_HOST` (default `https://eu.xray.cloud.getxray.app`), `XRAY_CLIENT_ID`, `XRAY_CLIENT_SECRET` |
+| MCP policy | `MCP_DESTRUCTIVE_POLICY` (`confirm` default / `allow` / `block`) |
+| Content / crypto | `WITH_AI_CONTENT_ROOT` (override the packaged-content root), `ENCRYPTION_KEY` (out-of-band; required for encrypt/decrypt/install) |
+| Transport | `MCP_PORT` (HTTP port for the `with-ai-mcp` bin), `MCP_HOST` (HTTP bind address; loopback default), `WITH_AI_MCP_TOKEN` (mandatory http bearer token; stdio needs none) |
+| Inspector | `DANGEROUSLY_OMIT_AUTH` |
+
+Operational (Paperclip bundle) lifecycle:
 
 - **Init**: `npm run init` → `bin/init.mjs` (interactive; writes `.env.secret`
   chmod 0600 and `.env.projects`).
@@ -810,7 +789,7 @@ functionality in the package description): `complexFunction(arg1="default")`;
   host → 3100 container), `PAPERCLIP_STALE_ALIVE_GRACE_MS` (300000),
   `PAPERCLIP_ISOLATED_WORKSPACES_ALLOWED`.
 
-### 5.6 Data & control flow
+### 5.9 Data & control flow (Paperclip bundle)
 
 Booting the Paperclip dev harness: `npm run boot:opencode` →
 `ensure-env-files.sh` materializes missing gitignored files → `docker compose ...
@@ -830,22 +809,43 @@ authenticated CLI sessions. `company:sync` runs `sync-company.mjs` twice — it
 `docker exec`s the in-container CLI, compares repo `skills/`+`agents/` against
 live state, and mutates only diffs.
 
-### 5.7 Testing
+### 5.10 Testing
 
-Jest config uses `ts-jest`. Files: `tests/unit/ts-workspace.test.ts` (exercises
-the `src/` template API via `loadWorkspaceModule()` which honors `TEST_TARGET`);
-`tests/integration/fable-method.bulk.test.ts` (performance/bulk-audit over
-vendored `vendor/fable-method/eval/scenarios`, using
-`@decaf-ts/utils/tests`' `JestPerformanceRunner`); `tests/workspace-target.ts`
-(target-loader helper); `tests/trivy-fixture/` (deliberately-vulnerable
-`lodash@4.18.1` for Trivy scanning). Gaps: no tests cover the actual product
-surface — `bin/init.mjs`, `docker/scripts/sync-company.mjs`, the harness YAML
-manifests, `managed-mcp.json`, or the compose orchestration. Unit tests only
-exercise the generic template `src/`.
+`tests/unit/` (jest + ts-jest, CJS mode with targeted transpiling of the
+ESM-only unified/remark packages pulled in by the ADF pipeline) covers the
+ported surface: `crypto/` (EncryptionService), `skills/` (SkillInstaller),
+`mcp/` (McpBoot, McpContentResolver, McpPolicyService, McpRegistration,
+RequestClientFactory, CommonModule), `mcp/jira/` (ADF conversion, allowlist,
+client factory, environment, per-request client, tool handlers/registration,
+link utils, rate limit, ticket templates), and `mcp/xray/` (module
+registration, per-request clients, step API, tools).
+`tests/unit/mcp-dist-assets.test.ts` (ported from the legacy package)
+validates the production artifact when `RUN_DIST_TEST=1`. `live/jira-live.test.ts`
+and `live/xray-live.test.ts` are the idempotent, self-reverting live suites
+(create → verify → delete, loud user-facing warning on cleanup failure); they
+require manually injected credentials, sit outside the default jest test
+regex, and run only via their explicit npm scripts. The pre-existing suites
+remain: `tests/unit/ts-workspace.test.ts` (template scaffold smoke test) and
+`tests/integration/fable-method.bulk.test.ts` (vendored eval bulk audit). The
+operational bundle (docker orchestration, bin scripts, agents/skills content)
+is not covered by these suites.
 
-### 5.8 Minimal usage examples
+### 5.11 Minimal usage examples
 
-From `package.json` scripts (real):
+CLI/MCP surface (from `package.json` scripts and the command modules):
+
+```bash
+decaf with-ai mcp                                # boot the MCP server over stdio
+with-ai-mcp                                      # standalone bin, no CLI wrapper
+decaf with-ai mcp --transport http --port 3111   # Streamable HTTP transport
+npm run build:public                             # build + encrypt AI content for npm
+decaf with-ai encrypt-assets --in-place          # .enc next to sources (gitignored)
+decaf with-ai install-skills --harness claude    # decrypt + symlink all skills
+npm run server:inspect                           # MCP inspector against the dev artifact
+JIRA_HOST=... JIRA_EMAIL=... JIRA_API_TOKEN=... npm run test:live:jira
+```
+
+Operational bundle (from `package.json` scripts, real):
 
 ```bash
 npm run init            # initialize env files and boot a harness interactively
@@ -853,21 +853,32 @@ npm run boot:opencode   # boot the opencode harness directly
 npm run company:sync    # reconcile repo skills/agents onto the live instance
 ```
 
-### 5.9 Consumer notes / trade-offs
+### 5.12 Consumer notes / trade-offs
 
-- "Operational internal tooling" rather than a stable library: the published
-  `src/` API is the unchanged `ts-workspace` template and carries no
-  AI-specific value; the real product is the docker/company/skills/agents
-  bundle, which is **not** part of the `files` array (the package ships only
-  `lib` and `dist`).
-- Requires Docker, a host `decaf-ts` checkout, and pre-authenticated
-  Claude/Codex/OpenCode CLI sessions.
-- Secret hygiene: `.env.secret`/`.env.projects` exist on disk but are
-  gitignored; `.env` is tracked and contains deployment config (not secrets, but
-  operators must avoid adding secrets there).
-- Versioning: devDependencies pinned to `latest` for utils/cli and `^1.15.2`
-  for mcp-server, while in-container `managed-mcp.json` uses
-  `@decaf-ts/mcp-server@latest` (drift risk).
+- The MCP surface is tools/templates only — **no prompts** (scope amendment);
+  dropped prompt/command capabilities are covered by the with-ai skills
+  catalog plus Paperclip orchestration.
+- Under stdio, nothing may ever write to stdout except the SDK: the stderr
+  logger swap happens first at boot, and the CLI action stays pending until
+  the transport closes so the wrapper's farewell cannot pollute the channel.
+- Credentials are read from the environment per tool request; there is no
+  credential caching layer — rotating credentials takes effect on the next
+  tool call without a restart (same for `MCP_DESTRUCTIVE_POLICY`).
+- The public npm artifact ships AI-value content encrypted; only
+  `ENCRYPTION_KEY` holders can use the CLI skill decrypt/install and read
+  packaged templates. Repo-access users see cleartext; `.enc` outputs and
+  `.decrypted/` are gitignored.
+- The template scaffold (`src/index.ts`, `src/utils.ts`, `src/namespace/`)
+  still ships alongside the real product code; the ts-workspace unit test
+  remains as the multi-target loader smoke test.
+- The operational bundle still requires Docker, a host `decaf-ts` checkout,
+  and pre-authenticated Claude/Codex/OpenCode CLI sessions; secret hygiene
+  for `.env.secret`/`.env.projects` (gitignored) and the tracked `.env` is
+  unchanged.
+- The in-container `docker/mcp/managed-mcp.json` allowlist still routes its
+  jira/xray entries through `@decaf-ts/mcp-server@latest` (with a temporary
+  routing note in the file); migrating that allowlist to the with-ai MCP
+  server is follow-up work outside the DECAF-51 delivered surface.
 
 ## 6. reusable-actions — `@decaf-ts/reusable-actions` (no npm package)
 
@@ -1380,6 +1391,15 @@ under `auth/volumes/` (only `oauth2proxy-templates` present).
 
 Recorded verbatim (with module tag) from the research briefs' own "Inaccuracies
 found" sections. No fixes were applied.
+
+> **DECAF-51 note.** Entries tagged `[mcp-server]` describe the retired
+> package and are preserved as the historical record (§4). Entries tagged
+> `[with-ai]` describe the state at brief-authoring time; the DECAF-51 port
+> resolves at least the following recorded with-ai findings: "`src/` is the
+> unmodified `ts-workspace` template" (real product code now lives in
+> `src/{cli,mcp,crypto,skills}`) and "build scripts prepend a shebang … yet
+> there is no `bin` field" (the package now ships the `with-ai-mcp` bin). The
+> entries themselves remain untouched below.
 
 ### 11.1 mcp-server
 
