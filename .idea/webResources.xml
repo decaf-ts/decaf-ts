@@ -47,6 +47,13 @@
             <path value="file://$PROJECT_DIR$/crypto/workdocs" />
             <path value="file://$PROJECT_DIR$/integrations/workdocs" />
             <path value="file://$PROJECT_DIR$/with-ai/workdocs" />
+            <path value="file://$PROJECT_DIR$/with-ai/skills" />
+            <path value="file://$PROJECT_DIR$/with-ai/projects" />
+            <path value="file://$PROJECT_DIR$/with-ai/paperclip" />
+            <path value="file://$PROJECT_DIR$/with-ai/departments" />
+            <path value="file://$PROJECT_DIR$/with-ai/agents" />
+            <path value="file://$PROJECT_DIR$/with-ai/vendor" />
+            <path value="file://$PROJECT_DIR$/flipbored/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>

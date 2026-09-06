@@ -79,7 +79,7 @@ test/spec: `McpServerService.registerTool` extracts the raw zod shape and
 wraps every handler with `McpPolicyService.enforce`.
 
 **One canonical skip-CI token across local release and CI.** — Why:
-`bin/tag-release.sh` normalizes `-no-ci`/`[skip ci]``/`[ci skip]`/… to a single
+`decaf utils tag-release` normalizes `-no-ci`/`[skip ci]``/`[ci skip]`/… to a single
 `[skip ci]` before commit/tag, matching the assumption baked into
 `reusable-actions` publish/release workflows. Enforcing test/spec:
 `publish-on-release.yaml` explicitly checks
@@ -379,21 +379,21 @@ follows.
   (github, google, microsoft mail/calendar/teams), single `playwright`, and
   `@decaf-ts/mcp-server`-routed `xray`/`jira` entries; credentials resolve from
   container env via `${VAR:-}`.
-- **CLI init (`bin/init.mjs`)** — parses `.env.secret.template`/
+- **CLI init (`decaf with-ai init`)** — parses `.env.secret.template`/
   `.env.projects.template`, generates `openssl rand -hex 32` secrets, fills
   `USER_GID`/`USER_UID`, rewrites `PAPERCLIP_DATA_DIR`/
   `COMPANY_REPOSITORY_PATH`, prompts for a harness, runs `npm run boot:<harness>`,
   waits for health, scrapes the board-claim URL from `docker logs`, and tries to
   open a browser.
 
-## 6. reusable-actions / templates / docker / bin Design
+## 6. reusable-actions / templates / docker / decaf CLI Design
 
 ### 6.1 reusable-actions
 
 Composite-by-`workflow_call`: every shared workflow uses `on: workflow_call`
 (+ `workflow_dispatch`); callers invoke with `uses: ...@main` and
 `secrets: inherit`. Skip-CI normalization pairs
-`bin/tag-release.sh` (canonical `[skip ci]`) with `publish-on-release.yaml`'s
+`decaf utils tag-release` (canonical `[skip ci]`) with `publish-on-release.yaml`'s
 explicit `[skip ci]` check. Trivy→Renovate pairing: `trivy-scan.yml` uploads
 `trivy-report.json` then dispatches `renovate-trigger`/`renovate-dep-trigger`;
 `renovate.yml` reads that report to scope `matchPackageNames` to vulnerable
@@ -440,16 +440,17 @@ Helm charts re-derive for Kubernetes. Insecure defaults (`FLEET_INSECURE=true`,
 `OAUTH2_PROXY_SSL_INSECURE_SKIP_VERIFY: true`) are appropriate only for local
 dev.
 
-### 6.5 bin (workspace orchestration)
+### 6.5 decaf CLI (workspace orchestration, ported from the former `bin/`)
 
-Submodule-driven orchestration (`modules.js` is the single source of truth);
-local linking instead of publishing for dev (`npm-link.js` symlinks
-`node_modules/@decaf-ts/<dep>/lib` to workspace source, skipping `utils` and
-`logging` because they cross-reference each other); aggregate dist bundling
-(`bundle.js` + `releases/bundles.json` produce `@decaf-ts/dist-*`
-meta-packages); vendored tooling (`build-scripts.cjs`/`update-scripts.cjs` are
-committed bundled artifacts so submodules can `npx` them without a separate
-install).
+Submodule-driven orchestration (`decaf utils modules` is the single source of
+truth); local linking instead of publishing for dev (`decaf utils npm-link`
+symlinks `node_modules/@decaf-ts/<dep>/lib` to workspace source, skipping
+`utils` and `logging` because they cross-reference each other); aggregate dist
+bundling (`decaf utils bundle` + `releases/bundles.json` produce
+`@decaf-ts/dist-*` meta-packages); shared tooling
+(`decaf utils build-scripts`/`decaf utils update-scripts` ship as command
+modules in `@decaf-ts/utils`, so submodules need no per-package script
+copies).
 
 ## 7. Functional Requirements
 
@@ -579,7 +580,7 @@ listed. No others are invented.
 
 | Env var | Purpose |
 |---|---|
-| `NPM_TOKEN` | token-authenticated install/publish (via `CredentialsCommand` / `bundle.js` / `bin/tag-release.sh`) |
+| `NPM_TOKEN` | token-authenticated install/publish (via `CredentialsCommand` / `decaf utils bundle` / `decaf utils tag-release`) |
 
 Credentials resolution order: env var → OS keychain → deprecated legacy file
 (with warning). No other `utils`-owned env vars are documented in the brief.
@@ -647,17 +648,17 @@ sensitive extra-secrets supplied via `-var`/`TF_VAR_`.
 `ELASTIC_APM_SECRET_TOKEN`. Compose expects a `.env` file (referenced in
 `setup` error messages) but no `.env`/`.env.example` is committed.
 
-### 9.7 bin
+### 9.7 decaf CLI (root tooling)
 
 | Env var | Purpose |
 |---|---|
-| `DRY_RUN=1` | dry-run `bundle.js` manifest generation without publishing |
+| `DRY_RUN=1` | dry-run `decaf utils bundle` manifest generation without publishing |
 | `TIMEOUT` | seconds to wait between bundle publishes (default 20) |
-| `TOKEN` / `NPM_TOKEN` | publish credentials for `bundle.js` |
+| `TOKEN` / `NPM_TOKEN` | publish credentials for `decaf utils bundle` |
 | `VERSION` | docker tag override |
 
-`tag-release.sh` reads `.token` (git push) and `.npmtoken` (npm publish);
-requires branch `master`/`main`.
+`decaf utils tag-release` reads `.token` (git push) and `.npmtoken` (npm
+publish) via the credentials resolver; requires branch `master`/`main`.
 
 ### 9.8 reusable-actions / ts-template
 
@@ -673,8 +674,8 @@ Secrets relevant to the tooling packages (per the briefs). No literal values
 are recorded.
 
 - **utils / cli / bin** — npm publish token (`NPM_TOKEN` / `.npmtoken`) and git
-  push token (`.token`) used by `CredentialsCommand`, `bundle.js`, and
-  `bin/tag-release.sh`. Credentials resolution prefers env (CI) → OS keychain
+  push token (`.token`) used by `CredentialsCommand`, `decaf utils bundle`, and
+  `decaf utils tag-release`. Credentials resolution prefers env (CI) → OS keychain
   (local) → deprecated legacy plaintext file (with warning).
 - **with-ai (MCP/CLI surface)** — `ENCRYPTION_KEY` for AI-content
   encrypt/decrypt and skill installation (out-of-band; never logged, never
@@ -788,13 +789,13 @@ terraform init
 terraform apply
 ```
 
-### bin
+### decaf CLI (root tooling, ported from the former `bin/`)
 
 ```sh
-node bin/run-all.js npm run build:prod
-node bin/npm-link.js --link
-DRY_RUN=1 node bin/bundle.js
-./bin/tag-release.sh --public patch "fix auth bug -bug"
+decaf utils run-all npm run build:prod
+decaf utils npm-link --link
+DRY_RUN=1 decaf utils bundle
+decaf utils tag-release --public patch "fix auth bug -bug"
 ```
 
 ### docker
