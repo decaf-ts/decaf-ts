@@ -1,0 +1,203 @@
+{
+ "version": 1,
+ "packages": [
+  {
+   "path": ".",
+   "classification": "workspace",
+   "allowedVariants": []
+  },
+  {
+   "path": "as-infra",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "as-zod",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "cli",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "core",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "crypto",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "db-decorators",
+   "classification": "non-ui",
+   "allowedVariants": [
+    "web"
+   ]
+  },
+  {
+   "path": "decoration",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "decorator-validation",
+   "classification": "non-ui",
+   "allowedVariants": [
+    "fuzz",
+    "web"
+   ]
+  },
+  {
+   "path": "for-couchdb",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-fabric",
+   "classification": "non-ui",
+   "allowedVariants": [
+    "assets",
+    "infrastructure",
+    "integration2"
+   ]
+  },
+  {
+   "path": "for-http",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-nano",
+   "classification": "non-ui",
+   "allowedVariants": [
+    "helpers"
+   ]
+  },
+  {
+   "path": "for-nest",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-pouch",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-typeorm",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "injectable-decorators",
+   "classification": "non-ui",
+   "allowedVariants": [
+    "web"
+   ]
+  },
+  {
+   "path": "integrations",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "logging",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "mcp-server",
+   "classification": "non-ui",
+   "allowedVariants": [
+    "tickets-description"
+   ]
+  },
+  {
+   "path": "transactional-decorators",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "ts-template",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "utils",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "with-ai",
+   "classification": "non-ui",
+   "allowedVariants": [
+    "evals",
+    "live"
+   ]
+  },
+  {
+   "path": "flipbored",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-angular",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-nextjs",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-react",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-react-native",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "styles",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "ui-decorators",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "web-page",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "demo",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "demo/angular/ew",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "demo/angular/ionic",
+   "classification": "ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "with-ai/plugins/with-ai-ops",
+   "classification": "non-ui",
+   "allowedVariants": []
+  }
+ ]
+}
