@@ -8,6 +8,8 @@
 >
 > **§4.24 addendum (2026-09-17).** The board rejected the gate-4 commit gate (SAA-1364, confirmation card `4f6b574e`, 2026-09-17) because the graph demo crashes on `npm run start:dev` (lazy-chunk module-eval failure of `src/environments/environment.ts` with no `window.ENV` bootstrap) and directed that e2e tests must run against live dev/production targets. This addendum adds one P0 boot-crash clause to the gate-2 test contract (§4.24, test #8); no other section is restructured.
 >
+> **§4.22 addendum (2026-09-17, post-gate-4 rejection).** The re-requested gate-4 commit gate (SAA-1364, confirmation card `3cfe2f66`) was rejected 2026-09-17T01:32Z with six concrete requirements on the graph demo (user's words: "visually much better, but: …"). The rejection reason — recorded verbatim on the card and the SAA-1364 thread — is the board ruling and is encoded normatively as addendum rulings **G4-R1..R6** in §4.22 (each carrying the verbatim-faithful card text, affected existing rulings/findings, fix surfaces, and provenance). G4-R3 explicitly refines D2 (refinement marker, not a contradiction); G4-R5 supersedes the G3-29/PR-H add-node decision (marker added in §4.23); §4.24 gains test rows 9–14; §4.25 gains the PR-I follow-up line. D1–D7 remain untouched.
+>
 > **Gate-3 specification revision (2026-09-16, board-authorized).** The board reopened the delivered graph UI with a strongly negative review and ruled on seven surfaces (rulings D1–D7, recorded verbatim-faithful on the root issue, comment `58812d2a`). Gates 1–3 (SAA-1350 doc re-evaluation; SAA-1351 test-suite review; SAA-1352 read-only demo audit @ `bd0a187`) were each confirmed by the board, culminating in confirmation card `70cbd0f8` (accepted 2026-09-16T13:32Z), which authorized exactly two sequenced gates: **(1) this specification update, (2) gate-4 implementation.** This revision bakes the D1–D7 rulings in as the authoritative rendering contract / demo-behavior section (§4.22), records the 38-finding gate-3 inventory (§4.23), adds the gate-2 test contract (§4.24), records the gate-4 implementation roadmap (§4.25), and supersedes the stale visual rows in their own records: DECAF-32 §21.3, §21.4, §21.6, §21.8.2, §21.10, §21.11 and DECAF-34 §4.1. No implementation starts before this updated record is accepted. Commit authorization for this revision is requested at a later board confirmation; record edits remain uncommitted until then.
 
 ## 1. Overview
@@ -1352,6 +1354,74 @@ Root causes and fix surfaces:
 - **G3-25** — Icon rendering path broken for every reference type: `legacyIconNameOf` returns the catalogue icon **name** (`GraphDiagramAdapter.ts:104-108`) and the template applies it as a CSS class (`[class]="node().data.icon"`) — but `ti-*` names are Tabler **sprite symbol ids** (rendered via `<svg><use>` elsewhere), so icons render as nothing on canvas; `url`/`data:` types are dropped entirely. *Fix surface:* per-reference-type icon rendering.
 - Compliant: the node title is rendered and the description is not — matches D7's title-not-description.
 
+**Gate-4 rejection addendum (2026-09-17) — rulings G4-R1..R6 (normative).**
+
+**Provenance.** The re-requested gate-4 commit gate — SAA-1364 confirmation card `3cfe2f66` ("Commit gate (re-request): approve the DECAF-50 gate-4 commit set") — was **rejected by the board/user on 2026-09-17T01:32Z** with six concrete requirements on the graph demo, introduced by the user's words: "visually much better, but: …". The rejection reason is recorded verbatim in the card result and on the SAA-1364 thread; it is the board ruling and is encoded below normatively with provisional ids **G4-R1..R6**. Each ruling carries the verbatim-faithful card text, the existing rulings/findings it affects, and its fix surfaces. D1–D7 are untouched by this addendum except the explicit **D2-refinement marker in G4-R3** (a refinement, not a contradiction). G4-R5 **supersedes** the G3-29/PR-H add-node decision (supersession marker added in §4.23).
+
+#### G4-R1 — Code node: prefilled split code, no code input port, array-split output
+
+**Card text (verbatim-faithful).** "code node: it should come prefilled with the code to perform the split as instructed (eg there should ne [no] code inport port visible because the property is already filled out - the resulting output of that code node MUST be an [i.e. be] the 'text' input from the data input port, split into an array where each element contain x = 'count' input lines of the 'text'". (Bracketed glosses added; all other spelling/grammar preserved from the card.)
+
+**Ruling (normative).** The code node ships **prefilled with the split code** as part of the backend-serialized workflow. Because the `code` property is already filled, its own **code input port is not rendered/connectable** (the G4-R3 rule applies). The code node's **output is the `text` input received on its data input port, split into an array in which each element contains `x = count` lines of `text`** — the split semantics are fixed by the prefilled code, not authored on the canvas.
+
+**Affected existing rulings/findings.** D2 value-bound-port treatment via G4-R3 (G3-07 fix surface); the demo default workflow's canned inputs (G3-13/G3-32 fix surface — the default workflow must carry the prefilled code through the serialized document, §4.4/§4.10); PR-C run-data plumbing.
+
+**Fix surfaces.** Backend-serialized default workflow (prefilled `code` property); code-node manifest/parameter prefill; port projection under the G4-R3 rule; split-code semantics in the demo default workflow.
+
+#### G4-R2 — foreach addNode: insert into the existing single connection loop; default workflow starts with a Log node inside the loop
+
+**Card text (verbatim-faithful).** "for-each: - the 'addNode', shoul add a node, behind it, in the same 'connection loop' for each already has. there can be no multiple loops on a single foreach. it's also meant, for this default workflow, to start with a log node inside its loog [loop] (so it logs every element of the array resulting from the code node;". (Bracketed gloss added.)
+
+**Ruling (normative).** The foreach's `addNode` action inserts the new node **behind the current node, inside the foreach's existing single connection loop**. A foreach can never have **multiple loops** — loop creation is not an addNode outcome. For the **default workflow**, the loop **starts with a Log node inside it**, so every element of the array produced by the code node is logged.
+
+**Affected existing rulings/findings.** The demo default workflow (G3-13/G3-32); the node-interaction surfaces in §4.22 (addNode is the same interaction family G4-R5 re-ruled); PR-B/PR-H canvas interaction work.
+
+**Fix surfaces.** foreach `addNode` handler (insert-into-existing-loop semantics; forbid loop duplication); demo default workflow seed (Log node inside the foreach loop, wired to the code node's array output).
+
+#### G4-R3 — Fundamental node/port/ui-input rule: unchecked input = user-provided value, port not rendered; checked checkbox reveals the port — **refines D2**
+
+**Card text (verbatim-faithful).** "- when double clicking i notice that the inputs, are not checked (meaning they expect the user to provide a value) when that is the case the portrs ar not meant to be rendered (or connectable) (the check box they contain, when chcked, disabled when user's direct intriduction of data, reveals the input port and expects a connection to be made there to provide it's value. this is a fundamental node/port/ui-input rule. All of this must come pre-filled, from the abckend (it's part of the serialized workflow);". (Spelling/grammar preserved from the card.)
+
+**Ruling (normative).** A **fundamental node/port/ui-input rule**:
+
+1. An input whose checkbox is **unchecked** expects a **directly user-provided value**; its **input port must NOT render and must not be connectable**.
+2. The input's **checkbox**, when **checked** (and disabled once the user introduces data directly), **reveals the input port**, which then **expects a connection** to provide the value.
+3. All of this state is **prefilled from the backend** — it is part of the serialized workflow (§4.4/§4.10 round-trip).
+
+**Refines D2 — refinement marker, not a contradiction.** D2's default + connected + required visibility rule and its requirement that value-bound input ports never vanish *silently* (they carry a value indication, G3-07 fix) remain in force. G4-R3 adds the **checkbox/port coupling** that decides between the two D2 value surfaces: a directly user-provided value shows the value indication with **no connectable port**; a checked input shows the **port** and expects a connection. The "vanish" prohibition in D2 is satisfied by the visible checkbox/value indication, not by a port handle. The PR-B `visiblePorts()` rewrite (G3-05..G3-09) and the stale-assertion rewrites T1/T7 implement this refined rule.
+
+**Fix surfaces.** `visiblePorts()` rewrite (G3-05/G3-06/G3-07 fix surfaces) extended with the checkbox coupling; node-face checkbox rendering (checked, disabled on direct data introduction); backend serialization of the checked/value state (part of the serialized workflow, save/load round-trip).
+
+#### G4-R4 — Results output node: draggable like any other node, keeps its input connection
+
+**Card text (verbatim-faithful).** "- the results output node doesnt seem to be moveable, and loses the connection to it's input port (should be draggable like any other node);". (Spelling preserved from the card.)
+
+**Ruling (normative).** The results output node is **draggable like any other node**, and dragging it **keeps its input connection** — the connection must survive the move.
+
+**Affected existing rulings/findings.** The workflow-boundary re-rendering decision (G3-09, PR-B) — the results node is the boundary node class this ruling constrains; D2 port/connection semantics.
+
+**Fix surfaces.** Workflow-boundary/results node rendering and drag behavior (G3-09 fix surface); connection retention across node moves.
+
+#### G4-R5 — Add-node interaction: drag-from-output-to-empty-canvas opens the add-node popup with pre-connected insertion — **supersedes the G3-29/PR-H decision**
+
+**Card text (verbatim-faithful).** "- the + button you added to nodes on highligh is wrong, remove it. what is expected is that when you start a connection from an ouput and mouse up over empty canvas, you get the same popp as add node, and by selecting a node it must appear already connected (the connection the user moused up on empty canvas into the first available input port that node has.". (Spelling preserved from the card.)
+
+**Ruling (normative).** The **"+" button added to nodes on highlight is wrong and is removed**. The expected interaction: when the user **starts a connection from an output port and releases the mouse over empty canvas**, the **same popup as add node** opens; selecting a node there inserts it **already connected** — into the **first available input port** of the selected node, via the connection the user was dragging. **This ruling supersedes the G3-29/PR-H add-node decision** (§4.23, supersession marker added there): the node-highlight "+" connector is not the deliverable.
+
+**Affected existing rulings/findings.** Supersedes **G3-29** and its PR-H "add-node connector decision" scope; interacts with G3-38 (node-bounds hover action zone — the "+" is removed from it); D2 port semantics (first available input port).
+
+**Fix surfaces.** Remove the highlight "+" button; connection-drag → empty-canvas release → add-node popup; pre-connected insertion into the first available input port; palette/popup reuse (G4-R6 search field lives in the same list).
+
+#### G4-R6 — Node add list gains a search field
+
+**Card text (verbatim-faithful).** "- the node add list must have a search file [field] i can type and filter the nodes accordingly". (Bracketed gloss added.)
+
+**Ruling (normative).** The node add list (the add-node popup/palette list) gains a **search field**: typing filters the nodes accordingly.
+
+**Affected existing rulings/findings.** G3-26..G3-28 (palette & catalogue surfaces, PR-H) — the same list surface.
+
+**Fix surfaces.** Add-node popup / palette list: search input filtering node entries (case-insensitive over title/kind, per the catalogue §4.13).
+
 ### 4.23 Gate-3 finding inventory (G3-01..G3-38)
 
 The gate-3 demo audit produced 38 findings (SAA-1352 part 1 = G3-01..G3-25, folded into §4.22's per-ruling root-cause/fix-surface tables; part 2 = G3-26..G3-38, beyond D1–D7, tabled below). The beyond-D1–D7 findings are board-accepted (`70cbd0f8`) and are in scope for gate-4.
@@ -1365,7 +1435,7 @@ The gate-3 demo audit produced 38 findings (SAA-1352 part 1 = G3-01..G3-25, fold
 | G3-26 | Palette & catalogue | Catalogue failure surface invisible: palette silently empty on fixture-compile or `refresh()` failure; no empty-state, error, or status line | `GraphNodeCatalogStore.ts:81-115` tracks a status signal no UI renders; `graph-renderer.component.html:37-60` lists `paletteEntries()` with no states (gate-1 F15 persists) | Render catalogue status/errors/empty-state | PR-H |
 | G3-27 | Palette & catalogue | Composite source swallows backend errors indiscriminately: "backend down" vs "backend up but malformed response" indistinguishable to user and status signal | `GraphNodeCatalogCompositeSource.fetchManifests()` catches any live-source error, falls back to fixtures-only (`GraphNodeCatalogCompositeSource.ts:29-37`) | Distinguish failure classes in status + UI | PR-H |
 | G3-28 | Palette & catalogue | Backend-down degrades CRUD forms silently: dynamic parameter options silently vanish from the edit modal | `invokeMethod` backend-only; modal takes `parameterDefs` from `catalog.get(kind)` (`graph-node-template.component.ts:385`) | Degraded-mode feedback in the modal | PR-H |
-| G3-29 | Palette & catalogue | "+ Add node" is a corner popup, not the n8n node-side edge connector | Palette interaction model deviation (quality bar) | Add-node connector decision under the n8n-look ruling | PR-H |
+| G3-29 | Palette & catalogue | "+ Add node" is a corner popup, not the n8n node-side edge connector | Palette interaction model deviation (quality bar) | **Superseded by G4-R5 (§4.22 addendum, 2026-09-17).** The PR-H "add-node connector decision" is replaced: the node-highlight "+" button is removed; drag-from-output-to-empty-canvas opens the add-node popup with pre-connected insertion | PR-I |
 | G3-30 | Demo/package boundary | Boot script is cross-package AND the dependency is undeclared: a standalone install cannot boot the backend at all | `start:backend: node ../integrations/lib/cjs/nest/graph/main.cjs` (`for-angular/package.json:7`); `@decaf-ts/integrations` in neither dependencies nor peerDependencies | Boot from for-angular's own node_modules; declare the dependency | PR-G |
 | G3-31 | Demo/package boundary | Playwright `webServer` still commented out — E2E has no managed server (gate-2 infra risk, confirmed); the G3-30 fix **must** be paired or E2E breaks | `playwright.config.ts:98-104` | Managed server fixture or re-enabled `webServer` | PR-G (paired) |
 | G3-32 | Demo/package boundary | Demo run inputs fixed in code: "template workflow usable out of the box" holds only for the canned inputs | Same root as G3-13 (`graph.page.ts:234-237`) | Workflow-input form as run-input source | PR-C |
@@ -1392,6 +1462,12 @@ The gate-3 demo audit produced 38 findings (SAA-1352 part 1 = G3-01..G3-25, fold
 | 6 | D6 | Bottom drawer opens on demand regardless of entries; empty state + run-lifecycle lines (created/validated/issues) asserted; the implicit `entries().length` coupling removed from template and tests | PR-F |
 | 7 | D7 | Category base color from manifest; letter badge ("FE") when no icon; title rendered; description **not** rendered; icon rendering per reference type (catalogue/url/data) | PR-A |
 | 8 | — (boot-crash regression; 2026-09-17 addendum, SAA-1364 commit-gate rejection) | A Playwright e2e test must boot the UI the way `npm run start:dev` does — real dev server, **no** `window.ENV` bootstrap — navigate to the graph route, and assert no uncaught boot errors and that the graph surface renders. Purpose: make the lazy-chunk boot-crash class (module-eval failures under missing runtime env, e.g. `src/environments/environment.ts`) CI-visible against live dev targets. Dev-chrome gating derivation (corrected): `GRAPH_DEV_MODE` derives from Angular's `isDevMode()`; the graph route does not import `src/environments/environment` for it | PR-G |
+| 9 | G4-R1 (2026-09-17 rejection addendum, card `3cfe2f66`) | Prefilled code node: ships with the split code from the serialized workflow; its `code` input port is **not** rendered/connectable because the property is prefilled; output = the `text` input split into an array with `count` lines per element — asserted on the demo default workflow | PR-I |
+| 10 | G4-R2 (2026-09-17 rejection addendum, card `3cfe2f66`) | foreach `addNode` inserts into the foreach's **existing single connection loop** (no multiple loops per foreach); the default workflow starts with a **Log node inside the loop** logging every array element from the code node | PR-I |
+| 11 | G4-R3 (2026-09-17 rejection addendum, card `3cfe2f66`) | Port-checked rule: unchecked input → user-provided value, port not rendered/connectable; checked checkbox (disabled when data introduced directly) → port revealed and connectable; the checked/value state is backend-prefilled and survives a **save/load round-trip** | PR-I |
+| 12 | G4-R4 (2026-09-17 rejection addendum, card `3cfe2f66`) | Results output node is **draggable like any other node** and **keeps its input connection** across the drag | PR-I |
+| 13 | G4-R5 (2026-09-17 rejection addendum, card `3cfe2f66`) | Drag-from-output-to-empty-canvas opens the add-node popup; the selected node is inserted **already connected** into its first available input port; the node-highlight **"+" button is absent** (regression pin) | PR-I |
+| 14 | G4-R6 (2026-09-17 rejection addendum, card `3cfe2f66`) | Node add list **search field** filters nodes as the user types | PR-I |
 
 **Stale assertion groups to change in the same change-set that flips behavior (T1–T8, never in a follow-up):**
 
@@ -1426,6 +1502,8 @@ The gate-3 demo audit produced 38 findings (SAA-1352 part 1 = G3-01..G3-25, fold
 | PR-H | Palette failure surface + polish. Render catalogue status/errors; distinguish backend-down vs malformed; add-node connector decision (G3-29) under the n8n-look ruling; G3-34..38 cleanups | G3-26..29, G3-34..38 | P1 #8 (composite source tests) | — |
 
 **Dependency notes (from the audit):** PR-A/PR-B are the visual foundation and precede the E2E assertion rewrites; PR-C depends on PR-B's boundary decisions only where run inputs render; **PR-G must precede any Playwright run in CI** and land with or before any E2E-relevant PR. Backend work is limited to catalogue/validate endpoints already specified (§4.10, §4.13); the heavy lift is `for-angular` frontend.
+
+**Post-gate-4 rejection feedback (2026-09-17).** The re-requested commit gate (SAA-1364, confirmation card `3cfe2f66`) was rejected 2026-09-17T01:32Z with six concrete demo requirements, encoded normatively as **G4-R1..R6** (§4.22 addendum). A follow-up **PR-I — post-gate-4 rejection feedback** owns their implementation and ships §4.24 test rows 9–14: prefilled code node with array-split output (G4-R1); foreach single-loop insertion + default Log node inside the loop (G4-R2); the port/checkbox rule incl. save/load round-trip (G4-R3, refining D2); results-node drag retention (G4-R4); drag-to-canvas pre-connected insertion replacing the node-highlight "+" button (G4-R5, superseding the G3-29/PR-H decision); and palette search (G4-R6). **Ordering is free** relative to PR-A..PR-H: PR-I may land after PR-H or be absorbed into whichever remaining gate-4 PR touches the same surfaces (PR-B for port/checkbox projection, PR-H for palette/popup work).
 
 **Gate-4 verification items carried from gate 1:** K24 — re-verify ownership resolution (`graphWorkflowOwnerOf`, `assertGraphResourceOwnership`, standalone `auth:"optional"` + `allowAnonymousAccess` profile) against the current for-nest events/auth rework (DECAF-809 `EventsSubscriptionController`/`ObserverSubscriptionRegistry`, `request/contextualize.ts`, `DecafErrorFilter` auth-action logging), since §4.16 predates it. K25 — re-check stale package placement in `workdocs/ai/project/technical-docs/design-specification/08-graph-design.md` §3/§8 (references the no-longer-existing `@decaf-ts/integrations/graph/shared` module), architecture-handbook 08 §3.10, DECAF-34 §4, and the bundle-wall forbidden-specifier list, updating them in the same change-sets. Gate-4 starts only after the board confirms this specification update lands and is accepted.
 
