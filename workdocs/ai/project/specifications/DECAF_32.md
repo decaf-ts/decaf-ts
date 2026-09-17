@@ -734,6 +734,8 @@ All node-edit modal configuration must be serialized into the existing graph sna
 
 ## 21. Node Visual & Interaction Contract
 
+> **Superseded in part (2026-09-16) — board reopen rulings D1–D7.** The gate-3 specification revision of [DECAF-50](./DECAF_50.md) supersedes the pre-manifest visual rows **§21.3, §21.4, §21.6, §21.8.2, §21.10, and §21.11** with the authoritative rendering contract / demo-behavior section in DECAF-50 §4.22 (manifest-authoritative geometry; default + connected + required port visibility; double-click CRUD with the post-run three-pane split view; data-pinning semantics; category colours, letter silhouettes, title-not-description, icons-from-metadata). Each superseded row carries an inline marker below and is retained as historical record only. Where other rows of §21 restate the superseded rules (e.g. §21.14's constraint restating §21.6's three-context visibility mandate, §21.13's "ports are contextually visible (§21.6)"), they are superseded to the same extent by DECAF-50 §4.22. A gate-4 implementer must follow DECAF-50 §4.22, not the superseded rows.
+
 ### 21.1 Overview
 This section formalizes the appearance, structure, and interaction behaviour of graph nodes rendered on the for-angular canvas. Nodes are intentionally minimal — compact rounded squares that show only an icon, a colour, an optional user-defined name, and the ports that are actively visible. Rich metadata (description, labels, category, all port labels) is deferred to the node-edit modal (§21.11) so the canvas stays uncluttered.
 
@@ -767,6 +769,8 @@ The demo executors (`createDemoExecutorRegistry`) must register the `ForeachGrap
 
 ### 21.3 Minimal Node Anatomy
 
+> **Superseded by [DECAF-50](./DECAF_50.md) §4.22 (D1 — geometry, 2026-09-16).** Node geometry/shape is manifest-display-authoritative (`width`/`height`/shape/corner radius as manifest metadata; manifest wins over template CSS and `ui.size`, which is an explicit user resize only). The fixed rounded-square default sizing, per-node CSS/DOM sizing hacks (e.g. the Switch `140 + cases*24` formula and direct `height` style write), and the undeclared rotate affordance are superseded; height growth must be manifest-declared value-driven rules and nodes are not rotatable. Historical record only.
+
 Nodes default to a **square with rounded corners** — small enough that dozens can fit on the canvas without overlap. The only always-visible content is the node identity (icon + colour + optional name) and the action buttons. Ports appear contextually (see §21.6).
 
 Agent nodes (`core.agent`, §22.2.4) are an exception: they use a **rectangular** shape (no border radius) to visually distinguish them as composite entities with structural dependencies. Agent nodes also render `@connection()` ports on their bottom edge (§21.6.1).
@@ -783,6 +787,8 @@ Agent nodes (`core.agent`, §22.2.4) are an exception: they use a **rectangular*
 ```
 
 ### 21.4 Member Node Structural Elements
+
+> **Superseded by [DECAF-50](./DECAF_50.md) §4.22 (D1/D7 — geometry & node face, 2026-09-16).** The template CSS geometry authority (`--graph-node-size`), the icon-as-CSS-class rendering path, and the "port labels … only as hover tooltips or in the edit modal" rule are superseded by the manifest-authoritative face contract (title shown, description not; category base colours; letter silhouette fallback; icon per reference type incl. `<svg><use>` sprites, `url`, `data:`; visible-port labels per D2). Historical record only.
 
 | Element | DOM class | Source | Behaviour |
 |:---|:---|:---|:---|
@@ -812,6 +818,8 @@ All other ports (declared via `@input(...)` / `@output(...)` with explicit handl
 **Port ordering rule:** When multiple ports of the same direction are rendered on a node face, the default port (`value` or `default`) is always rendered **last** (bottom-most on vertical faces, right-most on horizontal faces). This ensures that case/branch outputs (e.g. Switch cases, If `then`/`else`) appear above the fallback/default output, matching the natural top-to-bottom reading order.
 
 ### 21.6 Port Visibility Behaviour
+
+> **Superseded by [DECAF-50](./DECAF_50.md) §4.22 (D2 — port visibility, 2026-09-16).** The hidden-by-default mandate is **inverted**: default + connected + required input ports are visible (required inputs stay visible even when unconnected); value-bound (literal/expression) ports render with a value indication instead of vanishing; visible ports carry readable labels; multi-output nodes distribute ports vertically and connections bind port→port (n8n reference). Historical record only.
 
 Non-default ports are hidden by default to keep the canvas minimal. They appear only in one of the following contexts, and animate with a fade-in/fade-out transition.
 
@@ -904,6 +912,8 @@ Canonical kind → colour mapping used by the demo nodes (defined in `example-no
 
 #### 21.8.2 Category Style Registry
 
+> **Superseded by [DECAF-50](./DECAF_50.md) §4.22 (D7 — node face, 2026-09-16).** The category style registry is superseded as a competing style authority alongside manifest display: one manifest display source per kind is normative; category base colours are authoritative for all nodes of a category (all flow nodes share a colour), and an explicit per-node `color`/`icon` is an override applied at a single precedence point. The two-authority drift between this registry and hand-authored/decorated manifests (gate-3 G3-22/G3-23) is removed. Historical record only.
+
 The `GraphCategoryStyle` registry (`registerGraphCategoryStyle` / `graphCategoryStyleOf` in `ui-decorators/graph`) maps category names to a default `{ color, icon? }` style. The reader's `graphDefinitionOf()` computes `effectiveColor` and `effectiveIcon` by checking the node's explicit `color`/`icon` first, then falling back to the category style, then the default (`#64748b` / `ti-pointer`).
 
 Built-in categories registered by `integrations/src/graph/nodes/category-styles.ts`:
@@ -948,6 +958,8 @@ Rules:
 
 ### 21.10 Interaction Contract
 
+> **Superseded in part by [DECAF-50](./DECAF_50.md) §4.22 (D3 — double-click / split view, 2026-09-16).** "Double-click → open node-edit modal" is superseded: double-click always opens the CRUD form, and after a node has run it shows the three-pane split view (run inputs LEFT / CRUD center / run outputs RIGHT). The dedicated Edit (⚙) button row is stale (no edit button ships in the delivered UI); the click-to-reveal-ports row is superseded by the D2 default-visible rule. Historical record only.
+
 | Gesture | Target | Action |
 |:---|:---|:---|
 | Click | Node card (not an action button) | Select the node — triggers port visibility (§21.6). |
@@ -960,6 +972,8 @@ Rules:
 | Click empty canvas | — | Deselect — all contextually-visible ports fade out. |
 
 ### 21.11 Node-Edit Modal (Double-Click)
+
+> **Superseded by [DECAF-50](./DECAF_50.md) §4.22 (D3 — double-click / hasRan, 2026-09-16)** and by DECAF-50 §4.12 (canonical document store). The `hasRan` inspection takeover (together with DECAF-48 §4.6/§4.7) is superseded: after a run, double-click shows the CRUD form in the center plus run inputs (left) and run outputs (right), with the inspection panel carrying an empty/failed state. The `graphNodeConfig` store this section references is superseded by the DECAF-50 `GraphWorkflowDocumentStore` (`parameters`/`inputBindings`). Historical record only.
 
 Triggered by double-click or the `⚙` button. Opens `GraphNodeEditModalComponent` via `ModalController.create()` with:
 *   `nodeTitle` — `node().data.title`

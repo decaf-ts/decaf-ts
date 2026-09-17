@@ -54,6 +54,7 @@
             <path value="file://$PROJECT_DIR$/with-ai/agents" />
             <path value="file://$PROJECT_DIR$/with-ai/vendor" />
             <path value="file://$PROJECT_DIR$/flipbored/workdocs" />
+            <path value="file://$PROJECT_DIR$/as-infra/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>

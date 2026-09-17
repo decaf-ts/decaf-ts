@@ -439,8 +439,12 @@ sequenceDiagram
 - `@decaf-ts/db-decorators` — `OperationKeys`, `CrudOperations`, `InternalError`.
 - `@decaf-ts/core` — `Repository`, `ModelService`, `Service`, `Adapter`,
   `Condition`, `Paginator`; `core/ram` provides `RamAdapter`/`RamFlavour`.
-- `@decaf-ts/integrations` — graph only (`integrations/graph/shared` types and
-  the NestJS graph backend run by `npm run start:backend`).
+- `@decaf-ts/integrations` — no direct lib dependency: every
+  `@decaf-ts/integrations` import specifier is forbidden in production graph
+  sources by the bundle wall; the NestJS graph backend
+  (`integrations/src/nest/graph`, run by `npm run start:backend`) is reached
+  over HTTP/SSE only, and shared graph contracts come from the
+  `ui-decorators/graph` subpath.
 - `@decaf-ts/for-http` — `AxiosHttpAdapter`/`AxiosFlavour` (base of
   `DecafAxiosHttpAdapter`) and `ServerEventConnector` (SSE).
 - `@decaf-ts/decoration`, `@decaf-ts/logging`, `@decaf-ts/transactional-decorators`
@@ -520,6 +524,104 @@ const imports = [
   generator (alias `c`), and a `page` generator that also edits `app.routes.ts`.
 - **Coverage is low** (~30% lines, ~11% branches) and the core engine has no
   direct unit test.
+
+### 3.13 Editable dashboard component (`ngx-decaf-dashboard`, DECAF-53)
+
+The lib ships a **dashboard composition editor**
+(`src/lib/components/dashboard/`, selector `ngx-decaf-dashboard`): a Crud
+component (per the `CrudFormComponent` precedent — extends `NgxFormDirective`,
+`@Dynamic()`-decorated, driven by the `operation` input; read/delete operate
+without an editable form group) that lets a user compose selectable decaf
+components onto a `cols × rows` grid in create/update mode, and renders the
+saved composition through the standard engine in read mode. The specification
+of record is
+[`workdocs/ai/project/specifications/DECAF_53.md`](../specifications/DECAF_53.md);
+only the delivered system is described here.
+
+- **Selective components (`@dashcomponent`).** Component classes carry
+  `@dashcomponent(tag, {label, defaultSize, model})` (ui-decorators registry,
+  see handbook 06 §4). The demo palette is `StatCardComponent`
+  (`ngx-decaf-dash-stat-card`, 2×1) and `MessageListComponent`
+  (`ngx-decaf-dash-message-list`) in `src/app/components/dashboard/`, each with
+  its own `@model()` config model (`StatCardConfigModel`, etc.) wired through
+  the internal create/update form; a side-effect import
+  (`dashboard-components.ts`) registers them at build time.
+- **Palette service.** `DashboardPaletteService` (`providedIn: 'root'`)
+  materializes the `dashComponents()` registry once into normalized
+  `DashComponentDefinition[]`, resolves definitions by tag, and answers
+  `isTagWhitelisted(tag)` — the load-side security boundary (unknown tags are
+  rejected, never resolved).
+- **Persistence shape.** `DashboardComposition` / `DashboardPlacement`
+  (`dashboard-composition.model.ts`) are pure decaf `@model()` classes
+  (grid `cols`/`rows`, per-placement `tag`/`col`/`row`/`cols`/`rows`/`config`).
+  Config values are validated through the component's declared model
+  validators; persisted documents never carry handler names or function
+  references, and no `bypassSecurityTrust*` is applied to composition-derived
+  content.
+- **Composition factory + read rendering.** `buildCompositionModel` (DECAF-53
+  §4) validates the composition against the palette, then uses `ModelBuilder`
+  to generate **one class per composition** with a deterministic
+  `setName('Dashboard_<id>')` (builder throws without a name; persistence keys
+  off class identity), a class-level `@uilayout('ngx-decaf-layout', cols, rows)`
+  plus one property per placement carrying `@uielement(tag, config)` and
+  `@uilayoutprop(col, row)`. Read mode instances the generated class and the
+  engine renders it like any decorated model — zero new rendering machinery.
+- **Interaction overlay (create/update only).** Editing is a separate overlay
+  layer above the composition, driven by the flavour-neutral
+  `dashboard-geometry.ts` helpers (1-based grid coordinates, `pointerToCell`,
+  `clampOrigin`, `computeDropTarget`, `computeResizeTarget`, `spanToRect`).
+  Drag shows a dotted-border preview sized to the dragged component's
+  footprint, moved imperatively via `pointermove` listeners attached
+  **outside the Angular zone** (no full re-render per move); drop and
+  border-resize share one snap/collision routine, quantize to cell indices
+  clamped to the grid, apply **reject-overlap** (an overlapping drop/resize
+  marks the preview invalid — `dcf-dashboard-preview--invalid` — and is
+  rejected; no auto-reflow in v1), and commit only on pointer-up (commit on
+  gesture end). Delete uses a confirmation screen (`confirmingDeleteId` +
+  backdrop dismiss), triggered by the placement's top-right `x`.
+- **Demo route.** `dashboard-builder` (`src/app/pages/dashboard-builder/`) is a
+  distinct lazy route — the existing static demo keeps `dashboard`
+  (`app-dashboard`). The page boots from the default
+  `getModelAndRepository('DashboardComposition')` in-browser adapter
+  (RAM/localStorage class), resolves mode `create` vs `read` from the first
+  saved composition, persists via `repository.create/update/delete` on the
+  dashboard's submit event, and carries the mandated Playwright
+  `dashboard-builder.spec.ts` + i18n screenshot spec (all user-facing strings
+  are translation keys in `src/assets/i18n/{en,pt}.json`).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant Page as DashboardBuilderPage
+    participant Dash as DashboardComponent
+    participant Pal as DashboardPaletteService
+    participant Fac as buildCompositionModel
+    participant Repo as DashboardComposition repository
+    U->>Dash: pick palette component (create/update)
+    activate Dash
+    Dash->>Pal: definitionFor(tag)
+    Pal-->>Dash: DashComponentDefinition
+    Dash->>Dash: addComponent / drag / resize (snap, reject-overlap, dotted preview)
+    U->>Dash: Save
+    Dash->>Dash: submitEventEmit(composition data)
+    deactivate Dash
+    Page->>Repo: create/update DashboardComposition
+    activate Repo
+    Repo-->>Page: persisted
+    deactivate Repo
+    Page->>Dash: composition input, operation READ
+    activate Dash
+    Dash->>Fac: buildCompositionModel(composition, palette)
+    activate Fac
+    Fac->>Pal: isTagWhitelisted(tag) per placement
+    Pal-->>Fac: verdict (reject unknown tags)
+    Fac->>Fac: ModelBuilder: setName + @uilayout + uielement/uilayoutprop
+    Fac-->>Dash: generated renderable model class
+    deactivate Fac
+    Dash-->>U: engine renders ngx-decaf-layout (no editing affordances)
+    deactivate Dash
+```
 
 ## 4. for-react
 

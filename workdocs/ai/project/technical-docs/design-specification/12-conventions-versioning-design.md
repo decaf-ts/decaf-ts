@@ -95,7 +95,8 @@ workflows.
   `-breaking` → major, `-bug`/`-fix` → patch, `-prerelease` → prerelease
   (with `--tag prerelease`), otherwise minor.
 - `npm version` is run, then a token-authenticated push.
-- `bin/bundle.js` publishes `@decaf-ts/dist-*` aggregates.
+- `decaf utils bundle` (the `BundleCommand`, replacing the legacy root
+  `bin/bundle.js`) publishes `@decaf-ts/dist-*` aggregates.
 - **Skip-CI contract**: the canonical `[skip ci]` token suppresses CI;
   `tag-release.sh` normalizes skip-CI variants.
 

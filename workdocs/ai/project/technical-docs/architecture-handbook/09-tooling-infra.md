@@ -90,7 +90,7 @@ Key relationship facts (from the briefs, updated for the DECAF-51 port):
 
 `utils` standardizes APIs across the monorepo and provides a reusable
 foundation for CLI applications and CI/CD scripting: an abstract command
-framework, eleven shipped bin entrypoints, interactive prompting / argument
+framework, thirteen shipped bin entrypoints, interactive prompting / argument
 parsing, fs/package/http helpers, output-writer abstractions, a performance
 benchmark harness, and a release-chain orchestration layer. It is a leaf
 utility; the README positions it as "a light version of the Decaf CLI tool".
@@ -102,11 +102,13 @@ utility; the README positions it as "a light version of the Decaf CLI tool".
 barrel aggregates six subpackages via wildcard re-exports — `./cli`, `./input`,
 `./output`, `./utils`, `./writers`, `./release-chain` — plus four build-time
 placeholder constants (`VERSION`/`COMMIT`/`FULL_VERSION`/`PACKAGE_NAME`) whose
-`##...##` tokens are substituted at publish time.
+`##...##` tokens are substituted at publish time, alongside a fifth
+`##PACKAGE_SIZE##` token patched into the README (gzipped bundle size,
+substituted by `build-scripts`).
 
 | Folder | Contents |
 |---|---|
-| `src/cli/` | `Command<I,R>` (abstract base), `commands/` (11 concrete commands) |
+| `src/cli/` | `Command<I,R>` (abstract base), `commands/` (13 concrete commands) |
 | `src/input/` | `UserInput`, `ParseArgsOptionsConfig` |
 | `src/output/` | `printBanner` + slogan rendering |
 | `src/utils/` | `constants`, `fs`, `http` (`HttpClient`), `types`, `utils` (`lockify`, `chainAbortController`, `spawnCommand`, `runCommand`), `performanceRunner`, plus unre-exported `md.ts`/`timeout.ts` |
@@ -114,7 +116,7 @@ placeholder constants (`VERSION`/`COMMIT`/`FULL_VERSION`/`PACKAGE_NAME`) whose
 | `src/release-chain/` | `ReleaseChainRunner`, `runReleaseChain`, `dispatchReleaseChainWorkflow` |
 | `src/bin/` | per-bin entrypoint shims |
 | `src/tests/` | `TestReporter`, `Consumer`, `jestPerformanceRunner`, utils (reachable only via `./tests`) |
-| `src/assets/` | `slogans.ts` for `printBanner` |
+| `src/assets/` | `slogans.ts` for `printBanner`; `releases/` (`bundles.json`, `package-template.json`) single-copy command assets for `BundleCommand` |
 
 ### 2.3 Public API surface
 
@@ -127,12 +129,15 @@ From the main barrel:
   `ReleaseScript`, `ReleaseChainCommand`, `ModulesCommand`, `NpmLinkCommand`,
   `NpmTokenCommand`, `RunAllCommand`, `TagReleaseCommand` (shell variant),
   `CredentialsCommand` (+ `resolveSecret`/`hasSecret`), `CompileMatrixCommand`,
-  `MirrorRepoCommand`.
+  `MirrorRepoCommand`, `BundleCommand` (aggregate `@decaf-ts/dist-*` bundling,
+  replacing the legacy root `bin/bundle.js`), `BuildDocsCommand` (docs-folder
+  staging, replacing the legacy `bin/build-docs.sh`).
 - **Input** — `UserInput` (builder methods; static `ask`, `askText`, `askNumber`,
   `askConfirmation`, `insistForText`, `parseArgs`).
 - **Output** — `printBanner(logger?)`.
 - **Utils** — constants (`Encoding`, `SemVersionRegex`, `SemVersion`, skip-CI
-  flags, `Tokens`, `AbortCode`); fs (`patchFile`, `readFile`, `writeFile`,
+  flags, `Tokens`, `AbortCode`); fs (`patchFile`, exported `patchString`,
+  `readFile`, `writeFile`,
   `getAllFiles`, `copyFile`, `renameFile`, `deletePath`, `getPackage`,
   `setPackageAttribute`, `getPackageVersion`, `getDependencies`,
   `installDependencies`, `listFolder`, `listNodeModulesPackages`);
@@ -190,9 +195,11 @@ Three principal channels:
 
 ### 2.6 Lifecycle / env / bin
 
-Eleven bin entrypoints: `modules`, `run-all`, `npm-link`, `npm-token`,
+Thirteen bin entrypoints: `modules`, `run-all`, `npm-link`, `npm-token`,
 `tag-release`, `build-scripts`, `credentials`, `release-chain`,
-`release-chain-dispatch`, `compile-matrix`, `mirror-repo`. Binaries point at
+`release-chain-dispatch`, `compile-matrix`, `mirror-repo`, `bundle`,
+`build-docs` (the last two replace the legacy root `bin/bundle.js` /
+`bin/build-docs.sh` scripts). Binaries point at
 `lib/cjs/bin/*.cjs` — build/install before use. The `build`/`build:prod` scripts
 run the in-package rollup bundler then `add:shebang` (injects
 `#!/usr/bin/env node` + `chmod +x`). Coverage writes to
@@ -202,14 +209,21 @@ run the in-package rollup bundler then `add:shebang` (injects
 Environment variables actually read by `utils` (per brief):
 
 - `NPM_TOKEN` (token-authenticated install/publish via `CredentialsCommand` /
-  `bundle.js` / `bin/tag-release.sh`).
+  `BundleCommand` / `TagReleaseCommand` and the legacy root `bundle.js` /
+  `bin/tag-release.sh`).
+- `NPM_PUBLISH_INTERACTIVE` — when not exactly `0` (the default), the
+  `TagReleaseCommand` skip-CI local publish runs without injecting `NPM_TOKEN`,
+  using npm's ambient authentication (keychain/`.npmrc`); when exactly `0`, the
+  resolved npm secret is injected.
 - Credentials resolution order: env var → OS keychain → deprecated legacy file
   (with warning). No other `utils`-owned env vars are documented in the brief.
 
 ### 2.7 Testing
 
-`tests/` split into `unit/` (16 files) and `integration/` (5 files), plus a
-`module-router.ts` helper that selects between `src`/`lib`/`dist` import roots.
+`tests/` split into `unit/` (19 top-level files plus a `commands/` suite of 9
+command tests with a shared `test-support.ts` helper) and `integration/`
+(5 files), plus a `module-router.ts` helper that selects between
+`src`/`lib`/`dist` import roots.
 Jest config uses `ts-jest`, Node env, `--runInBand`, coverage from `src/**`
 excluding `src/bin`. A `trivy` security-scan fixture lives under the tests
 tree. Several `ReleaseScript`-related suites are `.skip`ped (the tag-release
@@ -291,7 +305,7 @@ drive build/docs/release flows via the `decaf` bin.
 | `src/bin/cli.ts` | the `decaf` bin: `new CliWrapper(process.cwd()).run(process.argv)` |
 | `src/build-module/cli-module.ts` | built-in `build` subcommand → `@decaf-ts/utils` `BuildScripts` |
 | `src/release-module/cli-module.ts` | built-in `release` group (`chain`/`dispatch`) |
-| `src/utils-module/cli-module.ts` | built-in `utils` group (`libraries`, `environment-export`, `print-all-banners`, `modules`, `run-all`, `npm-link`, `npm-token`, `tag-release`, `credentials`) |
+| `src/utils-module/cli-module.ts` | built-in `utils` group (`libraries`, `environment-export`, `print-all-banners`, `modules`, `run-all`, `npm-link`, `npm-token`, `tag-release`, `credentials`, `bundle`, `build-docs`) |
 | `src/utils/command-forwarder.ts` | `OptionSpec`, `buildValueMap`, `runUtilsCommand`, `parseOptionalBoolean` — bridges commander options onto `@decaf-ts/utils` command classes' `.run(payload)` |
 
 ### 3.3 Public API surface
@@ -373,7 +387,8 @@ Environment variables actually read by `cli`:
 `decaf` subcommands: `build`; `release` (children `chain` alias `run`,
 `dispatch`); `utils` (children `libraries`, `environment-export`,
 `print-all-banners`, `modules`, `run-all`, `npm-link`, `npm-token`,
-`tag-release`, `credentials` with `get`/`store`/`setup`/`git-helper`), plus any
+`tag-release`, `credentials` with `get`/`store`/`setup`/`git-helper`, `bundle`,
+`build-docs`), plus any
 discovered modules.
 
 ### 3.7 Testing

@@ -1,59 +1,117 @@
-# DECAF-52: Port All Repo Scripts to TypeScript decaf CLI Commands
+# DECAF-52: Port Common Repo Scripts to TypeScript decaf CLI Commands (scope narrowed 2026-09-09)
 
-**Status:** Approved — CTO technical review **approved with conditions** 2026-09-04; all conditions folded into this record 2026-09-04 (decision milestone [SAA-659](/SAA/issues/SAA-659))
+**Status:** Approved, then **amended 2026-09-09 — scope narrowed** per board ruling (recorded by amendment milestone [SAA-1082](/SAA/issues/SAA-1082), child of [SAA-1081](/SAA/issues/SAA-1081), under the spec domain root [SAA-650](/SAA/issues/SAA-650)); CTO technical review **approved with conditions** 2026-09-04, conditions folded 2026-09-04 (decision milestone [SAA-659](/SAA/issues/SAA-659)). The 2026-09-09 board ruling supersedes the pre-amendment "port everything" framing; superseded areas are marked inline (not re-decided — deprecated by board decision at board level). **Implementation children must NOT be created yet — the board user reviews the revised specification first.**
 **Priority:** Medium
 **Owner:** Product Manager / CTO (decaf-ts repo-wide contributor tooling)
+
+> **Amendment provenance (2026-09-09).** The board user narrowed the scope by ruling on 2026-09-09, verbatim: **"only scripts (usually in ./bin in each module) common to all/most modules in the decaf-ts framework should be ported to utils so all that repository operations is consolidated in typescript and can run anywhere (all utils commands should have their ./cli wrapper)"**. The narrowed scope (§1.1) is binding and **supersedes the prior port-everything framing** wherever they conflict; the pre-amendment areas affected are explicitly marked inline (§2, §3, §4, §6). This amendment is a **documentation-only revision** by the Delivery Documentation Specialist on milestone [SAA-1082](/SAA/issues/SAA-1082); it is independent of the blocked deliverable work under [SAA-696](/SAA/issues/SAA-696), which it must not touch. Per the ruling, **no implementation children may be created from this specification until the board user has reviewed the revised specification.**
 
 > **Approval provenance.** Product scope was approved by the Product Manager on 2026-09-04: this is a **new specification, distinct from DECAF-51 — not an amendment** (scope ruling recorded on the domain root; goals, non-goals, user stories, and acceptance-criteria direction approved as summarized below, with wording tightened without changing intent). Technical assessment and architecture direction were supplied as **CTO-approved input** on 2026-09-04 (repo scan inventory and the port-to-decaf-cli direction recorded in §4). The **formal CTO technical review of the drafted technical sections completed 2026-09-04 on [SAA-654](/SAA/issues/SAA-654): APPROVED WITH CONDITIONS** — the five former §6 open questions are now decided (§6), and every inventory correction, condition, and coordination guard from that review is folded into §3/§4/§6 by decision milestone [SAA-659](/SAA/issues/SAA-659). The verbatim CTO verdict remains on [SAA-654](/SAA/issues/SAA-654); none of its decisions may be re-decided or weakened. Implementation is delegated by the domain-root owner (Product Manager) under separate children, each carrying specification `DECAF-52`.
 
 ## 1. Overview
 
+**(Amended 2026-09-09 — see §1.1 for the binding narrowed scope; the pre-amendment paragraph below is superseded in part where broader, and retained on this page only as a status snapshot of the original framing. The verbatim board ruling and original user requirement remain first-class records.)**
+
 This specification ports every executable script in the decaf-ts repository — root `bin/` helpers, the 30-package duplicated `bin/tag-release.sh` copies and 7-package `bin/sync-codex.sh` copies (plus their redistributed compiled copies), `with-ai` executable scripts and docker shell entrypoints, and the root `package.json` orchestration entries that wrap them — to TypeScript as decaf-cli command modules, auto-picked-up and invoked as `decaf <command> ...`. It is contributor tooling: it ships consistency, de-duplication, and maintainability for the people who build decaf-ts, not new end-user product capability. Each ported script keeps its current behavior as the parity baseline; deviations are allowed only where decaf conventions require them, and each deviation is documented.
 
-It is intentionally separate from DECAF-51 (the with-ai MCP/CLI redesign that retires `./mcp-server`): DECAF-51's charter is user-facing MCP/CLI product capability on `with-ai`; this specification's charter is repo-wide developer tooling. Overlap is minimal and cleanly bounded — `mcp-server/bin` is excluded here because it retires under DECAF-51, and both efforts produce decaf-cli command modules from disjoint command sets (the binding sequencing guard and disjoint command-name registry are recorded in §6).
+### 1.1 Binding narrowed scope (board ruling, 2026-09-09 — supersedes the prior framing)
+
+**In scope — only scripts common to all or most modules:**
+
+1. Scripts **common to all or most modules**, typically each package's `./bin` — e.g. the per-package `bin/tag-release.sh` duplicated across ~30 packages and `bin/sync-codex.sh` duplicated across 7 packages.
+2. The **root `bin/` equivalents for repo operations** — `run-all`, `npm-link`, `npm-token`, `bundle`, `build-scripts`, `update-scripts`, `collect-slogans`, `modules`, `copy-ai-docs`, plus the root `bin/tag-release.sh` / `bin/sync-codex.sh`.
+3. They are ported to **TypeScript inside the `utils` package**, consolidating repository operations in one place so they can run anywhere in the repository (not executed per-package with shell paths).
+
+**Required: every utils command ships a `./cli` wrapper.** All utils commands must expose their `./cli` wrapper so packages invoke them via the decaf CLI. This is a first-class acceptance criterion (AC-7, §3).
+
+**Explicitly out of scope (non-goals, §2) — superseded in-scope areas:** with-ai-specific `with-ai/bin/*.mjs` scripts, the `with-ai/docker/**/*.sh` entrypoints, `with-ai/scripts/jira-mcp-smoke.ts`, one-off per-package scripts (e.g. the single-package scripts listed in the §4 inventory's "correction 5" rows), and `mcp-server/bin` (which stays retired under [DECAF-51](./DECAF_51.md) regardless).
+
+**Open decision point:** whether root `package.json` orchestration entries keep a script phase or map onto utils CLI commands. Product recommendation: map to utils CLI commands where the entry is a common repository operation; recorded as an open/stated decision point in §6, **not a hard mandate**.
+
+It is intentionally separate from DECAF-51 (the with-ai MCP/CLI redesign that retires `./mcp-server`): DECAF-51's charter is user-facing MCP/CLI product capability on `with-ai`; this specification's charter is repo-wide developer tooling (narrowed above). Overlap is minimal and cleanly bounded — `mcp-server/bin` is excluded here because it retires under DECAF-51, and both efforts produce decaf-cli command modules from disjoint command sets (the binding sequencing guard and disjoint command-name registry are recorded in §6).
 
 **Verbatim user requirement (2026-09-04, board):**
 
 > decaf-ts's jira is live and working again. (remember you cannot run xray test at this time since that accound doestn supoprt xray). also sote that all scripts currently para or the repo (whatcrs, scripts er wun sinsire/ouside to sync, etc) must be ported to ts (executable scripts shoulb become a cli)
 
-**Interpreted requirement (PM, approved):** all executable scripts currently in the decaf-ts repo (watchers, sync scripts run inside/outside, build/release/link helpers, etc.) must be ported to TypeScript, and executable scripts become decaf CLI commands.
+**Interpreted requirement (PM, approved):** all executable scripts currently in the decaf-ts repo (watchers, sync scripts run inside/outside, build/release/link helpers, etc.) must be ported to TypeScript, and executable scripts become decaf CLI commands. **(Superseded in part by the narrowed 2026-09-09 scope: only common scripts are in scope; §1.1 is binding.)**
 
 ## 2. Goals
 
-*   [ ] Every executable script in scope is ported to TypeScript as a decaf-cli command module, auto-picked-up and invoked as `decaf <command> ...`.
+**(Amended 2026-09-09 — narrowed to the §1.1 scope. Goals 1, 2, 4, 6 and the docker-related portions of the pre-amendment list are superseded by the board ruling and are retained here crossed out for the audit trail; the new goal set below is binding.)**
+
+### 2.1 Binding goal set (amended 2026-09-09)
+
+*   [ ] Port to TypeScript inside the `utils` package every script **common to all or most modules** — typically each package's `./bin` (the duplicated per-package `tag-release.sh` / `sync-codex.sh` copies) plus the root `bin/` repo-operation equivalents listed in §1.1 — so repository operations are consolidated in TypeScript and can run anywhere.
+*   [ ] Every utils command has its **`./cli` wrapper** so packages invoke it via the decaf CLI (`decaf utils <command>`); a cmd without a wrapper is not complete.
 *   [ ] Full decaf conventions across all ported tooling: `@service()`, `logCtx`, decaf errors, zero `console.*`, async/await.
-*   [ ] The per-package duplication of `tag-release.sh` (30 in-scope copies) / `sync-codex.sh` (7 per-package copies) is eliminated: one shared TypeScript command implementation replaces all copies.
-*   [ ] Root `package.json` orchestration entries invoke the decaf CLI instead of ad hoc node/shell files where they wrap executable scripts.
-*   [ ] Watchers/long-running sync scripts run as CLI commands with explicit long-running execution semantics (foreground, signal-clean shutdown — §6 decision 4).
+*   [ ] The per-package duplication of `tag-release.sh` (~30 in-scope copies) / `sync-codex.sh` (7 per-package copies) is eliminated: one shared TypeScript command implementation replaces all copies.
 *   [ ] `update-scripts` stops redistributing the retired per-package copies (explicit in-scope deliverable — §4; CTO review: the single most likely silent failure mode of the whole specification otherwise).
 
-**Non-goals (approved):**
+### 2.2 Superseded pre-amendment goals (retained for audit; not part of the binding goal set)
 
-*   `mcp-server/bin` — it retires under [DECAF-51](./DECAF_51.md); excluded from this specification (its `obfuscate-prompts.cjs` and `tag-release.sh` go with it).
+~~*   Every executable script in scope is ported to TypeScript as a decaf-cli command module, auto-picked-up and invoked as `decaf <command> ...`.*~~
+~~*   Root `package.json` orchestration entries invoke the decaf CLI instead of ad hoc node/shell files where they wrap executable scripts.*~~ *(superseded: this is now an open decision point, §6 Amendment decision 1)*
+~~*   Watchers/long-running sync scripts run as CLI commands with explicit long-running execution semantics (foreground, signal-clean shutdown — §6 decision 4).*~~ *(out of scope: one-off per-package watcher scripts, incl. `styles/bin/watch.js`)*
+
+**Non-goals (approved; amended 2026-09-09 with the narrowed-scope exclusions):**
+
+*   `mcp-server/bin` — it retires under [DECAF-51](./DECAF_51.md); excluded from this specification (its `obfuscate-prompts.cjs` and `tag-release.sh` go with it). *(stands — explicitly re-affirmed 2026-09-09: `mcp-server/bin` stays retired under DECAF-51.)*
+*   **(new, 2026-09-09)** with-ai-specific `with-ai/bin/*.mjs` scripts — one-off/purpose-built for with-ai, not common to all or most modules.
+*   **(new, 2026-09-09)** `with-ai/docker/**/*.sh` entrypoints — container shell entrypoints, not common repo operations.
+*   **(new, 2026-09-09)** `with-ai/scripts/jira-mcp-smoke.ts` — with-ai-specific smoke script.
+*   **(new, 2026-09-09)** one-off per-package scripts — any script living in a single package's `./bin`/scripts that is not duplicated across all or most modules (e.g. the §4 "correction 5" single-package scripts: `build-schematics`, `update-deps`, `boot-plugin`, `build-docs`, `prepare-cli-bin`, `build-styles`, `watch-styles`, `argocd-deploy`, `argocd-render`).
 *   No functional redesign: each ported script keeps its current behavior as the parity baseline; deviations only where decaf conventions require, each documented.
 *   No new end-user product features in decaf packages — this is contributor tooling.
 *   Live `with-ai/agents/` and `with-ai/skills/` content remains untouched.
 *   DECAF-51's own deliverables, phases, and test chain are not altered by this specification.
 *   `increase:fs:watches`-type sysctl one-liners in root `package.json` are out of scope — they are not watchers and not script wrappers (CTO inventory correction 9).
-*   No daemonization, supervisor, or auto-restart for watchers (§6 decision 4); container-internal long-running sync semantics, if ever needed, are a follow-up specification.
+*   No daemonization, supervisor, or auto-restart for watchers (§6 decision 4); container-internal long-running sync semantics, if ever needed, are a follow-up specification. *(note 2026-09-09: with the §4 watcher rows narrowed out of scope, §6 decision 4 applies only if any in-scope script turns out to be long-running; it is not itself re-decided.)*
 
 ## 3. User Stories / Requirements
 
-*   **US-1:** As a **decaf-ts contributor**, I run every repo script as `decaf <command> ...` so I never need per-package shell paths or `node bin/...` invocations.
+**(Amended 2026-09-09 — narrowed to the §1.1 scope; US-4 and the docker/PID-1 territory are superseded, and AC-2/AC-6 are superseded as noted. The binding set below supersedes the pre-amendment list where broader.)**
+
+**Binding user stories (amended set):**
+
+*   **US-1n:** As a **decaf-ts contributor**, I run the common repo operations as `decaf utils <command>` (via each command's `./cli` wrapper) so I never need per-package shell paths or `node bin/...` invocations for them.
 *   **US-2:** As a **decaf-ts maintainer**, I edit one shared TypeScript implementation of release/sync tooling instead of ~30 duplicated shell copies drifting apart.
-*   **US-3:** As a **decaf-ts maintainer**, I get structured logging, decaf error handling, and consistent CLI help from all repo tooling.
-*   **US-4:** As a **contributor running long-lived watchers/sync**, I start them via a CLI command with consistent, documented lifecycle behavior.
+*   **US-3:** As a **decaf-ts maintainer**, I get structured logging, decaf error handling, and consistent CLI help from the ported repo tooling, consolidated in the `utils` package and runnable anywhere.
 
-**Acceptance criteria (approved direction, made measurable; AC-1/AC-2/AC-3/AC-6 sharpened by the CTO technical review 2026-09-04):**
+**Superseded pre-amendment stories:**
 
-*   **AC-1:** This specification contains a canonical inventory table (§4): every current script in scope → target CLI command name, owning package/module, and parity notes — or an explicit exclusion with rationale. Every remaining docker `.sh` shim is such an explicit exclusion, and its rationale names the container constraint that requires it (§6 decision 1).
-*   **AC-2:** At completion, zero in-scope executable `.js`/`.cjs`/`.mjs`/`.sh` scripts remain unported and unexcluded, measured against the binding "executable script" definition in §4 (which excludes build artifacts and config files).
+~~**US-1:** As a decaf-ts contributor, I run every repo script as `decaf <command> ...`...~~
+~~**US-4:** As a contributor running long-lived watchers/sync, I start them via a CLI command with consistent, documented lifecycle behavior (out of scope: one-off per-package watcher scripts).~~
+
+**Acceptance criteria (amended set — AC-2 and AC-6 superseded per the narrowed scope; AC-7 added):**
+
+*   **AC-1n:** This specification contains a canonical inventory of in-scope scripts (§1.1 + §4 amended-scope subsection): every common script in scope → target CLI command name, owning package/module (`@decaf-ts/utils`), and parity notes — or an explicit out-of-scope ruling with rationale. The pre-amendment §4 inventory table remains as the historical record, with the amended-scope subsection marking the narrowed disposition row by row.
+*   **AC-2n:** At completion, zero in-scope executable scripts (per §1.1: common scripts + root `bin/` repo-operation equivalents, and the per-package `tag-release.sh`/`sync-codex.sh` copies plus their redistributed compiled copies) remain unported and unexcluded. The binding "executable script" definition in §4 still applies. The pre-amendment "zero repo-wide" reading is superseded.
 *   **AC-3:** Each port is verified by running the new command and comparing behavior/output to the legacy script it replaces. Parity evidence must cover interactive flows (version selection, confirmations) and the release-dispatch contract; for de-duplicated copies, the shared implementation is verified against the **union of per-copy behaviors** with documented per-copy deltas (drift is folded in or explicitly dropped with rationale); secret values are redacted from all evidence (§6 decision 3).
 *   **AC-4:** Duplicated per-package scripts are served by exactly one shared implementation.
 *   **AC-5:** Ported commands satisfy decaf conventions (no `console.*`, decaf errors, `logCtx`) — verifiable by lint/review.
-*   **AC-6:** Root `package.json` entries that wrapped ported scripts now invoke the CLI. This includes migrating the entries that inline raw token reads today (`do-install`, `set-git-auth`, `set-dev`) onto `decaf utils credentials` / the existing `git-helper` — **PM scope ruling 2026-09-04: in scope** (recorded with §6 decision 3).
+*   **AC-6 (superseded in part — open decision point):** the pre-amendment AC-6 ("root `package.json` entries that wrapped ported scripts now invoke the CLI", including the `do-install`/`set-git-auth`/`set-dev` migration) is now an **open decision point** (§6 amendment decision 1): root `package.json` orchestration entries may either keep a script phase or map onto utils CLI commands; the product recommendation is to map to utils CLI commands where the entry is a common repo operation, but this is **not a hard mandate**. A final disposition must be recorded in §6 before implementation children are created.
+*   **AC-7 (new, binding 2026-09-09):** **Every utils command has its `./cli` wrapper** so packages invoke it via the decaf CLI. Verified by invoking each ported command through the `./cli` wrapper path (not just `decaf ...` direct) during parity verification (AC-3); a command without its wrapper fails this specification.
 
 ## 4. Architecture & Design
+
+**(Amended 2026-09-09.)** The CTO-approved technical direction below (2026-09-04; formal review on [SAA-654](/SAA/issues/SAA-654) — approved with conditions) remains the design baseline **for the in-scope scripts** under the narrowed scope. The §4 inventory table rows marked "superseded / out of scope" below are deprecated by the board ruling and the with-ai module, docker, and one-off per-package rows are no longer build targets of this specification.
+
+### 4.1 Amended scope disposition (2026-09-09 — binding, maps §1.1 onto the pre-amendment inventory)
+
+| Pre-amendment inventory item | Amended disposition 2026-09-09 |
+|:-----------------------------|:-------------------------------|
+| Root `bin/` repo-operation helpers (`run-all`, `npm-link`, `npm-token`, `bundle`, `build-scripts`, `update-scripts`, `collect-slogans`, `modules`, `copy-ai-docs`, root `sync-codex.sh`, root `tag-release.sh`) | **In scope (unchanged).** Port to TypeScript in `@decaf-ts/utils` as `decaf utils <command>`; already-ported ones proceed as parity-verify + switchover + legacy deletion. Each gets its `./cli` wrapper (AC-7). |
+| Per-package `bin/tag-release.sh` (~30 copies) and `bin/sync-codex.sh` (7 copies), plus their redistributed compiled copies (`tag-release.cjs` ×17, `update-scripts.cjs` ×15, `build-scripts.cjs` ×6) | **In scope (unchanged).** Common to all/most modules; consolidated into the single shared utils implementation (AC-4); compiled copies retired as before. |
+| `bin/releases/` bundle templates | **In scope (unchanged)** — command assets, single copy in utils (§6 decision 5). |
+| `for-angular/bin/build-schematics.js`, `demo/bin/update-deps.js`, `integrations/bin/boot-plugin.mjs`, `integrations/bin/build-docs.cjs`, `crypto/bin/prepare-cli-bin.mjs`, `styles/bin/build.js`, `styles/bin/watch.js`, `as-infra/.../deploy.sh`, `as-infra/.../render.sh` | **Superseded — out of scope.** One-off per-package scripts, not common to all or most modules (non-goals, §2.1 exclusion). §6 decision 4 (watcher lifecycle) therefore has no in-scope subject unless implementation evidence shows an in-scope script is long-running. |
+| `with-ai/bin/*.mjs` (configure-jira-bindings, configure-ms365-bindings, configure-routines, configure-tool-gateways, generate-agent-mcp-config, init) | **Superseded — out of scope** (with-ai-specific `bin/*.mjs`; non-goals). §6 decision 3 rules (a)–(c) remain binding for anything credential-touching if ever re-scoped. |
+| `with-ai/scripts/jira-mcp-smoke.ts` | **Superseded — out of scope** (with-ai-specific). |
+| `with-ai/docker/**/*.sh` (11 files) | **Superseded — out of scope.** §6 decision 1 ( docker entrypoint full-port + shim rules) is deprecated by board decision — no in-scope docker rows remain. The DECAF-51 disjoint registry guard (§6) still applies to any future with-ai command work. |
+| Root `package.json` orchestration entries | **Open decision point (§6 amendment decision 1).** Not a hard mandate; product recommendation: map to utils CLI commands where the entry is a common repo operation. |
+| `mcp-server/bin` | **Excluded (unchanged)** — retires under [DECAF-51](./DECAF_51.md); stays retired. |
+
+### 4.2 Pre-amendment technical direction and inventory (historical record — in-scope disposition per §4.1)
 
 CTO-approved technical direction (2026-09-04; formal CTO technical review completed 2026-09-04 on [SAA-654](/SAA/issues/SAA-654) — approved with conditions; direction adopted as written plus the additions below):
 
@@ -115,11 +173,19 @@ This specification is broken down into the following tasks. Each task should be 
 
 | ID           | Task Name                            | Priority | Status  | Dependencies |
 |:-------------|:-------------------------------------|:---------|:--------|:-------------|
-| DECAF-52-*   | Pending decomposition by the domain-root owner (Product Manager) into implementation children — the specification is approved (CTO review approved with conditions 2026-09-04, conditions folded under [SAA-659](/SAA/issues/SAA-659)); root/per-package/utils work has no DECAF-51 dependency and proceeds immediately, with-ai module ports are sequenced per the §6 DECAF-51 coordination guard | Medium | Pending | None (specification approved; §6 decisions recorded) |
+| DECAF-52-*   | Pending decomposition by the domain-root owner (Product Manager) into implementation children — **gated 2026-09-09: decomposition and creation of implementation children are ON HOLD until the board user reviews the revised (narrowed-scope) specification.** Scope is now the §1.1/§4.1 amendment. | Medium | On hold (board review) | None (specification approved; §6 decisions recorded) |
 
 ## 6. Decisions / Risks
 
 The five former open questions were decided by the CTO technical review on 2026-09-04 ([SAA-654](/SAA/issues/SAA-654), verdict: **APPROVED WITH CONDITIONS**; verbatim text remains there). Decisions are binding — none may be re-decided or weakened:
+
+### 6.1 Amendment decisions (2026-09-09, board ruling)
+
+*   **Amendment decision 1 — Root `package.json` orchestration entries are an OPEN decision point, not a mandate.** Each entry may either keep a script phase or map onto a utils CLI command. Product recommendation: map to utils CLI commands where the entry is a common repository operation. The pre-amendment AC-6 hard mandate (incl. the PM 2026-09-04 in-scope ruling on migrating the inline-raw-token entries `do-install`/`set-git-auth`/`set-dev`) is superseded at board level by this decision point; whatever disposition is chosen must respect §6 decision 3's secret-handling rules, and the final disposition must be recorded here before implementation children are created.
+*   **Amendment decision 2 — `./cli` wrapper for every utils command is a first-class acceptance criterion (new AC-7).** Each ported command exposes its `./cli` wrapper so any package invokes it via the decaf CLI; wrapper verification is folded into AC-3 parity evidence.
+*   **Amendment decision 3 — with-ai territory, docker entrypoints, `jira-mcp-smoke`, and one-off per-package scripts are out of scope.** These are declared non-goals (§2.1) and deprecated rows (§4.1); accordingly §6 decisions 1 and 4 have no in-scope subjects at this time (neither is re-decided — they are deprecated by the board scope ruling; if any in-scope script later proves long-running, decision 4 applies unchanged). §6 decisions 2, 3, and 5 remain binding on the in-scope work.
+
+### 6.2 Pre-amendment decisions (2026-09-04, binding on in-scope work)
 
 *   **Decision 1 — Docker entrypoints: full port by default; exec-only shims only where containers require.** Port each script's logic to `decaf with-ai <command>` (backup, restore, ensure-env-files, harness-login, bootstrap-company, down, install-pixel-agents). A `.sh` file may remain only as a thin shim of ≤ ~10 lines with zero business logic, and only where the container environment requires shell: PID-1 entrypoint semantics, steps that run before Node/the CLI exist in the container, or wrapping a non-Node binary. `with-ai/docker/mcp/ms365-wrapper.sh` (env-setup + exec of a third-party binary) is the canonical legitimate permanent shim. Every remaining shim is an explicit AC-1 exclusion naming the container constraint that requires it.
 *   **Decision 2 — Hosting + naming: `@decaf-ts/utils` for all shared repo tooling; the with-ai module for with-ai/Paperclip ops; kebab-case names preserving legacy script base names.**
@@ -143,4 +209,4 @@ Risks:
 
 ## 7. Results & Artifacts
 
-*   Specification record: initialized 2026-09-04 for domain root [SAA-650](/SAA/issues/SAA-650); **approved 2026-09-04** — CTO technical review on [SAA-654](/SAA/issues/SAA-654) returned **APPROVED WITH CONDITIONS**, and all conditions (inventory corrections, "executable script" definition, §6 decisions, new risks, DECAF-51 coordination guard, AC-3 sharpening, secret-handling rules incl. the PM scope ruling) were folded into this record the same day by decision milestone [SAA-659](/SAA/issues/SAA-659). No implementation results yet. Target artifacts: decaf-cli command modules replacing every in-scope script, the single shared `tag-release`/`sync-codex` implementation, updated root `package.json` orchestration entries, per-port parity verification evidence (AC-3), per-command tests, and lint/review evidence of decaf-convention compliance (AC-5).
+*   Specification record: initialized 2026-09-04 for domain root [SAA-650](/SAA/issues/SAA-650); **approved 2026-09-04** — CTO technical review on [SAA-654](/SAA/issues/SAA-654) returned **APPROVED WITH CONDITIONS**, and all conditions (inventory corrections, "executable script" definition, §6 decisions, new risks, DECAF-51 coordination guard, AC-3 sharpening, secret-handling rules incl. the PM scope ruling) were folded into this record the same day by decision milestone [SAA-659](/SAA/issues/SAA-659). **Amended 2026-09-09 under [SAA-1082](/SAA/issues/SAA-1082) (milestone child of [SAA-1081](/SAA/issues/SAA-1081)) — scope narrowed per board ruling to scripts common to all/most modules ported into `utils` with mandatory `./cli` wrappers (§1.1, §2.1, §3, §4.1, §6.1); implementation children explicitly on hold pending the board user's review of the revised specification.** No implementation results yet. Target artifacts: decaf-cli command modules in `@decaf-ts/utils` replacing every in-scope script, the single shared `tag-release`/`sync-codex` implementation, `./cli` wrappers for every utils command (AC-7), per-port parity verification evidence (AC-3), per-command tests, and lint/review evidence of decaf-convention compliance (AC-5); root `package.json` orchestration disposition per §6.1 amendment decision 1.

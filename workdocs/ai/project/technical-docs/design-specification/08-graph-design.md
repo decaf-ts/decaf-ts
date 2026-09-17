@@ -74,10 +74,13 @@ the host explicitly enables the standalone anonymous tolerance
   absent from the planner and raw `GraphNodeDefinition` objects rejected
   (`tests/unit/graph/GraphExecutionPlanner.test.ts`).
 - **Co-located authoring, separated runtime artifacts.** *Why:* a node author
-  writes manifest + executor in one module while only the serializable manifest
-  crosses the wire. *Enforcing structure:* `GraphNodeRegistration` pairs them;
-  built-in manifests re-export through `@decaf-ts/integrations/graph/shared`
-  (re-exports only, no divergent copies).
+  writes manifest + executor against one kind contract while only the
+  serializable manifest crosses the wire. *Enforcing structure:*
+  `GraphNodeRegistration` pairs them; built-in node declarations and compiled
+  manifests live in `ui-decorators/src/graph/nodes/` (exported through
+  `@decaf-ts/ui-decorators/graph`, re-exports only, no divergent copies) and
+  the backend pairs them with executors in
+  `integrations/src/graph/engine/catalog/` (`registerBuiltInGraphNodes`).
 - **Backend validation before execution.** *Why:* untrusted documents must be
   fully resolved against trusted manifests before planning. *Enforcing source:*
   `GraphWorkflowDocumentValidator.validate()` runs stages 1→9 inside
@@ -123,19 +126,21 @@ the host explicitly enables the standalone anonymous tolerance
 │                        GraphVisibilityExpression,                  │
 │                        GraphDynamicPortRule, manifest compiler,    │
 │                        serializability helpers                     │
+│   src/graph/nodes/     built-in @node classes, category styles,    │
+│                        compiled manifests                          │
 └───────────────────────────┬────────────────────────────────────────┘
                             │ frontend-safe contracts only
           ┌─────────────────┴──────────────────┐
           │                                    │
 ┌─────────▼─────────────────────┐  ┌──────────▼──────────────────────┐
 │ for-angular/src/graph         │  │ integrations/src/graph          │
-│  catalog/  (Angular services) │  │  shared/nodes/  built-in        │
-│  document/ (store + adapter)  │  │    manifests (re-exported       │
-│  parameters/ (renderers)      │  │    through graph/shared only)   │
-│  runs/     (run clients)      │  │  engine/catalog/   catalogue    │
-│  components/ (editor UI)      │  │  engine/validation/ nine-stage   │
-│                               │  │  engine/runs/      run lifecycle│
-│  never imports engine/nest    │  │  engine/execution/ engine+plan   │
+│  catalog/  (Angular services) │  │  engine/catalog/   catalogue    │
+│  document/ (store + adapter)  │  │  engine/validation/ nine-stage  │
+│  parameters/ (renderers)      │  │  engine/runs/      run lifecycle│
+│  runs/     (run clients)      │  │  engine/execution/ engine+plan  │
+│  components/ (editor UI)      │  │  log/              run logger   │
+│                               │  │                                 │
+│  never imports engine/nest    │  │  backend-only engine            │
 └─────────┬─────────────────────┘  └──────────┬──────────────────────┘
           │ HTTP/SSE (manifests, documents,   │
           │ runs, events)                     │ backend-only
@@ -151,17 +156,19 @@ Boundary rules (all lint- or test-enforced):
   Angular, NestJS, Node-only APIs, the engine, or executors; the DECAF-35
   ESLint `no-restricted-imports` wall extends to them.
 - `for-angular` production graph sources may import only
-  `@decaf-ts/ui-decorators/graph` and `@decaf-ts/integrations/graph/shared`.
-  Forbidden specifiers (asserted by `bundle-wall.spec.ts`):
-  `@decaf-ts/integrations/graph/engine`, `@decaf-ts/integrations/nest`,
-  `@decaf-ts/for-nest`, `@decaf-ts/for-server`, `node:`, `isolated-vm`, `vm:`.
+  `@decaf-ts/ui-decorators/graph`. Forbidden specifiers (asserted by
+  `bundle-wall.spec.ts`): every `@decaf-ts/integrations` specifier (all
+  subpaths — the lib never depends on integrations; only the app provisions
+  the backend), `@decaf-ts/for-nest`, `@decaf-ts/for-server`, `node:`,
+  `isolated-vm`, `vm:`.
 - The production browser bundle must contain no engine-side executable
   symbols (`GraphExecutionEngine`, catalogue runtime, validators, run stores);
   the bundle wall rebuilds `www/` when stale and self-attests its scanner with
   probe symbols so a blind scan cannot silently pass.
-- Built-in manifests live in `integrations/src/graph/shared/nodes/` and reach
-  the frontend only through the `./graph/shared` re-export — no divergent
-  copies.
+- Built-in node declarations and compiled manifests live in
+  `ui-decorators/src/graph/nodes/`; the backend pairs them with executors in
+  `integrations/src/graph/engine/catalog/` (`registerBuiltInGraphNodes`) —
+  no divergent copies.
 
 ## 4. Graph Decorator Design (authoring layer)
 

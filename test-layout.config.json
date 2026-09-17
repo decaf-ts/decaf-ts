@@ -102,7 +102,9 @@
   {
    "path": "integrations",
    "classification": "non-ui",
-   "allowedVariants": []
+   "allowedVariants": [
+    "playwright"
+   ]
   },
   {
    "path": "logging",

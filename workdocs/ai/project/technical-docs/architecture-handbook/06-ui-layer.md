@@ -43,6 +43,8 @@ src/
     snapshot.ts; types.ts; overrides/{index,Metadata,Rendering,overrides}.ts
   user-requests/           # subpath "./user-requests"
     index.ts; constants.ts; types.ts; decorators.ts; errors.ts; UserRequestHandler.ts
+  dashboard/               # root-barrel `dashboard` submodule (DECAF-53)
+    index.ts; constants.ts; types.ts; decorators.ts; registry.ts; reader.ts
 ```
 
 ### Key subsystems
@@ -51,6 +53,8 @@ src/
 - **Rendering engine** (`ui/Rendering.ts`): the heart of the package. A static flavour→engine cache plus a `current` engine; an abstract `render`/`initialize` contract; and a large `toFieldDefinition` that walks UI + validation metadata to emit a `FieldDefinition` tree (`tag`, `props`, `children`, `item`, `rendererId`), applying CRUD visibility (`hideOn`), namespace visibility (`hideFor`/`showFor`/`renderIf`), ordering (`uiorder` first/number/last), validation attributes/types, and nested-model children (`uichild`).
 - **Component base** (`ui/DecafComponent.ts` + `DecafEventHandler.ts`): an abstract, framework-neutral component with logging, translate, router, repository, CRUD context, dark-mode/locale state, and `parseHandlers`/`parseEvents` helpers used by the `@uion*` decorators.
 - **Graph layer** (`graph/`): a parallel metadata system (`@node`, `@graph`, `@port`, `@input`, `@output`, `@connection`, `@pinnable`) on the same `Metadata`/`@uimodel` backbone, with a reader that flattens Schema-typed `@input`/`@output` into unprefixed ports, resolves effective colors/icons from a category registry, and a snapshot module that serializes/restores workflow state with JSON round-trip.
+- **Dashboard layer** (`dashboard/`): a small flavour-neutral metadata family
+  for **dashboard-selectable components** (DECAF-53). `@dashcomponent(tag?, metadata?, props?)` attaches palette metadata (label translation key, default grid size, configuration-model reference) under a `DashKeys` namespace mirroring the graph `GraphKeys` convention, side-effect-registers the constructor in a module-level `Set` registry (`registerDashComponent` / `dashComponents()` / `resetDashComponentRegistry()`), and readers (`dashComponentMetadataOf` / `dashComponentDefinitionOf`) normalize an entry to a `DashComponentDefinition` with defaults applied (tag from class name, footprint `{cols:1, rows:1}`).
 - **User Request Engine** (`user-requests/`): a `Service`-based handler base driven by `@userRequest(reference)` metadata, dispatched statically, with a `RenderingFacade` (the four real `RenderingEngine` methods) and a `logCtx` override that exposes `modal`/`toast`/`spinner`/`router` getters to handler code. Pure-Node safe.
 
 ### Layering (render path)
@@ -85,6 +89,7 @@ flowchart TD
 - **Interfaces:** `IDecafModal`, `IDecafRouter`, `IDecafSpinner`, `IDecafToast`.
 - **Version consts:** `VERSION`, `COMMIT`, `FULL_VERSION`, `PACKAGE_NAME` (build-time `##…##` placeholders).
 - **ModelBuilder extensions** (via `overrides`): `#uimodel`, `#renderedBy`, `#uilistmodel`, `#uihandlers`, `#uilayout`, `#uisteppedmodel`, `#decorateClass`.
+- **Dashboard-selectable components** (DECAF-53): types `DashComponentSize`, `DashComponentMetadata`, `DashComponentDefinition`; class decorator `dashcomponent(tag?, dash?, props?)` (plus `DashKeys`); registry `registerDashComponent(ctor)`, `dashComponents()`, `resetDashComponentRegistry()` (test-only); readers `dashComponentMetadataOf(model)`, `dashComponentDefinitionOf(model)`.
 
 ### Subpath `./graph`
 
@@ -115,6 +120,7 @@ flowchart TD
 - **Snapshot serialization.** `graphWorkflowSnapshotOf(model, input?)` normalizes a definition + state (inputs/outputs by path, nodes by id/ref, edges by relation), with deep cloning and idempotent merge of supplied overrides; `graphWorkflowSnapshotRestore` re-derives against the current definition; JSON round-trip helpers exist.
 - **Service-based user request handlers.** `UserRequestHandler<T,C>` extends core `Service<C>`, takes a `RenderingFacade` in its protected constructor, and exposes `logCtx(..., true)` returning `UserRequestLogContext` with `log`/`ctx`/`ctxArgs` plus `modal`/`toast`/`spinner`/`router` getters bound to the engine. Dispatch is static and metadata-based (`Metadata.get(USER_REQUEST_KEY, reference)`), so no process-wide registry.
 - **Decoration DSL registration.** Graph and user-requests decorators register with the `Decoration.for(...).define(...).apply()` DSL so they are discoverable/introspectable while still writing raw `Metadata` for runtime lookup.
+- **Dashboard registry (module-level `Set`).** Unlike the metadata-dispatched graph/user-request surfaces, `@dashcomponent` maintains a plain `Set<Constructor>` registry: the decorator applies `uimodel` + `metadata(DashKeys.COMPONENT, meta)` through the Decoration DSL and then calls `registerDashComponent` as a side-effect. Idempotent add; consumers get fresh arrays (`dashComponents()`), never the internal set. This mirrors the graph node registry / `InjectablesRegistry` pattern and keeps the palette bounded by build-time imports (no runtime string→class resolution — the hard rule carried over from the graph AOT constraint).
 
 ### Issue-thread interaction kinds
 

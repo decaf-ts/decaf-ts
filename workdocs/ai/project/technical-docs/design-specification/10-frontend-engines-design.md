@@ -246,9 +246,19 @@ sequenceDiagram
     Components->>Loader: resolve key (missing key -> key itself / fallback)
 ```
 
-## 7. Graph Editor Design (Angular only)
+## 7. Editor Designs (Angular only)
 
-The graph editor is an in-repo subsystem of `for-angular` (`src/graph`), not
+Two in-repo Angular editor subsystems build composed UIs out of registered
+components: the graph workflow editor (§7.1) and the dashboard composition
+editor (§7.3). Both are bounded by statically registered component
+catalogues — never runtime string→component creation — but otherwise distinct:
+the graph editor is document-native and execution-oriented, the dashboard
+editor is model-native and rendering-oriented.
+
+### 7.1 Graph workflow editor
+
+The graph editor (see also
+[08 — Graph Design](08-graph-design.md)) is an in-repo subsystem of `for-angular` (`src/graph`), not
 published. Since the canonical cutover it is **document-native and
 manifest-driven**: it edits a `GraphWorkflowDocument` held by
 `GraphWorkflowDocumentStore` and runs it against the remote backend's
@@ -287,7 +297,7 @@ or engine code reach the browser (asserted by `src/graph/bundle-wall.spec.ts`).
   `{document, editor}` wrapper), and legacy snapshots load through lossless
   read-path conversion.
 
-### 7.1 Canvas → run sequence
+### 7.2 Canvas → run sequence
 
 ```mermaid
 sequenceDiagram
@@ -309,6 +319,83 @@ sequenceDiagram
     EC->>RS: fold node/edge states + run log
     Backend-->>EC: terminal event (completed|failed|cancelled)
     User->>RC: GET resultUrl → final outputs
+```
+
+### 7.3 Dashboard composition editor (Angular only)
+
+The dashboard editor (`for-angular/src/lib/components/dashboard/`) composes
+selectable decaf components onto a `cols × rows` grid and persists the result —
+mirroring the Crud/editor precedents rather than the graph run lifecycle. The
+specification of record is
+[`DECAF_53.md`](../../specifications/DECAF_53.md) (owned by the Delivery
+Documentation Specialist); only the delivered design is described here.
+
+- **Selection.** `@dashcomponent()` (ui-decorators `dashboard` submodule)
+  marks palette entries with metadata (label key, default footprint,
+  configuration model); `DashboardPaletteService` materializes the registry
+  into normalized `DashComponentDefinition[]` and is the single place that
+  resolves tags for both the palette and the load whitelist.
+- **Crud pattern.** `DashboardComponent extends NgxFormDirective`,
+  `@Dynamic()`-decorated, `operation`-driven. Create/update expose palette +
+  editing overlay; read renders the saved composition via the engine with no
+  editing affordances; delete is a confirmation screen (placement top-right
+  `x` → confirm/cancel, backdrop dismiss), again without an editable form
+  group. Internal components (demo: stat-card, message-list) follow the same
+  Crud pattern individually with their own `@model()` config models.
+- **Interaction overlay.** Editing gestures (drag, border-resize) run as a
+  separate overlay above the composition: pointer positions quantize to
+  1-based grid cells (clamped to the grid boundary) via pure geometry helpers
+  (`dashboard-geometry.ts`, no Angular imports, directly unit-testable); the
+  dotted preview is sized to the component's footprint, moved imperatively
+  with pointer listeners attached outside the Angular zone; drop and resize
+  share one snap/collision routine; **reject-overlap** renders the preview
+  invalid and refuses the gesture; the composition commits on pointer-up only.
+- **Persistence & read path.** The composition is plain decaf models
+  (`DashboardComposition`/`DashboardPlacement`) through existing repository
+  machinery — no new server-side APIs. Read mode regenerates a renderable
+  class per composition via `ModelBuilder` (`buildCompositionModel`: tag
+  whitelist → config validation → deterministic `setName()` →
+  `@uilayout('ngx-decaf-layout', ...)` + `@uielement`/`@uilayoutprop` per
+  placement), so reading a saved dashboard exercises zero new rendering
+  machinery.
+- **Security.** Component tags are whitelisted against the palette registry at
+  load (unknown tags rejected, never resolved); config values are validated
+  through the component's declared model validators; persisted documents
+  carry no handler names or function references (handlers come only from
+  build-time-registered component metadata); no `bypassSecurityTrust*` on any
+  composition-derived content.
+- **Demo.** The `dashboard-builder` lazy route is distinct from the static
+  `app-dashboard` demo, persists through the existing in-browser adapter, and
+  carries the mandated Playwright i18n screenshot test — all palette labels,
+  buttons, and the delete-confirmation copy resolve through ngx-translate.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as Builder
+    participant C as DashboardComponent
+    participant P as DashboardPaletteService
+    participant F as buildCompositionModel
+    participant E as Angular rendering engine
+    U->>C: place / drag / resize component (editing overlay)
+    activate C
+    C->>P: definitionFor(tag) + isTagWhitelisted(tag)
+    P-->>C: normalized definition / whitelist verdict
+    C-->>U: snapped commit on gesture end (reject-overlap)
+    deactivate C
+    U->>C: Save (create/update)
+    activate C
+    C->>F: buildCompositionModel(composition, palette)
+    activate F
+    F->>P: whitelist + config validation
+    P-->>F: verdict
+    F-->>C: generated @uilayout model class
+    deactivate F
+    C->>E: render generated class
+    activate E
+    E-->>U: ngx-decaf-layout grid of placed components
+    deactivate E
+    deactivate C
 ```
 
 ## 8. Functional Requirements
@@ -352,8 +439,25 @@ sequenceDiagram
 - **FR-10 (graph, Angular only):** The editor MUST preserve runtime state
   (drags, viewport, selection) across re-renders via the document's `ui` state
   and the `{document, editor}` snapshot wrapper; positions commit on drag-end
-  only. Node discovery MUST come from backend-provided manifests — never
+  only.   Node discovery MUST come from backend-provided manifests — never
   constructors.
+- **FR-11 (dashboard, Angular only):** Selectable dashboard components MUST be
+  marked by `@dashcomponent()` and statically registered in its build-time
+  registry; the palette MUST be bounded by that registry and a saved
+  composition's tags MUST be whitelisted against it at load — unknown tags
+  MUST be rejected, never resolved. Composition config values MUST be
+  validated through the component's declared model validators; persisted
+  compositions MUST NOT carry handler names or function references; no
+  `bypassSecurityTrust*` is permitted on composition-derived content.
+- **FR-12 (dashboard, Angular only):** The `DashboardComponent` MUST extend
+  the Crud component pattern (`NgxFormDirective`, `operation`-driven; read
+  and delete without an editable form group; delete behind a confirmation
+  screen). Editing gestures MUST snap to grid cells, show a dotted drop
+  preview sized to the component's footprint, reject overlapping drops and
+  resizes (no auto-reflow), and commit only on gesture end. Read mode MUST
+  regenerate a renderable model class per composition via `ModelBuilder`
+  (deterministic class name, `@uilayout` + `@uielement`/`@uilayoutprop`
+  metadata) and render it through the standard engine.
 
 ## 9. Acceptance Criteria
 
@@ -393,6 +497,19 @@ Feature: Frontend engine model-driven rendering
     Given no RenderingEngine has been booted for a flavour
     When RenderingEngine.get() is called for that flavour
     Then no engine is returned (or the engine is booted on first import per the flavour's idempotent boot)
+
+  Scenario: Dashboard composition persists and reads back through the engine
+    Given a dashboard composition saved with whitelisted placement tags and validated config values
+    When the component enters read mode
+    Then buildCompositionModel whitelists every tag and validates every config
+    And one renderable model class is generated with a deterministic name, @uilayout, and uielement/uilayoutprop per placement
+    And the composition renders through ngx-decaf-layout with no editing affordances
+
+  Scenario: Overlapping dashboard drop is rejected
+    Given a cell occupied by another placement
+    When a drag gesture's destination overlaps it
+    Then the dotted preview renders in its invalid state
+    And the drop is rejected and the placement keeps its previous position
 ```
 
 ## 10. Environment Variables

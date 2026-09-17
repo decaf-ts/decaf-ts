@@ -5,6 +5,10 @@
 **Owner:** Graph / Platform (cross-cutting: `ui-decorators`, `integrations`, `for-angular`)
 
 > **Approval provenance.** Product scope was approved by the Product Manager on 2026-08-31 (the verbatim user draft is the approved scope statement; 16 goals confirmed untrimmed; non-goals confirmed with two standing distinctions; enforced priority **High**, replacing the draft's `Critical` claim; the draft's 7 phases approved with per-phase acceptance gates; controlled-transition rules fixed). Technical governance / architecture was approved by the CTO on 2026-08-31 (canonical document ownership, catalogue/manifest ownership, async run envelope with named conditions, normative validation-gate ordering, parameter-schema system, deterministic adapter, verification bar, and a per-spec supersession record). The verbatim approved statements remain on their source issues; the approved deltas are summarized in the architecture sections below. Implementation is delegated by the domain-root owner under separate children, each carrying specification `DECAF-50`.
+>
+> **§4.24 addendum (2026-09-17).** The board rejected the gate-4 commit gate (SAA-1364, confirmation card `4f6b574e`, 2026-09-17) because the graph demo crashes on `npm run start:dev` (lazy-chunk module-eval failure of `src/environments/environment.ts` with no `window.ENV` bootstrap) and directed that e2e tests must run against live dev/production targets. This addendum adds one P0 boot-crash clause to the gate-2 test contract (§4.24, test #8); no other section is restructured.
+>
+> **Gate-3 specification revision (2026-09-16, board-authorized).** The board reopened the delivered graph UI with a strongly negative review and ruled on seven surfaces (rulings D1–D7, recorded verbatim-faithful on the root issue, comment `58812d2a`). Gates 1–3 (SAA-1350 doc re-evaluation; SAA-1351 test-suite review; SAA-1352 read-only demo audit @ `bd0a187`) were each confirmed by the board, culminating in confirmation card `70cbd0f8` (accepted 2026-09-16T13:32Z), which authorized exactly two sequenced gates: **(1) this specification update, (2) gate-4 implementation.** This revision bakes the D1–D7 rulings in as the authoritative rendering contract / demo-behavior section (§4.22), records the 38-finding gate-3 inventory (§4.23), adds the gate-2 test contract (§4.24), records the gate-4 implementation roadmap (§4.25), and supersedes the stale visual rows in their own records: DECAF-32 §21.3, §21.4, §21.6, §21.8.2, §21.10, §21.11 and DECAF-34 §4.1. No implementation starts before this updated record is accepted. Commit authorization for this revision is requested at a later board confirmation; record edits remain uncommitted until then.
 
 ## 1. Overview
 
@@ -433,6 +437,8 @@ export type GraphIconReference =
 ```
 
 Arbitrary filesystem paths must not be exposed.
+
+**Geometry & face precedence (D1/D7 rulings — normative, gate-3 revision):** manifest `display` metadata is the single source of node geometry and face presentation. `width`, `height`, `minWidth`, plus `shape`/corner-radius (added to the display fields by this revision) are manifest-authoritative: template CSS must never pin node dimensions (the `--node-size: 96px` template authority is removed), and an instance's `ui.size` applies **only** as an explicit user resize override — a carried default or template CSS never wins over the manifest (G3-02). Content-driven height growth (e.g. Switch case count) is expressed as manifest-declared, value-driven display rules evaluated from node parameters — never as hardcoded per-node formulas or direct DOM style writes (G3-03). Nodes are not rotatable: projection pins `rotatable: false` on every node factory alongside `resizable: false` (G3-04). Category base colours are authoritative for all nodes of a category; an explicit per-node `color`/`icon` is an override applied at one precedence point, and competing style authorities for the same kind are removed — one manifest display source per kind (G3-22/G3-23). Icons render per reference type (`catalogue` → Tabler sprite `<svg><use>`; `url`; `data:` SVG); a readable category letter silhouette is the fallback when no icon is provided (D7, §4.22).
 
 ```ts
 export interface GraphPortManifest {
@@ -1258,12 +1264,170 @@ Every phase ships behind the `GRAPH_CANONICAL_DOCUMENT_ENABLED` flag with dual-w
 This work binds itself to and supersedes parts of the following local specifications, without rewriting their historical completion records misleadingly:
 
 - **DECAF-24** ([./DECAF_24.md](./DECAF_24.md)) — the canonical layer remains in `ui-decorators`; the document types join it; `GraphWorkflowDefinition`/`GraphNodeDefinition` are authoring/compat only; the Angular palette no longer derives from constructors.
-- **DECAF-32** ([./DECAF_32.md](./DECAF_32.md)) — planner input becomes `GraphResolvedWorkflow`; synchronous `/graph/execute` deprecated in favor of the run lifecycle; the `GRAPH_WORKFLOW_BOUNDARY` sentinel is retired for documents (legacy converter handles it); event-type enums, kind taxonomy (`core.*`), store/pinning model, and the §21 visual contract are preserved and extended by manifests.
-- **DECAF-34** ([./DECAF_34.md](./DECAF_34.md)) — kind taxonomy and referenced-spec status remain; constructor-based discovery and any client-side `applyMetadata()` requirement are superseded by catalogue manifests + declarative dynamic-port rules + backend `/resolve`; `Metadata.nodes()`/`workflows()` accessors remain valid for backend registration and compat flows but do not drive the palette; conformance proof required that Switch's dynamic ports resolve identically through declarative rules.
+- **DECAF-32** ([./DECAF_32.md](./DECAF_32.md)) — planner input becomes `GraphResolvedWorkflow`; synchronous `/graph/execute` deprecated in favor of the run lifecycle; the `GRAPH_WORKFLOW_BOUNDARY` sentinel is retired for documents (legacy converter handles it); event-type enums, kind taxonomy (`core.*`), store/pinning model, and the §21 visual contract are preserved and extended by manifests. **Gate-3 addition (2026-09-16):** DECAF-32 §21.3, §21.4, §21.6, §21.8.2, §21.10, and §21.11 are **superseded** by §4.22 (board reopen rulings D1–D7) — the pre-manifest visual rows that reproduce the rejected look are marked superseded in DECAF-32 itself; a gate-4 implementer must not follow them.
+- **DECAF-34** ([./DECAF_34.md](./DECAF_34.md)) — kind taxonomy and referenced-spec status remain; constructor-based discovery and any client-side `applyMetadata()` requirement are superseded by catalogue manifests + declarative dynamic-port rules + backend `/resolve`; `Metadata.nodes()`/`workflows()` accessors remain valid for backend registration and compat flows but do not drive the palette; conformance proof required that Switch's dynamic ports resolve identically through declarative rules. **Gate-3 addition (2026-09-16):** DECAF-34 §4.1 (Rendering Contract, mirroring DECAF-32 §21) is **superseded** by §4.22; marked superseded in DECAF-34 itself.
 - **DECAF-35** ([./DECAF_35.md](./DECAF_35.md)) — the shared/engine boundary is preserved and enforced, extended to the new catalogue/parameters/run modules; built-in manifests re-export via `graph/shared`; engine code stays out of browser bundles.
 - **DECAF-36** ([./DECAF_36.md](./DECAF_36.md)) — Req-B1–B7 backend invariants carry over unchanged; history/autosave/mutation services remain and operate on documents/document-store; the `DECAF_36` NFR-4 snapshot-format reuse is superseded by canonical document round-trips (snapshot becomes `{ document, editor }`).
 - **DECAF-42** ([./DECAF_42.md](./DECAF_42.md)) — subscription mode untouched; broadcast default unchanged; run events move to the run-scoped endpoint at cutover.
 - **DECAF-48** ([./DECAF_48.md](./DECAF_48.md)) — the `{ runId, ownerUser }` ownership and `graph.run.*` topics precedent are extended; run-scoped transport becomes canonical; I/O inspection payloads ride run state/results rather than a parallel channel.
+
+### 4.22 Authoritative rendering contract and demo behavior — board reopen rulings D1–D7
+
+**Provenance (board-accepted, normative).** The board ruled on seven surfaces (rulings recorded verbatim-faithful on the root issue, comment `58812d2a`, 2026-09-16). Gate 3 (read-only demo audit @ `bd0a187`, SAA-1352 comments `4925f2e7` part 1 / `17f124f4` part 2, context-manifest rev 2) verified **every ruling violated at HEAD**, with file:line root causes and fix surfaces (findings G3-01..G3-25 in part 1; G3-26..G3-38 in part 2). This section is the **authoritative rendering contract / demo-behavior section** of this specification. It supersedes the stale visual rows in their own records: **DECAF-32 §21.3, §21.4, §21.6, §21.8.2, §21.10, §21.11 and DECAF-34 §4.1** (supersession markers added there). Gate-4 PRs implement against this section (roadmap §4.25); the visual target is the n8n node/port/connection appearance researched in gate 1 (header icon+name, always-visible input ports left / output ports right, port→port connections, node-side hover controls incl. pin, notes rendered as subtitle, "Add node" node-side connector).
+
+#### D1 — Geometry: manifest-authoritative
+
+**Ruling (normative).** Per-kind node geometry and shape live in the manifest `display` metadata as the single source: `width`, `height`, and shape/corner radius as manifest display fields. **Manifest metadata wins over template CSS and over `ui.size`**; an instance `ui.size` applies only as an explicit user resize. Height grows with content only through manifest-declared, value-driven rules (e.g. Switch case growth) — never hardcoded formulas or direct DOM style writes. Nodes are **not rotatable**.
+
+Root causes at HEAD (all violated) and fix surfaces:
+
+- **G3-01** — Template CSS overrides manifest width for every node: `graph-node-template.component.scss:31` pins `--node-size: 96px` and `width: var(--node-size)`; the html binds `[style.--node-size.px]="nodeWidthPx()"` which returns a width **only for Switch, `null` otherwise** (`graph-node-template.component.ts:274`) — every non-Switch node renders 96px wide regardless of manifest geometry (e.g. `foreach` 120×140, `code` 96×96, `ui-decorators/src/graph/nodes/loops/foreach.ts:23`). *Fix surface:* `for-angular/src/graph/components/graph-node-template/` (scss+html) — remove the fixed width; size from the projected node element/manifest.
+- **G3-02** — `ui.size` precedence inverted: `nodeUiSizeOf` resolves `node.ui?.size ?? display.width ?? 96` (`GraphDiagramAdapter.ts:667`) — instance `ui.size` beats the manifest, opposite of D1, and no flag distinguishes a *user* resize from a carried default. *Fix surface:* `for-angular/src/graph/document/GraphDiagramAdapter.ts` + the §4.5 precedence text.
+- **G3-03** — Switch height is a triple-hardcoded formula `140 + cases*24` in the node class (`flow-control/switch.ts:109`), the adapter (`projectedNodeHeightOf`, `GraphDiagramAdapter.ts:673`), and the template (`computeSwitchMetadataChange`, `graph-node-template.component.ts:97`), plus a direct DOM write `article.style.setProperty('height', …)` (`graph-node-template.component.ts:498`) — the per-node CSS hack the board explicitly banned; value-driven growth is authorized by no doc. *Fix surface:* all three files + §4.5 (growth becomes manifest-declared value-driven display rules).
+- **G3-04** — Rotate handle renders: projection sets `resizable: false` on every node factory but never `rotatable: false` (`GraphDiagramAdapter.ts:557/578/599`); no doc mentions rotation. *Fix surface:* adapter node factories + this clause.
+- Compliant carry-over: border-radius/shape is currently fixed in CSS (18px) — fold it into the D1 geometry metadata work (shape as a manifest display field).
+
+#### D2 — Port visibility: default + connected + required
+
+**Ruling (normative).** Port handles are **visible by default** on the node edges — inputs left, outputs right, connections bind port→port, multi-output nodes distribute ports vertically (n8n reference). The explicit visibility rule: **default ports + connected ports + required input ports are visible** (required inputs stay visible even when unconnected). This **inverts** DECAF-32 §21.6's hidden-by-default mandate. **Value-bound (literal/expression) input ports must not vanish**: they render with a value indication so the user can see and revert where the value comes from. Port labels on visible ports must be readable — the `opacity: 0` hover-only label treatment is superseded for visible ports; the precise persistent-vs-hover affordance is a PR-B implementation decision under the n8n reference (open sub-point, §6).
+
+Root causes and fix surfaces:
+
+- **G3-05** — Hidden-by-default persists: `visiblePorts()` (`graph-node-template.component.ts:558`) hides unconnected, non-default ports — the exact §21.6 behavior the board inverted; only `value`/`default` ports, connected ports, and selection/connecting states render. *Fix surface:* principled `visiblePorts()` rewrite.
+- **G3-06** — Required-input exception not implemented: `port.required` is carried through the adapter (`GraphDiagramAdapter.ts:170`) but never consulted in `visiblePorts()`. *Fix surface:* adapter port projection + visibility rule.
+- **G3-07** — Value-bound ports vanish entirely: `mode === 'value' → return false` (`graph-node-template.component.ts:571`) — a node with a literal/expression binding shows no input port at all. *Fix surface:* visibility rule + value badge rendering.
+- **G3-08** — Switch case ports are exempt from the visibility model (`isSwitchCasePort → always visible`, `graph-node-template.component.ts:565`) — a special case highlighting that no principled rule exists. *Fix surface:* one principled visibility rule covering case ports.
+- **G3-09** — Workflow-boundary rendering still uses synthesized 72×32 badge nodes with a single `value` handle (`GraphDiagramAdapter.ts:65-79, 534`), and workflow-output edges are explicitly dropped (`GraphDiagramAdapter.ts:614`) — not n8n trigger/result semantics; no port labels on badges. Sub-item: port labels are `opacity: 0`, hover/connected-only (`scss:289-329`). *Fix surface:* workflow-boundary re-rendering decision (badge nodes → real ports, or a ruled badge exception) owned by PR-B; visible labels under the D2 rule.
+
+#### D3 — Double-click / hasRan: split view, CRUD never removed
+
+**Ruling (normative).** The `hasRan` state is kept, but it **must never remove CRUD**: double-click **always** opens the CRUD form. After a node has run, the view splits into three panes — **run inputs LEFT, CRUD form CENTER, run outputs RIGHT — all populated**. The inspection panel must have an empty/failed state so a panel can never render nothing ("right now NOTHING APPEARS" — hard deliverable). Run inputs shown in the split view come from the **editable workflow-input form**, not hardcoded values. Boundary (workflow-input) nodes get double-click CRUD.
+
+Root causes and fix surfaces:
+
+- **G3-10** — `hasRan` takeover persists; CRUD unreachable after the first run: `openEditor()` short-circuits on `hasRan()` into `graphInspection.toggle()` (`graph-node-template.component.ts:339-342`); inspection state survives until the next run's `graphInspection.reset()` (`graph.page.ts:211`). DECAF-48 §4.6 and DECAF-32 §21.11 still authorize the takeover and are superseded here. *Fix surface:* `openEditor` split-view logic.
+- **G3-11** — No split view exists, and the panes are inverted vs the ruling: the inspection panel is a 2-pane overlay — outputs pane LEFT, inputs pane RIGHT (`graph-node-inspection.component.html` body order; store doc-comment "right = inputs, left = outputs"); there is no CRUD center pane anywhere. *Fix surface:* `graph-node-inspection` three-pane rebuild.
+- **G3-12** — "NOTHING APPEARS" root cause pinned in code: the panel renders `@if (payload(); as inspection)` with **no empty state** (`graph-node-inspection.component.html:1-3`); `hasRan()` returns true from run status alone (`succeeded/failed/cached`, `graph-node-template.component.ts:221-227`) while the payload exists only if `fetchRunResult` succeeded inside the bounded 5×80ms retry (`graph.page.ts:351-358`) and the run stored nodeResults — any miss toggles a panel that renders nothing (the board's exact complaint, reproduced). *Fix surface:* empty/failed state + payload lifecycle.
+- **G3-13** — Run inputs are hardcoded; the editable workflow-input form is decorative: `runWorkflow()` submits `inputs = { count: 1, text: 'Hello World Foo Bar Baz' }` (`graph.page.ts:234-237`) and never reads the left-pane workflow-input form the renderer builds and validates. *Fix surface:* run-input plumbing from the workflow-input form.
+- Related: boundary badge nodes have **no double-click handler at all** (gate-1 C8, persists at `boundary-node-template.component.html`) — input-value CRUD unreachable. *Fix surface:* boundary-node double-click CRUD (per §21.7's own historical promise).
+
+#### D4 — Pin: data pinning (n8n semantics)
+
+**Ruling (normative).** The pin button drives **data pinning**: pinning freezes the node's parameter values so downstream runs reuse them. Pin state **writes the canonical document** (a new document-carried node-instance field; survives save/load round-trips) and the button renders **only when the node/manifest is pinnable**. It is **not** engine cache pinning: `GraphPinning` (fingerprints, pin set, value store) remains an engine-internal feature; UI data pinning must not be built on it (gate-2 T8). Pin-state field shape is finalized by PR-D under the round-trip test contract (§4.24).
+
+Root causes and fix surfaces:
+
+- **G3-14** — Pin button is still cosmetic: `pinNode()` toggles a local `_pinned` boolean + CSS class (`graph-node-template.component.ts:551-556, 279-284`); it never writes the document, never persists, and renders unconditionally (not gated on pinnable capability/manifest). *Fix surface:* document store write + conditional render.
+- **G3-15** — No data-pinning semantics exist in the UI: the only pinning machinery is engine cache-pinning (`integrations` `GraphPinning`), not wired to the button; nothing freezes parameter values for downstream runs; gate-1 D10/D11 conflation persists. *Fix surface:* `for-angular` document store + template; do **not** build on `GraphPinning`.
+
+#### D5 — Validity: editor-projected, Run-gated
+
+**Ruling (normative).** The editor must **project validity visibly** — canvas/document invalid state with structured issue surfacing — and **Run is blocked on an invalid graph**. The backend `POST /graph/workflows/validate` endpoint (§4.10) is the authority; the client consumes it and surfaces structured `GraphValidationIssue`s. An invalid graph must never be submittable from the toolbar.
+
+Root causes and fix surfaces:
+
+- **G3-16** — No editor-side validity projection at all: no `POST /graph/workflows/validate` client anywhere in `for-angular/src/graph`; no canvas invalid state; no structured issue surfacing (gate-1 H20 persists). *Fix surface:* validate client + validity store.
+- **G3-17** — Run is gated on backend availability only: `[disabled]="!canRun() || isRunning()"` with `canRun = backendAvailable() !== false` (`graph.page.html`, `graph-toolbar.component.html:49`); an invalid graph submits, the backend nine-stage gate rejects it as a failed run, and the user sees only a raw `runError` string. *Fix surface:* toolbar gating on projected validity.
+- **G3-18** — The only "Valid/Invalid" indicator validates the wrong thing: the right pane "Model validation" reflects the workflow-input **form** validity (`graph-renderer.component.ts:275`), not graph connectivity — actively misleading under D5. *Fix surface:* validity projection over the document/graph.
+
+#### D6 — Log panel: on-demand bottom drawer, not entries-gated
+
+**Ruling (normative).** The run log is a **docked bottom drawer the user can open on demand** — not an always-visible dock and **not entries-gated**: it must be openable even with zero entries, with an empty state and **run-lifecycle lines** (run created / validated / validation issues). Auto-open at run start remains an enhancement.
+
+Root causes and fix surfaces:
+
+- **G3-19** — Entries-gated rendering persists: the widget renders `@if (store.open() && store.entries().length)` (`graph-logs-widget.component.html:1`); a run with no `GRAPH_RUN_LOG` entries (e.g. validation-failed) shows no panel and no affordance to open it. *Fix surface:* open affordance regardless of entries.
+- **G3-20** — Form factor is a floating card, not a bottom drawer: `position: absolute; left: 50%; bottom: 1rem; width: min(900px, …)` (`scss:6-10`) — a centered overlay that can cover the canvas. *Fix surface:* docked bottom drawer.
+- **G3-21** — No run-lifecycle lines: the panel carries only `GRAPH_RUN_LOG` entries; created/validated/issues lines are absent, so even the auto-open (`graphRunLog.setOpen(true)` at run start, `graph.page.ts:213`) shows an empty/absent panel precisely when the user most needs feedback. *Fix surface:* run-lifecycle lines into the log store feed.
+
+#### D7 — Node face: category colours, letter silhouettes, title-not-description, icons-from-metadata
+
+**Ruling (normative).** The node face renders: **category-based base colours** (all nodes of a category share one base colour; an explicit per-node `color` is an override applied at one precedence point), a **readable category letter silhouette** when no icon is available (e.g. "FE" for for-each — not the title's first character), **replaceable by an icon when metadata provides one** (per reference type: `catalogue` → Tabler sprite via `<svg><use>`; `url`; `data:` SVG), and the **title** — not the description. One manifest display source per kind; competing style registries are removed.
+
+Root causes and fix surfaces:
+
+- **G3-22** — Category colors are not authoritative; same-category nodes differ: the template uses per-node `data.color` = manifest `display.color`, and `resolveEffectiveColor` lets explicit color override the category registry (`ui-decorators/src/graph/constants.ts:333`); Flow Control renders **five** colors (switch `#f97316`, if `#f59e0b`, parallel `#06b6d4`, error-boundary `#ef4444`, human-approval `#d946ef`), Loop three (`#eab308/#0891b2/#db2777`). *Fix surface:* category base color wins; per-node color becomes an explicit override.
+- **G3-23** — Two competing manifest sources for the same kinds: hand-authored `ui-decorators/src/graph/nodes/manifests.ts` declares Foreach/While/Until as "Flow Control" `#8b5cf6` + `ti-repeat`, while the decorated classes the fixtures actually compile from (`loops/foreach.ts` etc.) declare category "Loop" with different colors — a stale second authority. *Fix surface:* single manifest display authority per kind; remove the stale source.
+- **G3-24** — Letter badge is title-initial, not a category silhouette: `iconFallback = title.charAt(0)` (`graph-node-template.component.ts:269-272`) — "Split text" → "S", not the ruled silhouette ("FE"). *Fix surface:* category letter silhouette.
+- **G3-25** — Icon rendering path broken for every reference type: `legacyIconNameOf` returns the catalogue icon **name** (`GraphDiagramAdapter.ts:104-108`) and the template applies it as a CSS class (`[class]="node().data.icon"`) — but `ti-*` names are Tabler **sprite symbol ids** (rendered via `<svg><use>` elsewhere), so icons render as nothing on canvas; `url`/`data:` types are dropped entirely. *Fix surface:* per-reference-type icon rendering.
+- Compliant: the node title is rendered and the description is not — matches D7's title-not-description.
+
+### 4.23 Gate-3 finding inventory (G3-01..G3-38)
+
+The gate-3 demo audit produced 38 findings (SAA-1352 part 1 = G3-01..G3-25, folded into §4.22's per-ruling root-cause/fix-surface tables; part 2 = G3-26..G3-38, beyond D1–D7, tabled below). The beyond-D1–D7 findings are board-accepted (`70cbd0f8`) and are in scope for gate-4.
+
+**Gate-1 → gate-3 finding cross-reference** (gate-1 doc-level root causes, SAA-1350 comment `e539e0e1`): A1–A3 geometry → G3-01..G3-03 (I21 rotate → G3-04); B4–B6 ports/boundaries → G3-05..G3-09; C7–C9 double-click/hasRan/boundary CRUD → G3-10..G3-13; D10–D11 pin conflation/cosmetic pin → G3-14..G3-15; E12–E14 icons/labels/style sources → G3-22..G3-25; F15 (palette failure surface) → G3-26..G3-28; G17–G19 run results/log panel → G3-33, G3-21, G3-19; H20 (editor validity) → G3-16..G3-18; I21 → G3-04; J22 (boot script) → G3-30..G3-31; K23–K25 (events/package placement) → K23 is tested (global-stream 404 + run-scoped SSE covered); K24 (ownership resolution vs the for-nest events/auth rework) is a **gate-4 re-verification item** (§4.25); K25 (stale package placement in design-spec/handbook/DECAF-34 §4) is a gate-4 documentation item; L26 (§21 pre-manifest rows) → the supersession list above.
+
+**Beyond D1–D7 (G3-26..G3-38):**
+
+| ID | Area | Finding | Root cause (file:line) | Fix surface | PR |
+|:---|:---|:---|:---|:---|:---|
+| G3-26 | Palette & catalogue | Catalogue failure surface invisible: palette silently empty on fixture-compile or `refresh()` failure; no empty-state, error, or status line | `GraphNodeCatalogStore.ts:81-115` tracks a status signal no UI renders; `graph-renderer.component.html:37-60` lists `paletteEntries()` with no states (gate-1 F15 persists) | Render catalogue status/errors/empty-state | PR-H |
+| G3-27 | Palette & catalogue | Composite source swallows backend errors indiscriminately: "backend down" vs "backend up but malformed response" indistinguishable to user and status signal | `GraphNodeCatalogCompositeSource.fetchManifests()` catches any live-source error, falls back to fixtures-only (`GraphNodeCatalogCompositeSource.ts:29-37`) | Distinguish failure classes in status + UI | PR-H |
+| G3-28 | Palette & catalogue | Backend-down degrades CRUD forms silently: dynamic parameter options silently vanish from the edit modal | `invokeMethod` backend-only; modal takes `parameterDefs` from `catalog.get(kind)` (`graph-node-template.component.ts:385`) | Degraded-mode feedback in the modal | PR-H |
+| G3-29 | Palette & catalogue | "+ Add node" is a corner popup, not the n8n node-side edge connector | Palette interaction model deviation (quality bar) | Add-node connector decision under the n8n-look ruling | PR-H |
+| G3-30 | Demo/package boundary | Boot script is cross-package AND the dependency is undeclared: a standalone install cannot boot the backend at all | `start:backend: node ../integrations/lib/cjs/nest/graph/main.cjs` (`for-angular/package.json:7`); `@decaf-ts/integrations` in neither dependencies nor peerDependencies | Boot from for-angular's own node_modules; declare the dependency | PR-G |
+| G3-31 | Demo/package boundary | Playwright `webServer` still commented out — E2E has no managed server (gate-2 infra risk, confirmed); the G3-30 fix **must** be paired or E2E breaks | `playwright.config.ts:98-104` | Managed server fixture or re-enabled `webServer` | PR-G (paired) |
+| G3-32 | Demo/package boundary | Demo run inputs fixed in code: "template workflow usable out of the box" holds only for the canned inputs | Same root as G3-13 (`graph.page.ts:234-237`) | Workflow-input form as run-input source | PR-C |
+| G3-33 | Run results & observation | "Pending run result" forever: output cards render "pending run result" indefinitely on fetch miss; no retry affordance; no structured validation-issues display (gate-1 G18 persists) | `fetchRunResult` retried 5×80ms after terminal event (`graph.page.ts:351-358`); `lastResult` stays null (`graph-renderer.component.ts:583`) | Result-fetch hardening + retry + structured issue surfacing | PR-C |
+| G3-34 | Run results & observation | No cancel affordance and no stuck-run timeout: nothing in the UI can cancel a run; Start shows "…" indefinitely if the terminal event never arrives | Toolbar has undo/redo/autosave/save/start only; `isRunning` cleared only by a terminal fold; `workflow.cancelled` handled reactively (`graph.page.ts:340`) | Run-cancel affordance (+ stuck-run timeout policy) | PR-H |
+| G3-35 | Run results & observation | Document round-trip drift surfaces as a raw hash string — developer-grade error text in the demo UI | `graph.page.ts:363-369` | Human-readable drift message | PR-H |
+| G3-36 | Quality bar | Developer snapshot textarea (Save/Load raw JSON) exposed in the demo right pane — not n8n-like | `graph-renderer.component.html` | Behind a dev flag | PR-H |
+| G3-37 | Quality bar | "Duplicate value node" button under every input field — legacy affordance with no n8n analogue | Renderer form | Remove/replace | PR-H |
+| G3-38 | Quality bar | Negative-margin hover action buttons overflow the node bounds — with the fixed 96px face, delete/pin can sit outside the rendered node and off the ng-diagram hit area | `top/right: -0.4rem` (`scss:171-175`) | Action-zone placement within the node face | PR-H |
+
+### 4.24 Gate-2 test contract (definition-of-done)
+
+**Provenance.** Gate 2 (test-suite review, SAA-1351 comment `11323391`) mapped current coverage against D1–D7: the suites are strong on the data/document/execution spine and weak-to-absent on exactly the ruled surfaces; several Playwright suites **assert the stale DECAF-32 §21 contracts as features**; no test anywhere asserts node dimensions, so the board's #1 complaint (everything renders 96px) was CI-invisible.
+
+**P0 tests-to-add — each ships with the PR that fulfills its ruling (definition-of-done):**
+
+| # | Ruling | P0 test contract | Ships with |
+|:---|:---|:---|:---|
+| 1 | D1 | Unit tests for `nodeUiSizeOf`/`projectedNodeHeightOf` manifest-authoritative precedence (manifest display wins; `ui.size` explicit override only); E2E asserting **rendered** node dimensions match manifest metadata — computed dimensions, not CSS variables (a CSS-variable assertion passes while the 96px template override persists); value-driven height growth | PR-A |
+| 2 | D2 | Default + connected ports always visible; required-input ports visible even when unconnected; multi-output vertical distribution; port→port connection binding; workflow-boundary rendering decision applied | PR-B |
+| 3 | D3 | Double-click always opens CRUD (even after a run — regression pin for the takeover); ran node shows run inputs left / CRUD center / run outputs right, **all three populated** — the "NOTHING APPEARS" regression pin, the single most important new E2E; boundary double-click CRUD | PR-C |
+| 4 | D4 | Pin writes the document; survives save/load; freezes parameter values for downstream runs (a pinned node's downstream run uses frozen values); pin affordance only when pinnable | PR-D |
+| 5 | D5 | Editor-side validity projection; `POST /graph/workflows/validate` client contract; canvas invalid state; Run button disabled/blocked on invalid graph with issues surfaced | PR-E |
+| 6 | D6 | Bottom drawer opens on demand regardless of entries; empty state + run-lifecycle lines (created/validated/issues) asserted; the implicit `entries().length` coupling removed from template and tests | PR-F |
+| 7 | D7 | Category base color from manifest; letter badge ("FE") when no icon; title rendered; description **not** rendered; icon rendering per reference type (catalogue/url/data) | PR-A |
+| 8 | — (boot-crash regression; 2026-09-17 addendum, SAA-1364 commit-gate rejection) | A Playwright e2e test must boot the UI the way `npm run start:dev` does — real dev server, **no** `window.ENV` bootstrap — navigate to the graph route, and assert no uncaught boot errors and that the graph surface renders. Purpose: make the lazy-chunk boot-crash class (module-eval failures under missing runtime env, e.g. `src/environments/environment.ts`) CI-visible against live dev targets. Dev-chrome gating derivation (corrected): `GRAPH_DEV_MODE` derives from Angular's `isDevMode()`; the graph route does not import `src/environments/environment` for it | PR-G |
+
+**Stale assertion groups to change in the same change-set that flips behavior (T1–T8, never in a follow-up):**
+
+| # | Test(s) | Stale contract encoded | Change under |
+|:---|:---|:---|:---|
+| T1 | `node-{split-code,foreach,log,until,while}.spec.ts` — 7× "output port is hidden" | DECAF-32 §21.6 hidden-by-default | D2 / PR-B: invert to visible-port assertions + required-exception cases |
+| T2 | `graph-run.spec.ts` "opens the node I/O inspection panel for a completed node" | §21.11 / DECAF-48 §4.6 hasRan takeover | D3 / PR-C: rewrite to split view + the "NOTHING APPEARS" population pin |
+| T3 | `node-*.spec.ts` "double-click opens the node edit modal" (member nodes only) | boundary double-click CRUD untested (gate-1 C8) | D3 / PR-C: keep member assertions; add boundary-node CRUD (born red is correct) |
+| T4 | `base-node.spec.ts` "pinning a node toggles the pinned class" | cosmetic `_pinned` + CSS (gate-1 D10) | D4 / PR-D: rewrite to document-write, save/load survival, value freeze; CSS class becomes incidental |
+| T5 | `node-*.spec.ts` per-category hex assertions; `GraphBuiltInRegistrations.test.ts` "§21.8.2 registry conformance" | style authority = §21.8 registry (gate-1 E14) | D7+D1 / PR-A: re-anchor to manifest display as source (category base colors still required — the requirement survives, the authority moves); add letter badge, title shown, description not shown, icon-from-metadata |
+| T6 | `edges.spec.ts` "exactly 6 edges are rendered (3 workflow-output edges are dropped)" | workflow-boundary endpoints as synthesized badge nodes (gate-1 B6) | D2 / PR-B: expectations re-derived after the boundary re-rendering decision, not patched |
+| T7 | `base-node.spec.ts` port-id / connected-class assertions | visibility model implicit | D2 / PR-B: keep ids/connected-class checks; add default-visibility and required-visibility assertions |
+| T8 | `GraphPinning.test.ts` (integrations) | engine **cache** pinning | D4 / PR-D: suite remains valid for the engine feature, labeled engine-cache-scoped; **not** the UI pin-button contract; new data-pinning suite required |
+
+**Infra pairing (mandatory):** the boot-script fix (G3-30) **must ship with a managed server fixture or Playwright `webServer`** — the `webServer` block is currently commented out (`playwright.config.ts:98-104`) and E2E boots the backend cross-boundary via the undeclared `../integrations` path; PR-G must land with or before any E2E-relevant PR above. Additional infra requirements from gate 2: geometry assertions check **computed** dimensions; `GraphInspectionStore` run-state reset between D3 scenarios (avoids order-dependent flakes); palette tests assert catalogue status first (fixture compile errors silently empty the palette); component-level tests for node template/IO viewer/switch modal need Angular jest harness setup in `for-angular` (budget for harness work); `bundle-wall.spec.ts` is an active tripwire — new split-view components must not import backend/engine symbols.
+
+**Acceptance spine:** keep the 12-step `canvas-run.spec.ts` E2E (§4.19) as the acceptance spine and extend it with pin (step 3.5), validity projection (pre-run gate), and split-view inspection (post-run) assertions.
+
+### 4.25 Gate-4 implementation roadmap (PR-A..PR-H)
+
+**Provenance.** The recommended order of work is from the gate-3 audit (SAA-1352 part 2), board-accepted via confirmation card `70cbd0f8` (2026-09-16T13:32Z). Each PR ships its gate-2 P0 tests (§4.24) and supersedes its stale DECAF-32 §21 rows in the same change-set; stale test assertions T1–T7 change in the same change-set that flips behavior. Priorities reflect board pain × blast radius.
+
+| PR | Scope | Fixes | Ships P0 tests | Supersedes (same change-set) |
+|:---|:---|:---|:---|:---|
+| PR-A | Rendering contract: geometry + node face (D1, D7). Single restyle: remove template CSS geometry authority; manifest display authoritative with `ui.size` as explicit user override only; kill the Switch triple-hardcode + DOM style write; add `rotatable:false`; category-color resolution; category letter silhouettes; working icon rendering per reference type | G3-01..04, G3-22..25 | #1, #7 | DECAF-32 §21.3, §21.4 (geometry/face rows) |
+| PR-B | Port visibility & boundary (D2). Principled visibility rule; value-bound ports render with a value badge; visible port labels; workflow-boundary re-rendering decision applied | G3-05..09 | #2 | DECAF-32 §21.6 |
+| PR-C | D3 split view + run-data plumbing. Double-click always opens CRUD; three-pane split (inputs LEFT / CRUD CENTER / outputs RIGHT); inspection empty-state eliminated; run inputs from the workflow-input form; result-fetch hardening with retry + structured issue surfacing | G3-10..13, G3-33 | #3 | DECAF-32 §21.10 (double-click row), §21.11 |
+| PR-D | D4 data pinning. Pin writes the document, persists through save/load, freezes parameter values for downstream runs, renders only when pinnable; not built on engine `GraphPinning` | G3-14..15 | #4 | — |
+| PR-E | D5 validity. Validate client (`POST /graph/workflows/validate`), canvas/document validity projection, Run gating + structured issues surfaced | G3-16..18 | #5 | — |
+| PR-F | D6 log drawer. Docked bottom drawer, user-openable regardless of entries, run-lifecycle lines; auto-open on run kept as enhancement | G3-19..21 | #6 | — |
+| PR-G | Demo/package boundary. Boot the backend from for-angular's own node_modules (declare `@decaf-ts/integrations`), paired with a managed Playwright `webServer` fixture | G3-30..31 | infra pairing (§4.24) | — |
+| PR-H | Palette failure surface + polish. Render catalogue status/errors; distinguish backend-down vs malformed; add-node connector decision (G3-29) under the n8n-look ruling; G3-34..38 cleanups | G3-26..29, G3-34..38 | P1 #8 (composite source tests) | — |
+
+**Dependency notes (from the audit):** PR-A/PR-B are the visual foundation and precede the E2E assertion rewrites; PR-C depends on PR-B's boundary decisions only where run inputs render; **PR-G must precede any Playwright run in CI** and land with or before any E2E-relevant PR. Backend work is limited to catalogue/validate endpoints already specified (§4.10, §4.13); the heavy lift is `for-angular` frontend.
+
+**Gate-4 verification items carried from gate 1:** K24 — re-verify ownership resolution (`graphWorkflowOwnerOf`, `assertGraphResourceOwnership`, standalone `auth:"optional"` + `allowAnonymousAccess` profile) against the current for-nest events/auth rework (DECAF-809 `EventsSubscriptionController`/`ObserverSubscriptionRegistry`, `request/contextualize.ts`, `DecafErrorFilter` auth-action logging), since §4.16 predates it. K25 — re-check stale package placement in `workdocs/ai/project/technical-docs/design-specification/08-graph-design.md` §3/§8 (references the no-longer-existing `@decaf-ts/integrations/graph/shared` module), architecture-handbook 08 §3.10, DECAF-34 §4, and the bundle-wall forbidden-specifier list, updating them in the same change-sets. Gate-4 starts only after the board confirms this specification update lands and is accepted.
 
 ## 5. Tasks Breakdown
 
@@ -1281,6 +1445,8 @@ This specification is broken down into the following phases. Each phase should b
 
 Package checkpoints (PM-approved): `ui-decorators` document/manifest types (P1); `integrations` catalogue + validation + persistence + run API (P2, P3, P5, P6); `for-angular` canonical store + catalogue-driven palette + parameter renderer (P4, P6 clients).
 
+**Gate-4 execution note (2026-09-16):** the board-authorized gate-4 implementation (delegated to the CTO after this record update is accepted) executes via the PR-A..PR-H roadmap in §4.25 within the P1–P7 phase structure above; each PR carries specification `DECAF-50` and ships its gate-2 P0 tests (§4.24) plus its DECAF-32 §21 supersession rows in the same change-set.
+
 ## 6. Open Questions / Risks
 
 1. **Cross-package refactor:** deliver in phases with compatibility compilers and the `GRAPH_CANONICAL_DOCUMENT_ENABLED` feature flag.
@@ -1295,6 +1461,7 @@ Package checkpoints (PM-approved): `ui-decorators` document/manifest types (P1);
 10. **Unsupported third-party controls:** generic fallback rendering and explicit validation errors.
 11. **Compatibility migration silently dropping config-store state:** fixture-based round trips covering port modes, literal values, and dynamic binding decisions (accentuated by technical governance).
 12. **Transition-phase fixture coverage** is owned by the implementation and QA gates, per the CTO decision; any shortfall surfaces there, not in this record.
+13. **Gate-3 open sub-points (not contradictions; decision owners named):** (a) port-label affordance for visible ports — persistent vs hover under the n8n reference (D2 sub-point from gate-1 B5) — decided by PR-B; (b) workflow-boundary rendering — real ports vs a ruled badge exception — decided by PR-B; (c) add-node interaction model — corner popup vs n8n node-side connector (G3-29) — decided by PR-H; (d) pin-state document field shape (D4) — finalized by PR-D under the §4.24 round-trip contract; (e) K24 ownership re-verification vs the for-nest events/auth rework — gate-4 verification item (§4.25).
 
 Resolved decisions that could otherwise look open: enforced priority is **High** (draft's `Critical` claim replaced; ordering-only change, board may re-raise); the expression evaluator/limiter stays within the engine's existing allowed-expression machinery; resource-limit numeric defaults are delegated to technical governance; `POST /graph/execute` is deprecated (not deleted); catalogue versioning semantics remain outside scope. None of these blocks phase work.
 
@@ -1313,3 +1480,13 @@ Initial record artifacts:
 
 *   `workdocs/ai/project/specifications/DECAF_50.md` (this record).
 *   Paperclip `delivery-docs` mapping for the owning domain root (authored on the `initialize` milestone child, published mechanically by the parent owner).
+
+Gate-3 revision artifacts (2026-09-16, board-authorized spec update; edits left uncommitted pending the later board commit authorization):
+
+*   This record: §4.22 (D1–D7 authoritative rendering contract / demo behavior), §4.23 (38-finding inventory G3-01..G3-38 + gate-1 cross-reference), §4.24 (gate-2 test contract / definition-of-done), §4.25 (gate-4 PR-A..PR-H roadmap); §4.5 geometry/face precedence; §4.21 supersession additions; provenance and open-points updates.
+*   `workdocs/ai/project/specifications/DECAF_32.md` — supersession markers on §21.3, §21.4, §21.6, §21.8.2, §21.10, §21.11 (superseded-by-DECAF-50 §4.22).
+*   `workdocs/ai/project/specifications/DECAF_34.md` — supersession marker on §4.1 (superseded-by-DECAF-50 §4.22).
+
+§4.24 addendum artifacts (2026-09-17, rides the same uncommitted SAA-1364 change-set):
+
+*   This record: §4.24 gate-2 test contract gains P0 test #8 — a Playwright e2e boot-crash clause running against the live dev server (`npm run start:dev`, no `window.ENV` bootstrap), asserting no uncaught boot errors and that the graph surface renders, paired with PR-G's managed webServer fixture; records the corrected `GRAPH_DEV_MODE` derivation (Angular `isDevMode()`, no `src/environments/environment` import from the graph route). Origin: the board's gate-4 commit-gate rejection on SAA-1364 (confirmation card `4f6b574e`, 2026-09-17) after the graph demo crashed on `npm run start:dev`. No §4.22 or §4.25 wording referenced the dev-chrome gating derivation (the only prior reference, G3-36 "Behind a dev flag", is derivation-agnostic), so no alignment edit was needed elsewhere; DECAF_32.md/DECAF_34.md supersession banners are untouched.

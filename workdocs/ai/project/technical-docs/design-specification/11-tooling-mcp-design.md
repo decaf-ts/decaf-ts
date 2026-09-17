@@ -168,8 +168,8 @@ help/version short-circuit → prompt for missing answers (via `UserInput`) →
 `run`. Concrete commands (`BuildScripts`, `ReleaseScript`,
 `ReleaseChainCommand`, `ModulesCommand`, `NpmLinkCommand`, `NpmTokenCommand`,
 `RunAllCommand`, `TagReleaseCommand`, `CredentialsCommand`,
-`CompileMatrixCommand`, `MirrorRepoCommand`) are re-exported from
-`src/cli/commands/index.ts`.
+`CompileMatrixCommand`, `MirrorRepoCommand`, `BundleCommand`,
+`BuildDocsCommand`) are re-exported from `src/cli/commands/index.ts`.
 
 ### 3.2 Output strategy
 
@@ -196,8 +196,9 @@ wrapper).
 ### 3.5 Build placeholders
 
 `VERSION`/`COMMIT`/`FULL_VERSION`/`PACKAGE_NAME` are literal `"##...##"` in
-source, substituted by `build-scripts` at bundle time. They are only meaningful
-in a built `build-scripts` bundle.
+source, substituted by `build-scripts` at bundle time; the README carries a
+fifth token, `##PACKAGE_SIZE##` (gzipped bundle size), substituted the same
+way. They are only meaningful in a built `build-scripts` bundle.
 
 ### 3.6 Secondary entrypoint
 
@@ -446,8 +447,10 @@ Submodule-driven orchestration (`decaf utils modules` is the single source of
 truth); local linking instead of publishing for dev (`decaf utils npm-link`
 symlinks `node_modules/@decaf-ts/<dep>/lib` to workspace source, skipping
 `utils` and `logging` because they cross-reference each other); aggregate dist
-bundling (`decaf utils bundle` + `releases/bundles.json` produce
-`@decaf-ts/dist-*` meta-packages); shared tooling
+bundling (`decaf utils bundle` — the `BundleCommand`, which replaces the
+legacy root `bin/bundle.js` — plus `releases/bundles.json` produce
+`@decaf-ts/dist-*` meta-packages); documentation staging (`decaf utils
+build-docs` replaces the legacy `bin/build-docs.sh`); shared tooling
 (`decaf utils build-scripts`/`decaf utils update-scripts` ship as command
 modules in `@decaf-ts/utils`, so submodules need no per-package script
 copies).
@@ -655,6 +658,7 @@ sensitive extra-secrets supplied via `-var`/`TF_VAR_`.
 | `DRY_RUN=1` | dry-run `decaf utils bundle` manifest generation without publishing |
 | `TIMEOUT` | seconds to wait between bundle publishes (default 20) |
 | `TOKEN` / `NPM_TOKEN` | publish credentials for `decaf utils bundle` |
+| `NPM_PUBLISH_INTERACTIVE` | `decaf utils tag-release` skip-CI local publish auth: when not exactly `0` (the default), publish runs without injecting `NPM_TOKEN` so npm's ambient authentication (credentials resolver / keychain / `.npmrc`) is used; when exactly `0`, the resolved npm secret is injected as before |
 | `VERSION` | docker tag override |
 
 `decaf utils tag-release` reads `.token` (git push) and `.npmtoken` (npm

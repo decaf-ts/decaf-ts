@@ -56,20 +56,35 @@ This is a **documentation-only** specification — no code tasks. All node decla
 
 ## 4. Architecture & Design
 
-All node declarations live in `integrations/src/graph/nodes/`:
+> Package placement updated 2026-09-16 (DECAF-50 gate-4 K25): the former
+> `integrations/src/graph/nodes/` and `integrations/src/graph/shared/` modules
+> no longer exist — node declarations live in `ui-decorators/src/graph/nodes/`
+> and the backend engine in `integrations/src/graph/engine/`.
 
-| File | Contents |
+All node declarations live in `ui-decorators/src/graph/nodes/` (one node per
+file under `nodes/<category>/<node>.ts`), exported through
+`@decaf-ts/ui-decorators/graph`; the backend pairs them with executors in
+`integrations/src/graph/engine/catalog/` (`registerBuiltInGraphNodes`,
+DECAF-50 §4.12):
+
+| Path | Contents |
 |:---|:---|
-| `triggers.ts` | 6 trigger node classes (`ManualTriggerNode`, `WebhookTriggerNode`, …) |
-| `flow-control.ts` | 10 flow-control/utility node classes (`IfFlowNode`, `SwitchFlowNode`, …, `CodeFlowNode`) |
-| `agent.ts` | `AgentNode` with `@connection()` ports |
+| `triggers/` | 6 trigger node classes (`ManualTriggerNode`, `WebhookTriggerNode`, …) |
+| `flow-control/` | flow-control node classes (`IfFlowNode`, `SwitchFlowNode`, `BreakFlowNode`, …) |
+| `utility/` | utility node classes (`CodeFlowNode`, `DelayFlowNode`, `MapFlowNode`, `MergeFlowNode`, …) |
+| `agents/agent.ts` | `AgentNode` with `@connection()` ports |
+| `loops/` | loop node classes (`GraphForeachLoopNode`, `GraphWhileLoopNode`, `GraphUntilLoopNode`) |
+| `boundary/input-value.ts` | `GraphInputValueNode` workflow input-value boundary node |
 | `base.ts` | `GraphNode` base class with overridable `static applyMetadata()` |
 | `category-styles.ts` | `GraphCategoryStyle` registry (colour + icon per category) |
+| `manifests.ts` | built-in catalogue-published manifests (`GRAPH_BUILT_IN_NODE_MANIFESTS`) |
 | `index.ts` | Barrel export |
 
-The loop node classes (`GraphForeachLoopNode`, `GraphWhileLoopNode`, `GraphUntilLoopNode`) live in the for-angular demo layer and are declared with `core.loop.*` kinds. They have built-in engine executors (DECAF-32 §5.9).
+The loop node classes (`GraphForeachLoopNode`, `GraphWhileLoopNode`, `GraphUntilLoopNode`) are declared in `ui-decorators/src/graph/nodes/loops/` with `core.loop.*` kinds; the for-angular demo layer consumes them. They have built-in engine executors (DECAF-32 §5.9).
 
 ### 4.1 Rendering Contract (DECAF-32 §21)
+
+> **Superseded by [DECAF-50](./DECAF_50.md) §4.22 (board reopen rulings D1–D7, 2026-09-16).** The 96×96 rounded-square sizing (incl. Switch/Agent size special-cases), the hover-hidden port-label rule, and the fixed category-colour rows here are superseded by the manifest-authoritative geometry/face contract (manifest `display` metadata wins; default + connected + required port visibility; category base colours with single-authority manifest display; letter silhouettes; icons per reference type; title-not-description). Historical record only.
 
 | Aspect | Rule |
 |:---|:---|
