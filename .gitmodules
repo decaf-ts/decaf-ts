@@ -1,6 +1,9 @@
 [submodule "utils"]
 	path = utils
 	url = https://github.com/decaf-ts/utils
+[submodule "testing"]
+	path = testing
+	url = https://github.com/decaf-ts/for-testing
 [submodule "logging"]
 	path = logging
 	url = https://github.com/decaf-ts/logging.git
@@ -74,6 +77,12 @@
 [submodule "integrations"]
 	path = integrations
 	url = https://github.com/decaf-ts/integrations.git
+[submodule "for-drizzle"]
+	path = for-drizzle
+	url = https://github.com/decaf-ts/for-drizzle
+[submodule "weaver"]
+	path = weaver
+	url = https://github.com/decaf-ts/fabric-weaver.git
 [submodule "reusable-actions"]
 	path = reusable-actions
 	url = https://github.com/decaf-ts/reusable-actions.git
@@ -92,6 +101,3 @@
 [submodule "as-infra"]
 	path = as-infra
 	url = https://github.com/decaf-ts/as-infrastructure.git
-[submodule "weaver"]
-	path = weaver
-	url = https://github.com/decaf-ts/fabric-weaver.git
