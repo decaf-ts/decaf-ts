@@ -172,6 +172,11 @@
    "allowedVariants": []
   },
   {
+   "path": "testing",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
    "path": "ui-decorators",
    "classification": "ui",
    "allowedVariants": []
