@@ -53,7 +53,7 @@ Affected packages: `@decaf-ts/ui-decorators`, `@decaf-ts/integrations`, `@decaf-
 - Expressions are constrained, not new scope: both `mode: "expression"` bindings and expression parameters must run in the engine's existing allowed-expression machinery (or fail validation); no new evaluator and no arbitrary remote code.
 - The catalogue and dynamic-method endpoints require an authenticated `DecafRequestContext`, propagate it, and never return secrets.
 - `POST /graph/execute` is deprecated at cutover, not deleted; removal is a separate decision taken after the run API is the sole primary Angular path.
-- Legacy persisted workflows: conversion of previously saved legacy snapshots is lossless and read-path/compile-path based (no destructive migration job; no semantics added to the existing snapshot version fields). Any workflow the old UI saved before cutover must load, restore, and execute correctly after cutover with zero user-visible data loss.
+- Legacy persisted workflows: conversion of previously saved legacy snapshots is lossless and read-path/compile-path based (no destructive migration job; no semantics added to the existing snapshot version fields). Any workflow the old UI saved before cutover must load, restore, and execute correctly after cutover with zero user-visible data loss. *(Superseded 2026-09-20, round-2: legacy-snapshot retro-compat is removed — see §4.26 R2-2.)*
 - Resource-limit defaults (counts, depths, bytes, retention, rates) exist, are configurable, and are enforced backend-side; the specific numeric defaults are delegated to technical governance.
 
 ## 2. Goals
@@ -401,6 +401,8 @@ Located at `ui-decorators/src/graph/document/GraphDecoratedWorkflowCompiler.ts`.
 
 ### 4.5 Node manifest contract
 
+**Round-2 marker (2026-09-20):** manifests are authored in/derived from the **backend** node classes and serialized to the frontend as JSON metadata only; the frontend never imports node classes (§4.26 R2-1). Parts of this section (and §4.6) that describe manifest compilation from node classes shared with the frontend are superseded by §4.26.
+
 Generic manifest contracts and compilers belong in `ui-decorators/src/graph/catalog/`; built-in manifests in `integrations/src/graph/shared/nodes/`; runtime discovery comes from the backend catalogue API.
 
 ```ts
@@ -494,6 +496,8 @@ export type GraphValueSchema =
 Existing Decaf validation metadata should compile into this form where possible.
 
 ### 4.6 Parameter schema system
+
+**Round-2 marker (2026-09-20):** parameter definitions, visibility DSL, and method references are serialized metadata; any part of this section presupposing frontend access to node classes (e.g. class-authored methods/validators reaching the browser) is superseded by §4.26 R2-1. `loadOptionsMethod`/`validateMethod`-style references remain backend method manifests resolved server-side.
 
 ```ts
 export type GraphParameterDefinition =
@@ -694,6 +698,8 @@ export function defineGraphNode(
 ```
 
 Node authors may co-locate manifest and executor registration; the shared manifest remains separately exportable and the registration containing the executor remains backend-only.
+
+**Superseded (2026-09-20, round-2):** the co-located authoring helper (`defineGraphNode`) and the shared-manifest/executor split are **superseded by §4.26 R2-1** — the class defining a node, including its execute function, is backend-only; the handler mechanism that forced a node's function into two scopes is removed (simple nodes carry their own execute method), and the frontend never imports node classes.
 
 ### 4.8 Backend workflow validation
 
@@ -1145,6 +1151,8 @@ Runs record the executed document's content fingerprint plus the workflow refere
 
 ### 4.18 Compatibility and transition
 
+**Superseded (2026-09-20, round-2):** §4.18 is **superseded by §4.26 R2-2** — the engine ships as its first version with no backward compatibility; all engine/schema versioning and retro-compat code (versioned snapshots, migration/legacy-compat paths, versioned transition rollout) is removed. Retained below for history.
+
 During transition, a public compatibility layer may accept a `GraphWorkflowDocument`, legacy snapshot, legacy definition, or decorated constructor, but immediately compiles everything into `GraphWorkflowDocument`; the engine and planner operate only on canonical/resolved types. Legacy conversion must move nodes/edges, config-store values, port modes, dynamic metadata, boundaries, and layout into the new document while removing constructors and `modelClass`/`sourceClass` references. A temporary `GRAPH_CANONICAL_DOCUMENT_ENABLED` feature flag supports staged delivery; feature-flag mechanics per technical governance (C7 cutover removes it).
 
 Recommended rollout:
@@ -1374,7 +1382,7 @@ Root causes and fix surfaces:
 
 **Ruling (normative).** The foreach's `addNode` action inserts the new node **behind the current node, inside the foreach's existing single connection loop**. A foreach can never have **multiple loops** — loop creation is not an addNode outcome. For the **default workflow**, the loop **starts with a Log node inside it**, so every element of the array produced by the code node is logged.
 
-**Affected existing rulings/findings.** The demo default workflow (G3-13/G3-32); the node-interaction surfaces in §4.22 (addNode is the same interaction family G4-R5 re-ruled); PR-B/PR-H canvas interaction work.
+**Affected existing rulings/findings.** The demo default workflow (G3-13/G3-32); the node-interaction surfaces in §4.22 (addNode is the same interaction family G4-R5 re-ruled); PR-B/PR-H canvas interaction work. **Partially superseded (2026-09-20, round-2):** the insertion/visibility mechanics are re-ruled by §4.26 R2-3(3) — the for-each 'add node' ghost is the insertion anchor (insert between for-each and the ghost; ghost hover-visible only when the loop already holds a real node). The single-loop rule and the default Log node inside the loop stand.
 
 **Fix surfaces.** foreach `addNode` handler (insert-into-existing-loop semantics; forbid loop duplication); demo default workflow seed (Log node inside the foreach loop, wired to the code node's array output).
 
@@ -1507,6 +1515,68 @@ The gate-3 demo audit produced 38 findings (SAA-1352 part 1 = G3-01..G3-25, fold
 
 **Gate-4 verification items carried from gate 1:** K24 — re-verify ownership resolution (`graphWorkflowOwnerOf`, `assertGraphResourceOwnership`, standalone `auth:"optional"` + `allowAnonymousAccess` profile) against the current for-nest events/auth rework (DECAF-809 `EventsSubscriptionController`/`ObserverSubscriptionRegistry`, `request/contextualize.ts`, `DecafErrorFilter` auth-action logging), since §4.16 predates it. K25 — re-check stale package placement in `workdocs/ai/project/technical-docs/design-specification/08-graph-design.md` §3/§8 (references the no-longer-existing `@decaf-ts/integrations/graph/shared` module), architecture-handbook 08 §3.10, DECAF-34 §4, and the bundle-wall forbidden-specifier list, updating them in the same change-sets. Gate-4 starts only after the board confirms this specification update lands and is accepted.
 
+### 4.26 Round-2 close-out addendum — backend-only node classes, versioning removal, UX/functional fixes
+
+**Provenance (board-accepted, normative).** After gate-4 (G4-R1..R6, §4.22) was accepted, the board issued the round-2 close-out change list (context manifest rev 1 `57a249ba` on SAA-1628, 2026-09-20; dispatched for record update via SAA-1629). Every point below is normative — an acceptance criterion, with no reinterpretation or softening. This addendum supersedes exactly the sections listed in the supersession table at the end; everything it does not touch — especially the graphical rendering contract (D1–D7, §4.22) — stays as ruled. The DECAF-35 frontend/backend package boundary (`for-angular` never depends on `integrations`) is preserved throughout.
+
+#### R2-1 — Backend-only node classes; metadata-only frontend contract (supersedes parts of §4.5–§4.7)
+
+**Ruling (normative).** The class defining a node — **including its execute function** — is defined **only in the backend** and is **never available to the frontend**. There is exactly **one authoritative backend class per node kind**; the handler mechanism that forced a node's function to be authored in two scopes (frontend class + backend executor/handler) is **removed**. Simple nodes carry their own `execute` method directly — **no handlers**. Inheritance between node classes becomes cleaner and is backend-internal only.
+
+**Metadata-only frontend contract (normative).** The frontend receives **only workflow metadata** — all nodes' graphical metadata plus property values — and MUST be able to render nodes, ports, and connections without any knowledge of the defining class:
+
+- Node catalogue (`GET /graph/node-types`, `GET /graph/node-types/{kind}`, `POST /graph/node-types/{kind}/resolve` — §4.13) SHALL return serializable manifests covering **all** node kinds: display/geometry/face metadata (§4.5), ports and connection policies, parameter definitions and the visibility DSL (§4.6), dynamic-port rules, credential requirements, and capability flags (incl. pinnable). No classes, constructors, functions, module paths, or execute code SHALL cross the wire.
+- Workflow load (§4.10) SHALL return the `GraphWorkflowDocument` carrying, for every node instance: kind; parameters and input/output bindings (property values); port checked/value state (G4-R3); pin state (D4); and UI position/size. This is the complete render/interact surface; it is metadata only.
+- The UI SHALL create nodes as `GraphNodeInstance`s from manifest metadata and generic templates; it MUST NOT import, extend, or instantiate node classes. Adding a node is metadata in, document mutation out (§4.12).
+- Metadata contract *types* (manifest/parameter/document interfaces) remain shared in `ui-decorators` per DECAF-35; node *classes* live in the backend engine only.
+
+**Supersessions.** The co-located-authoring compromise in §4.7 (`defineGraphNode`; "the shared manifest remains separately exportable") is **superseded**: manifests are authored in/derived from the backend node classes and serialized; nothing node-class-shaped is exported to the frontend. Conflicting parts of §4.5 (manifest compilation from classes shared with the frontend) and §4.6 (parameter/method machinery presupposing frontend access to node classes) are superseded to the same effect; `loadOptionsMethod`/`validateMethod`-style references remain as backend method manifests resolved server-side (§4.6), never as frontend-reachable class members.
+
+#### R2-2 — Engine versioning removed; first version, no retro-compat (supersedes §4.18)
+
+**Ruling (normative).** All `GraphEngine`/schema versioning and retro-compat code is **removed**: the engine ships as its **first version** with **no backward compatibility**. There SHALL be no engine/schema version fields, no snapshot-version constants (`GRAPH_WORKFLOW_SNAPSHOT_VERSION`), and no version-driven migration or legacy-snapshot compat paths in `ui-decorators`, `integrations`, or their `for-angular` consumers. §4.18 (Compatibility and transition) — including its legacy-snapshot lossless-conversion mandate and versioned transition rollout — is superseded.
+
+- The canonical document is the only persisted/executed form; documents carrying definitions/functions remain rejected at the boundary (§4.8/§4.10).
+- The decorated-class authoring compiler (§4.4) remains an **authoring input** convenience — it is not engine retro-compat and not version-dependent.
+- **Not engine/schema versioning (remains):** pure UI document-mutation counters such as `GraphWorkflowDocumentStore.versionSignal` are document-store change signals for undo/autosave bookkeeping, not engine or schema versioning, and stay.
+
+#### R2-3 — UX/functional fix list (board items 3–8)
+
+**Ruling (normative).** Each item is an acceptance criterion:
+
+1. **Node top-right panel placement** — the x + pin action panel moves up and right so the **center of the 'X' sits at the node's notional un-rounded corner** (the corner the node would have if it were not rounded).
+2. **Agent node geometry** — agent nodes SHALL be **wider than high** (manifest display geometry under D1 precedence).
+3. **For-each 'add node' ghost insertion** — clicking the ghost and selecting a node SHALL insert the new node **between the for-each and the ghost** (`for-each → <added> → 'add node' → back to for-each`), never as a parallel loop. When the loop already holds a real node (other than the ghost), the ghost is visible **only while hovering** the for-each loop. **Partially supersedes G4-R2** (§4.22): the single-loop rule and the default Log node inside the loop stand; the ghost is the insertion anchor and governs visibility/insertion semantics.
+4. **IDE-like code input fields** — code parameters (e.g. the code node) render as IDE-like fields: **multiline, resizable, syntax highlighting, error highlighting** — not a simple single-line input.
+5. **Add-node popup dismissal** — clicking **outside** the add-node popup closes it.
+6. **`logResults` correctness** — the `logResults` node SHALL log the **correct output of the workflow given its position** (what is actually produced at its position in the graph), not a stale or hardcoded payload.
+7. **Workflow-outputs column** — the 'Workflow outputs' column SHALL show the **post-run outcome** of the workflow after a run.
+8. **Loose-node validation** — a loose node (connected to nothing) plus start SHALL **fail workflow validation**; the same loose-node rule SHALL fail on **save**. Failures surface per D5 (structured issues; Run blocked).
+9. **Way back to edit mode** — after start (fading), there SHALL be a way back to the **edit (unfaded) mode**.
+10. **Faded = executed, not disabled** — faded means executed: double-clicking a faded node shows its **inputs (left) and outputs (right)** (D3 split view), and the **x/pin buttons remain usable** in faded mode.
+11. **Everything else — especially graphical — stays the same** as ruled in §4.22 (D1–D7, G4-R1..R6) and the rest of this specification.
+
+#### R2-4 — Effect on D1–D7 and G4-R1..R6
+
+**Ruling (normative).** D1–D7 (card `b142356b`) and G4-R1..R6 remain in force except as superseded here:
+
+- **G4-R2** — partially superseded by R2-3(3) (ghost insertion/visibility semantics; single-loop rule and default Log node preserved).
+- **D1** — stands; value-driven display rules are manifest-declared metadata evaluated from node parameters, so D1 requires no frontend node-class knowledge. Where a D1/G3 fix surface referenced node classes under `ui-decorators/src/graph/nodes/**`, the referenced classes now live backend-only under R2-1.
+- **D3** — stands; R2-3(9)/(10) add the unfaded-mode return path and confirm the faded double-click split view with usable x/pin.
+- **D4** — stands; pin state stays a document-carried field (metadata only, R2-1-compatible).
+- No other D-ruling presupposes frontend node-class knowledge; fix surfaces that did are re-pointed to backend classes + serialized metadata under R2-1.
+
+**Supersession table (round-2).**
+
+| Old section | Status | New ruling |
+|:---|:---|:---|
+| §4.7 (co-located authoring helper; shared manifest separately exportable) | **Superseded** | R2-1: backend-only node classes; manifests serialized from the backend |
+| §4.5 / §4.6 (parts referencing node classes shared with, or reachable from, the frontend) | **Partially superseded** | R2-1 metadata-only contract; §4.13 API rules unchanged |
+| §4.18 (Compatibility and transition) | **Superseded** | R2-2: first engine version, no retro-compat; no versioned snapshot/migration/legacy-compat paths |
+| §4.20 P5/P7 gate text (legacy persisted-snapshot conversion; feature-flag transition mechanics) | **Superseded** | R2-2 |
+| §4.22 G4-R2 | **Partially superseded** | R2-3(3): ghost insertion between for-each and ghost; hover-only ghost; single-loop rule + default Log node stand |
+| D1–D7, G4-R1, G4-R3..R6 | **In force** | R2-4 (fix surfaces re-pointed only) |
+
 ## 5. Tasks Breakdown
 
 This specification is broken down into the following phases. Each phase should be small enough to be planned and executed separately; concrete `TASK_*` files are allocated when the domain-root owner decomposes the work after initialization (they do not exist yet, so links are intentionally omitted).
@@ -1568,3 +1638,7 @@ Gate-3 revision artifacts (2026-09-16, board-authorized spec update; edits left 
 §4.24 addendum artifacts (2026-09-17, rides the same uncommitted SAA-1364 change-set):
 
 *   This record: §4.24 gate-2 test contract gains P0 test #8 — a Playwright e2e boot-crash clause running against the live dev server (`npm run start:dev`, no `window.ENV` bootstrap), asserting no uncaught boot errors and that the graph surface renders, paired with PR-G's managed webServer fixture; records the corrected `GRAPH_DEV_MODE` derivation (Angular `isDevMode()`, no `src/environments/environment` import from the graph route). Origin: the board's gate-4 commit-gate rejection on SAA-1364 (confirmation card `4f6b574e`, 2026-09-17) after the graph demo crashed on `npm run start:dev`. No §4.22 or §4.25 wording referenced the dev-chrome gating derivation (the only prior reference, G3-36 "Behind a dev flag", is derivation-agnostic), so no alignment edit was needed elsewhere; DECAF_32.md/DECAF_34.md supersession banners are untouched.
+
+Round-2 close-out artifacts (2026-09-20, board change list; rides the uncommitted user-approved change-set, no commits/staging):
+
+*   This record: new §4.26 (round-2 close-out addendum — R2-1 backend-only node classes + metadata-only frontend contract, R2-2 engine-versioning removal, R2-3 UX/functional fix list, R2-4 D1–D7/G4 effect ruling + supersession table); inline round-2 supersession markers on §1 (legacy persisted workflows bullet), §4.5, §4.6, §4.7 (co-located authoring), §4.18, and §4.22 G4-R2. Origin: the board's round-2 close-out change list (context manifest rev 1 `57a249ba` on SAA-1628; dispatched via SAA-1629). DECAF_32.md/DECAF_34.md untouched this round — no cross-record supersession was required beyond what this record expresses.
