@@ -12,7 +12,10 @@ const scope = outerPkg["name"].split("/")[0];
 
 if (operation === "link") {
   libs.forEach((l) => {
-
+    if (!fs.existsSync(path.join(process.cwd(), l, "package.json"))) {
+      console.log(`Skipping ${l} as it is not checked out`);
+      return;
+    }
     const pkg = require(path.join(process.cwd(), l, "package.json"));
     const dependencies = [
       ...Object.keys(pkg.dependencies || {}),
@@ -42,7 +45,9 @@ if (operation === "link") {
           libExists = false;
         }
 
-        if (libExists) {
+        if (!fs.existsSync(path.join(cwd, linkName))) {
+          console.log(`Skipping ${d} as it is not installed in ${l}`);
+        } else if (libExists) {
           console.log(`${operation}ing ${d} as a dependency of ${l}`);
           execSync(`rm -rf ${pathToRemove}`, {
             cwd: path.join(process.cwd(), l),

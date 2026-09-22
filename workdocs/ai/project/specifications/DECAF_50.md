@@ -1376,6 +1376,8 @@ Root causes and fix surfaces:
 
 **Fix surfaces.** Backend-serialized default workflow (prefilled `code` property); code-node manifest/parameter prefill; port projection under the G4-R3 rule; split-code semantics in the demo default workflow.
 
+**Reclassification marker (2026-09-20, corrective round).** The code node was reclassified out of flow control into the utility family — kind `core.flow.code` → `core.utility.code`, class `CodeFlowNode` → `CodeNode` (§4.27 R3-1; serialized-document breaking, all consumers moved in the same round). G4-R1 itself is untouched: the prefilled split code, the hidden `code` input port, and the array-split output semantics stand unchanged.
+
 #### G4-R2 — foreach addNode: insert into the existing single connection loop; default workflow starts with a Log node inside the loop
 
 **Card text (verbatim-faithful).** "for-each: - the 'addNode', shoul add a node, behind it, in the same 'connection loop' for each already has. there can be no multiple loops on a single foreach. it's also meant, for this default workflow, to start with a log node inside its loog [loop] (so it logs every element of the array resulting from the code node;". (Bracketed gloss added.)
@@ -1385,6 +1387,8 @@ Root causes and fix surfaces:
 **Affected existing rulings/findings.** The demo default workflow (G3-13/G3-32); the node-interaction surfaces in §4.22 (addNode is the same interaction family G4-R5 re-ruled); PR-B/PR-H canvas interaction work. **Partially superseded (2026-09-20, round-2):** the insertion/visibility mechanics are re-ruled by §4.26 R2-3(3) — the for-each 'add node' ghost is the insertion anchor (insert between for-each and the ghost; ghost hover-visible only when the loop already holds a real node). The single-loop rule and the default Log node inside the loop stand.
 
 **Fix surfaces.** foreach `addNode` handler (insert-into-existing-loop semantics; forbid loop duplication); demo default workflow seed (Log node inside the foreach loop, wired to the code node's array output).
+
+**In-loop Log node marker (2026-09-20, corrective round).** The "Log node inside the loop" is the **"Log Item"** node (`LoopItemLogNode`, kind `core.flow.log`), wired to the foreach body input `item` and logging **each split item** — distinct from the end-of-workflow **"Log Results"** node (`ResultLogNode`, kind `core.flow.log`), which logs the foreach `completed` array (R2-3(6) correctness). The backend test contract now asserts the per-item logs (§4.27 R3-3); the foreach `completed` expectation was fixed by the engine branch-routing fix (§4.27 R3-4).
 
 #### G4-R3 — Fundamental node/port/ui-input rule: unchecked input = user-provided value, port not rendered; checked checkbox reveals the port — **refines D2**
 
@@ -1476,6 +1480,8 @@ The gate-3 demo audit produced 38 findings (SAA-1352 part 1 = G3-01..G3-25, fold
 | 12 | G4-R4 (2026-09-17 rejection addendum, card `3cfe2f66`) | Results output node is **draggable like any other node** and **keeps its input connection** across the drag | PR-I |
 | 13 | G4-R5 (2026-09-17 rejection addendum, card `3cfe2f66`) | Drag-from-output-to-empty-canvas opens the add-node popup; the selected node is inserted **already connected** into its first available input port; the node-highlight **"+" button is absent** (regression pin) | PR-I |
 | 14 | G4-R6 (2026-09-17 rejection addendum, card `3cfe2f66`) | Node add list **search field** filters nodes as the user types | PR-I |
+
+**§4.27 addendum (2026-09-20, corrective round).** Rows 9–10 stand with two refinements, recorded normatively in §4.27: the row-9 code node is now the utility node `core.utility.code`/`CodeNode` (R3-1 — classification change only, split semantics unchanged), and the row-10 in-loop Log node is explicitly the "Log Item" node (`LoopItemLogNode`, kind `core.flow.log`), distinct from the end-of-workflow "Log Results" node (`ResultLogNode`) — proven by the new backend test **"logs every split item through the in-loop Log node (foreach body)"** in `for-angular/tests/playwright/graph/text-pipeline-backend.spec.ts`, which also carries the fixed foreach expectation `completed = ['Hello','World','Foo','Bar','Baz']` (R3-4; the prior `['Hello', null, 'Foo', null, 'Baz']` header narrative is superseded).
 
 **Stale assertion groups to change in the same change-set that flips behavior (T1–T8, never in a follow-up):**
 
@@ -1577,6 +1583,71 @@ The gate-3 demo audit produced 38 findings (SAA-1352 part 1 = G3-01..G3-25, fold
 | §4.22 G4-R2 | **Partially superseded** | R2-3(3): ghost insertion between for-each and ghost; hover-only ghost; single-loop rule + default Log node stand |
 | D1–D7, G4-R1, G4-R3..R6 | **In force** | R2-4 (fix surfaces re-pointed only) |
 
+### 4.27 Corrective addendum (2026-09-20) — Code-node reclassification, built-in-node audit, in-loop Log node, foreach branch semantics
+
+**Provenance (normative).** User feedback on the DECAF-50 root issue ([SAA-385](/SAA/issues/SAA-385) comment `39c85a91`, 2026-09-20): "code node is NOT a flow node... and you are missing the logNode inside the for-each loop to log each split item (different thatn the log node at the end of the workflow). also fix the for each bug" (spelling/grammar preserved verbatim). A corrective round was dispatched under [SAA-1657](/SAA/issues/SAA-1657) and delivered in the working tree only (no commits; staging/commit approval stays with the CTO) by [SAA-1658](/SAA/issues/SAA-1658) (backend `integrations`: reclassification, built-in-node audit, engine branch semantics) and [SAA-1659](/SAA/issues/SAA-1659) (frontend `for-angular` mirror + backend-test assertions). This addendum records the corrective deltas normatively; everything it does not touch stays as ruled (including §4.26 R2-1/R2-2). Kind-id renames are serialized-document breaking and moved in the same round across the backend registrations/manifests/tests, the frontend manifest snapshot, demo sources, fixtures, specs, and this record.
+
+**Pre-existing-state note.** Before this corrective round, this record had **no statement classifying the Code node as flow** (grep-verified 2026-09-20 against the pre-edit record): the misclassification lived only in the code — declared in `integrations/src/graph/nodes/utility/code.ts` and registered at `integrations/src/graph/nodes/index.ts`. After this addendum, the old ids (`CodeFlowNode`, `core.flow.code`, `MapFlowNode`, `core.flow.map`) appear in this record **only** inside dated old→new rename references (R3-1 table, G4-R1 marker, supersession table) — no statement classifies the Code node as flow. R3-1/R3-2 below supply the authoritative final classification.
+
+#### R3-1 — Code node (and Map node) reclassified as utility, not flow
+
+**Ruling (normative).** The Code node is a **utility/data-transformation node**, not flow control: it transforms its input (split semantics per G4-R1) and performs no branching, routing, or looping. The reclassification adopted by [SAA-1658](/SAA/issues/SAA-1658), mirrored by [SAA-1659](/SAA/issues/SAA-1659):
+
+| class (old → new) | kind (old → new) | labels (old → new) |
+|:---|:---|:---|
+| `CodeFlowNode` → `CodeNode` | `core.flow.code` → `core.utility.code` | `["flow","code","sandbox","transform"]` → `["utility","code","sandbox","transform"]` |
+| `MapFlowNode` → `MapNode` | `core.flow.map` → `core.utility.map` | `["flow","map","transform"]` → `["utility","map","transform"]` |
+
+The Map node was the only sibling with an unambiguous misclassification and moved with the Code node. Backend deltas: `integrations/src/graph/nodes/utility/{code,map}.ts`, `index.ts` (new exported `GRAPH_UTILITY_NODES`; `GRAPH_FLOW_CONTROL_NODES` trimmed; `GRAPH_BUILT_IN_NODE_CLASSES_BY_KIND` re-keyed), `manifests.ts`; tests renamed/updated (`CodeNode.test.ts` ex-`CodeFlowNode.test.ts`, `GraphBuiltInRegistrations.test.ts`, `GraphPortManifestElement.test.ts`, `GraphNodeCatalogueController.test.ts`). Frontend mirror: `for-angular/src/app/pages/graph/{workflow-root,loop-body-workflows}.ts`, `src/graph/catalog/GraphNodeManifestSnapshot.ts` (re-sorted by kind), `tests/fixtures/graph/text-pipeline.document.json`, consumers (`graph-renderer`, inline editor/edit modal `isCodeNode`), and affected unit/Playwright specs. G4-R1 stands unchanged — only the classification moved, not the split semantics.
+
+#### R3-2 — Built-in-node audit outcome (23 built-ins)
+
+**Ruling (normative).** The backend reclassification audited every built-in node for the same misclassification. Final kind ids:
+
+| Verdict | Node kinds → classes |
+|:---|:---|
+| **Renamed to utility** | `core.utility.code` → `CodeNode`; `core.utility.map` → `MapNode` |
+| **Kept as flow-control** | `core.flow.if` → `IfFlowNode`; `core.flow.switch` → `SwitchFlowNode`; `core.flow.parallel` → `ParallelFlowNode`; `core.flow.merge` → `MergeFlowNode`; `core.flow.delay` → `DelayFlowNode`; `core.flow.errorBoundary` → `ErrorBoundaryFlowNode`; `core.flow.humanApproval` → `HumanApprovalFlowNode`; `core.flow.return` → `ReturnFlowNode`; `core.flow.log` → `LogFlowNode`; `core.flow.break` → `BreakFlowNode` |
+| **Utility (already correct)** | `core.utility.log` → `UtilityLogNode` |
+| **Other families (untouched)** | `core.agent` → `AgentNode`; `core.loop.foreach`/`core.loop.while`/`core.loop.until` → `GraphForeachLoopNode`/`GraphWhileLoopNode`/`GraphUntilLoopNode`; `core.trigger.{manual,webhook,schedule,event,form,chat}` → the six trigger classes |
+
+**Ambiguous calls — recommendations only, no change made (open decision: CTO, §6.14).**
+- `MergeFlowNode` (`core.flow.merge`) — joins parallel branches; no branch selection. Kept as flow; recommendation to review whether pure joins belong to utility.
+- `ReturnFlowNode` (`core.flow.return`) — branch/workflow termination; kept as flow-control.
+- `DelayFlowNode` (`core.flow.delay`) — pure pause/side-effect with no branching; recommendation: utility.
+- **Log kind collision:** the general Log (`LogFlowNode`, `core.flow.log`) is arguably utility, but renaming its kind would collide with the existing `core.utility.log` (`UtilityLogNode`). A distinct id or a consolidation ruling is required before any rename.
+
+#### R3-3 — In-loop "Log Item" node in the example workflow
+
+**Ruling (normative).** The demo default workflow's foreach body explicitly includes the **"Log Item"** node (`LoopItemLogNode`, kind `core.flow.log`), wired to the body input `item`: it logs **each split item** — one log per iteration — and forwards it on `logged` (→ even/odd switch → branch nodes → body output `result`). It is **distinct** from the end-of-workflow **"Log Results"** node (`ResultLogNode`, kind `core.flow.log`), which logs the foreach `completed` array (R2-3(6)). G4-R2's "Log node inside the loop" (§4.22) is this node; the demo document and fixture already carried it — the delivered gap was the backend test, which now asserts it:
+
+- `for-angular/tests/playwright/graph/text-pipeline-backend.spec.ts`, main-run test "validates and executes the hydrated demo document": validate → zero issues; run lifecycle (202/queued, `workflowId`, `resultUrl`); Split output `['Hello','World','Foo','Bar','Baz']`; foreach `completed` (R3-4); workflow output `result` = `completed`; `ResultLogNode.logged` = `completed`.
+- New test **"logs every split item through the in-loop Log node (foreach body)"**: the main run's `result.nodeResults` publishes only the top-level member nodes (Split / Foreach / ResultLog), so the nested `LoopItemLogNode` is proven by executing the foreach **body** document standalone once per split item — asserting `LoopItemLogNode.outputs.logged === item` for all 5 items.
+
+#### R3-4 — Foreach odd-index `null` defect (SAA-1640) — superseded/fixed
+
+**Defect record (superseded/fixed 2026-09-20).** The [SAA-1640](/SAA/issues/SAA-1640) finding observed the demo foreach `completed` as `['Hello', null, 'Foo', null, 'Baz']`: the engine executed **both** switch branches in the loop body per iteration, and on odd iterations the even-branch Code node (`LogEvenCodeNode`) routed `result: undefined` **last** — last-writer-wins overwrote the iteration result with `null`.
+
+**Corrected semantics (normative).** Fixed at engine level with no foreach special-casing ([SAA-1658](/SAA/issues/SAA-1658)):
+- `GraphExecutionFrame` tracks `activeDataEdges` (`activateDataEdge`/`isDataEdgeActive`).
+- `GraphExecutionEngine.routeOutgoingEdges` traverses a data edge **only when the source node actually emitted that edge's `sourcePort`** (checked via `Object.prototype.hasOwnProperty`); a switch emitting a subset of ports activates only the selected branch's edges; explicitly emitting a port with `undefined` still counts as routed.
+- `GraphExecutionEngine.executeNode` adds an `isNodeActivated` gate + `skipInactiveNode`: a node with incoming data edges runs only when at least one is active; otherwise it is **skipped** (`GraphExecutionStatus.SKIPPED`, `NODE_SKIPPED`, reason `branchNotSelected`) and its outputs are never routed or collected. Nodes with no incoming data edges always run; workflow-boundary edges start active.
+
+Result: **branch-consistent per-iteration results** — only the actually-executed branch contributes. Demo outcome: `completed = ['Hello','World','Foo','Bar','Baz']` (branch order `even,odd,even,odd,even`), positionally aligned with the input items.
+
+**Regression-test pointers.** `integrations/tests/unit/graph/GraphExecutionEngine.test.ts` — "routes only the selected switch branch: an unselected branch is skipped and never contributes to workflow outputs" (both selections; unselected branch `skipped` with `outputs === undefined`); `integrations/tests/unit/graph/ForeachLoopNode.test.ts` — real-engine switch body asserting `completed = ['Hello','World','Foo','Bar','Baz']` (no nulls); frontend mirror: the fixed `completed` expectations in `for-angular/tests/playwright/graph/text-pipeline-backend.spec.ts`.
+
+**Verification (as reported by the delivering children; not re-run by this record).** [SAA-1658](/SAA/issues/SAA-1658): targeted graph suites 89 passed / 0 failed; full integrations unit suite 573 passed / 1 failed — the single failure being the `for-angular`-fixture-dependent `GraphPortManifestElement.test.ts` assertion that [SAA-1659](/SAA/issues/SAA-1659)'s regenerated snapshot fixture turns green; E2E graph suite 15 passed / 0 failed; `tsc --noEmit` clean. [SAA-1659](/SAA/issues/SAA-1659): for-angular jest 649 passed / 1 skipped; lint clean; `playwright test tests/playwright/graph` (chromium) 148 passed, including both text-pipeline-backend tests.
+
+**Supersession table (corrective round).**
+
+| Old section/record | Status | New ruling |
+|:---|:---|:---|
+| Any statement classifying the Code node as flow (`core.flow.code`, `CodeFlowNode`, flow family/category membership) — in code, manifests, fixtures, or this record | **Superseded** | R3-1: utility classification (`core.utility.code`, `CodeNode`); this record contained no such statement (grep-verified) and now carries the authoritative classification |
+| G4-R2 (§4.22) "Log node inside the loop" — implicit node identity | **Refined (not superseded)** | R3-3: the in-loop node is "Log Item" (`LoopItemLogNode`), distinct from the end-of-workflow "Log Results" (`ResultLogNode`) |
+| §4.24 row 10 "Log node inside the loop" | **Refined (not superseded)** | R3-3 (same as above) |
+| SAA-1640 odd-index `null` foreach observation (`completed` with `null` at odd indices, incl. the superseded test-header narrative) | **Superseded/fixed** | R3-4: branch-consistent per-iteration results; `['Hello','World','Foo','Bar','Baz']` |
+
 ## 5. Tasks Breakdown
 
 This specification is broken down into the following phases. Each phase should be small enough to be planned and executed separately; concrete `TASK_*` files are allocated when the domain-root owner decomposes the work after initialization (they do not exist yet, so links are intentionally omitted).
@@ -1610,6 +1681,7 @@ Package checkpoints (PM-approved): `ui-decorators` document/manifest types (P1);
 11. **Compatibility migration silently dropping config-store state:** fixture-based round trips covering port modes, literal values, and dynamic binding decisions (accentuated by technical governance).
 12. **Transition-phase fixture coverage** is owned by the implementation and QA gates, per the CTO decision; any shortfall surfaces there, not in this record.
 13. **Gate-3 open sub-points (not contradictions; decision owners named):** (a) port-label affordance for visible ports — persistent vs hover under the n8n reference (D2 sub-point from gate-1 B5) — decided by PR-B; (b) workflow-boundary rendering — real ports vs a ruled badge exception — decided by PR-B; (c) add-node interaction model — corner popup vs n8n node-side connector (G3-29) — decided by PR-H; (d) pin-state document field shape (D4) — finalized by PR-D under the §4.24 round-trip contract; (e) K24 ownership re-verification vs the for-nest events/auth rework — gate-4 verification item (§4.25).
+14. **Corrective-round open points (2026-09-20, §4.27):** (a) ambiguous built-in classification calls left unchanged with recommendations only — `MergeFlowNode` (`core.flow.merge`, pure join: review whether joins belong to utility), `DelayFlowNode` (`core.flow.delay`, recommended utility), and the `LogFlowNode` (`core.flow.log`) vs `UtilityLogNode` (`core.utility.log`) kind collision needing a distinct-id or consolidation ruling — decided by the CTO; (b) the kind renames are serialized-document breaking and both repos delivered working-tree only — landing sequencing (single commit per repo after CTO verification + user approval, per `git-ops`) is owned by the [SAA-1657](/SAA/issues/SAA-1657) CTO review.
 
 Resolved decisions that could otherwise look open: enforced priority is **High** (draft's `Critical` claim replaced; ordering-only change, board may re-raise); the expression evaluator/limiter stays within the engine's existing allowed-expression machinery; resource-limit numeric defaults are delegated to technical governance; `POST /graph/execute` is deprecated (not deleted); catalogue versioning semantics remain outside scope. None of these blocks phase work.
 
@@ -1642,3 +1714,7 @@ Gate-3 revision artifacts (2026-09-16, board-authorized spec update; edits left 
 Round-2 close-out artifacts (2026-09-20, board change list; rides the uncommitted user-approved change-set, no commits/staging):
 
 *   This record: new §4.26 (round-2 close-out addendum — R2-1 backend-only node classes + metadata-only frontend contract, R2-2 engine-versioning removal, R2-3 UX/functional fix list, R2-4 D1–D7/G4 effect ruling + supersession table); inline round-2 supersession markers on §1 (legacy persisted workflows bullet), §4.5, §4.6, §4.7 (co-located authoring), §4.18, and §4.22 G4-R2. Origin: the board's round-2 close-out change list (context manifest rev 1 `57a249ba` on SAA-1628; dispatched via SAA-1629). DECAF_32.md/DECAF_34.md untouched this round — no cross-record supersession was required beyond what this record expresses.
+
+Corrective-round artifacts (2026-09-20, user feedback on SAA-385 comment `39c85a91`; rides the uncommitted SAA-1657 change-set, no commits/staging):
+
+*   This record: new §4.27 (corrective addendum — R3-1 Code/Map-node reclassification with the final kind-id table, R3-2 built-in-node audit outcome incl. ambiguous recommendations, R3-3 in-loop "Log Item" node + new `for-angular/tests/playwright/graph/text-pipeline-backend.spec.ts` backend-test assertions, R3-4 foreach odd-index `null` defect (SAA-1640) superseded/fixed with regression-test pointers, supersession table); inline dated markers on §4.22 G4-R1 and G4-R2; §4.24 addendum note (rows 9–10 refinements); §6 gains open question 14 (ambiguous audit calls + commit sequencing, CTO-owned). Implementation deltas live in the repos' working trees — `integrations` (SAA-1658) and `for-angular` (SAA-1659) — outside this record's mutation scope. DECAF_32.md/DECAF_34.md untouched this round (no cross-record supersession required: the reclassification is expressed entirely within this record).

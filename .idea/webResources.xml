@@ -55,6 +55,9 @@
             <path value="file://$PROJECT_DIR$/with-ai/vendor" />
             <path value="file://$PROJECT_DIR$/flipbored/workdocs" />
             <path value="file://$PROJECT_DIR$/as-infra/workdocs" />
+            <path value="file://$PROJECT_DIR$/for-drizzle/workdocs" />
+            <path value="file://$PROJECT_DIR$/weaver/workdocs" />
+            <path value="file://$PROJECT_DIR$/testing/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>
