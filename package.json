@@ -55,6 +55,7 @@
     "repo:readme": "codex exec \"$(cat ./.codex/prompts/update-readme.md)\nbase_path is ./\" -s workspace-write",
     "repo:slogans": "codex exec \"$(cat ./.codex/prompts/slogans.md)\n\" -s workspace-write",
     "repo:pr": "npm run repo:doc && npm run repo:tests && npm run repo:readme",
+    "mcp": "BANNER=false decaf with-ai mcp --preset jira,xray",
     "codex": "codex -s workspace-write",
     "codex-run": "codex -s workspace-write exec",
     "sync-codex": "./bin/sync-codex.sh"
@@ -103,10 +104,11 @@
   "devDependencies": {
     "@decaf-ts/cli": "latest",
     "@decaf-ts/logging": "latest",
-    "@decaf-ts/utils": "latest"
+    "@decaf-ts/utils": "latest",
+    "inquirer": "^14.2.2"
   },
   "dependencies": {
-    "@decaf-ts/mcp-server": "latest"
+    "@decaf-ts/with-ai": "latest"
   },
   "overrides": {
     "test-exclude": "^7.0.2",
