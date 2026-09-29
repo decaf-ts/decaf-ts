@@ -101,3 +101,6 @@
 [submodule "as-infra"]
 	path = as-infra
 	url = https://github.com/decaf-ts/as-infrastructure.git
+[submodule "as-graph"]
+	path = as-graph
+	url = https://github.com/decaf-ts/as-graph.git
