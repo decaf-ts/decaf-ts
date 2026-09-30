@@ -110,6 +110,10 @@ the `Metadata` static store, which adds:
   the prototype chain and `mergeMetadataChain` deep-merges with child
   precedence, so subclass decorators inherit and override parent metadata
   predictably.
+- **Resolution memoization**: constructor symbols and `get` results are
+  cached and invalidated on every metadata write, so hot-path reads skip the
+  chain walk and deep merge without changing decoration semantics — see
+  [Architectural patterns](#25-architectural-patterns).
 - **Mirroring**: when `Metadata.mirror` (default `true`) the metadata object is
   also exposed on the constructor as a non-enumerable, non-configurable,
   non-writable property under `DecorationKeys.REFLECT` (`__decaf`), giving
@@ -176,6 +180,28 @@ already known, or via a microtask (`scheduleDefaultResolve`,
 triggers `resolvePendingDecorators` for any `PENDING` constructor in the chain,
 so **reads can have resolution side effects**. This is intentional (it keeps
 the model consistent) but is a sharp edge for consumers.
+
+**Resolution memoization.** Both symbol resolution and metadata reads are
+memoized. `Metadata.Symbol` caches the registration symbol per constructor in
+a `WeakMap` (`_symbolCache`), so repeated lookups do not re-serialize the
+constructor source (`obj.toString()`) and re-intern it via `Symbol.for` on
+every read; the cache stores only the `Symbol.for` result, so constructors
+that serialize to the same key still resolve to the same global symbol, and
+non-function handles (plain objects with a `toString`) bypass the cache and
+compute the symbol directly. `Metadata.get` caches its result per
+`(constructor symbol, key)` in `Metadata._getCache` — the whole-metadata read
+uses the empty-string key — so repeated reads skip the prototype-chain walk
+and the `mergeMetadataChain` deep merge. The cache is invalidated wholesale by
+any metadata write: `innerSet` clears it before persisting, and
+`set(ctor, DecorationKeys.CONSTRUCTOR, …)` clears it before re-pointing the
+canonical constructor — so runtime decoration semantics are preserved (the
+next read after a write recomputes from the store). Because a `get` can flush
+pending decorators — and that flush writes metadata and clears the cache
+mid-read — the merged result is stored only after resolution completes
+(`storeGetCache` re-resolves the inner map afterwards). The motivation is
+hot-path read volume: per-row persistence and validation flows re-read the
+same `(constructor, key)` metadata for every record, and previously each read
+re-walked and re-merged the inheritance chain.
 
 **Overridable decorator factories.** The `{ decorator, args }` form
 (`DecoratorFactoryArgs`) defers factory invocation so flavour overrides can
@@ -303,6 +329,16 @@ Metadata.return(MethodClass, "method"); // Promise
   real risk.
 - **Lazy resolution side effects.** `Metadata.get` flushes pending decorators
   for `PENDING` constructors, so reading metadata can mutate state.
+- **`get()` results are read-only by convention.** A `Metadata.get` result is
+  the cached merged object, shared by all readers until the next
+  `Metadata.set`. In-place mutation of a returned object is therefore visible
+  to every subsequent read of the same `(constructor, key)` until the next
+  write invalidates the cache (each read used to return a freshly cloned
+  merge). The only known in-place mutator in the ecosystem is
+  `decorator-validation`'s `Metadata.validationFor` override, which
+  auto-injects a `type` validator into the merged metadata when absent — a
+  deterministic, idempotent fixup derived only from design types, so caching
+  it does not change observable behaviour.
 - **Microtask timing.** When no non-default flavour is resolved, pending
   decorators are flushed on `Promise.resolve().then(...)`. Code that assumes
   decorators have run synchronously after class declaration may need to
