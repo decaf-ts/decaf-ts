@@ -2,13 +2,13 @@
 
 ## 1. Identity & Role
 
-`ui-decorators` is the **framework-neutral, metadata-driven UI rendering layer** of decaf. It sits directly above `decorator-validation` (the `Model` base and validators) and `db-decorators` (CRUD `OperationKeys` and the error hierarchy), and below the framework-specific rendering adapters (`for-angular`, `for-react`, `for-react-native`, `for-nextjs`). It is published as a single package `@decaf-ts/ui-decorators` with three subpath exports: `.` (root: overrides + model + ui), `./graph` (graph metadata layer), and `./user-requests` (User Request Resolution Engine).
+`ui-decorators` is the **framework-neutral, metadata-driven UI rendering layer** of decaf. It sits directly above `decorator-validation` (the `Model` base and validators) and `db-decorators` (CRUD `OperationKeys` and the error hierarchy), and below the framework-specific rendering adapters (`for-angular`, `for-react`, `for-react-native`, `for-nextjs`). It is published as a single package `@decaf-ts/ui-decorators` with three subpath exports: `.` (root: overrides + model + ui), `./graph` (legacy graph metadata mirror — see below), and `./user-requests` (User Request Resolution Engine).
 
 It does three things:
 
 1. Adds a `render()` method to every `Model` (via prototype override) plus a family of class/property decorators (`@uimodel`, `@uielement`, `@uiprop`, `@uichild`, `@uilayout`, `@uisteppedmodel`, `@hideOn`, `@hideFor`, `@showFor`, `@uiorder`, `@uilistprop`, `@uitablecol`, `@uipageprop`, `@uion*`, …) that attach UI metadata to model classes and properties.
 2. Defines an abstract `RenderingEngine` that converts that metadata + validation metadata into a framework-neutral `FieldDefinition` tree, and a flavour registry so a concrete engine (React, Angular, HTML5, graph, …) registers itself and is selected per model via `@renderedBy`.
- 3. Provides two opt-in subpath layers: a **graph workspace contracts layer** (`./graph`) — the decorated authoring metadata for visual workflow nodes/ports/workflows plus, since the canonical cutover, the serializable `GraphWorkflowDocument` model and the `GraphNodeManifest`/parameter-schema contracts every frontend and backend share — and a **User Request Resolution Engine** (`./user-requests`) that lets a backend `Service` resolve a typed user request through a rendering-engine facade (modal/toast/spinner/router) without any Angular/DOM dependency.
+ 3. Provides two opt-in subpath layers: a **graph workspace contracts layer** (`./graph`) — the decorated authoring metadata for visual workflow nodes/ports/workflows plus the serializable `GraphWorkflowDocument` model and the `GraphNodeManifest`/parameter-schema contracts every frontend and backend share, **whose canonical home since the as-graph revision is the `shared` export of `@decaf-ts/as-graph`** (`@decaf-ts/as-graph/shared`; the `./graph` subpath here is the superseded legacy mirror and must not be used by new code — Angular imports only from `@decaf-ts/as-graph/shared`) — and a **User Request Resolution Engine** (`./user-requests`) that lets a backend `Service` resolve a typed user request through a rendering-engine facade (modal/toast/spinner/router) without any Angular/DOM dependency.
 
 It is consumed by `for-angular`, `for-react`, `for-react-native`, `for-nextjs`, `for-fabric`, `integrations`, `demo` (angular/ionic, angular/ew), and `web-page`.
 
@@ -92,6 +92,14 @@ flowchart TD
 - **Dashboard-selectable components** (DECAF-53): types `DashComponentSize`, `DashComponentMetadata`, `DashComponentDefinition`; class decorator `dashcomponent(tag?, dash?, props?)` (plus `DashKeys`); registry `registerDashComponent(ctor)`, `dashComponents()`, `resetDashComponentRegistry()` (test-only); readers `dashComponentMetadataOf(model)`, `dashComponentDefinitionOf(model)`.
 
 ### Subpath `./graph`
+
+> **Superseded mirror.** The graph decorators, readers, registries, canonical
+> document contracts, and manifest/catalog contracts listed below live, in
+> their canonical form, in **`@decaf-ts/as-graph/shared`** (the backend-only
+> `as-graph` module's frontend-safe export). This subpath remains only as the
+> legacy frontend mirror pending replacement — new code (including all of
+> `for-angular`) imports graph contracts exclusively from
+> `@decaf-ts/as-graph/shared`, never from `@decaf-ts/ui-decorators/graph`.
 
 - **Constants/types:** `GraphKeys`, `PortDirection`, `GraphNodeKind`, `GraphConnectionRule`, `GraphNodeMetadata`, `GraphWorkflowNodeMetadata`, `GraphNodeIoViewMode`, `GraphNodeIoMetadata`, `GraphVisualStyle`, `GRAPH_VISUAL_STATE_STYLES`, `graphVisualStyleOf`, `GraphWorkflowRelationMetadata`, `GraphWorkflowMetadata`, `GraphPortMetadata`, `GraphPortGroupMetadata`, `GraphPortDefinition`, `GraphNodeDefinition`, `GraphWorkflowDefinition`, `GraphCategoryStyle`, `GRAPH_DEFAULT_CATEGORY_STYLE`.
 - **Style registry:** `registerGraphCategoryStyle`, `graphCategoryStyleOf`, `resolveEffectiveColor`, `resolveEffectiveIcon`.
@@ -250,7 +258,7 @@ Graph node + workflow definition (derived from `tests/unit/graph.test.ts`):
 import { Model, model, required } from "@decaf-ts/decorator-validation";
 import { uielement } from "@decaf-ts/ui-decorators";
 import { node, graph, port, input, output, graphDefinitionOf,
-         graphWorkflowDefinitionOf, PortDirection } from "@decaf-ts/ui-decorators/graph";
+         graphWorkflowDefinitionOf, PortDirection } from "@decaf-ts/as-graph/shared";
 
 @node("graph-tool", { kind: "tool", category: "AI", icon: "tool", color: "#2196f3" })
 @model()
@@ -296,12 +304,12 @@ const result = await UserRequestHandler.handle(
 - **db-decorators** — `OperationKeys`/`CrudOperations` (CRUD visibility, `ActionRoles`) and the error hierarchy (`InternalError` → `RenderingError`, `CancelledError`; `NotFoundError`; `ValidationError`).
 - **core** — only `user-requests` depends on it (`Service`, `Context`, `ContextFlags`, `ContextualArgs`, `LoggerOf`, `MethodOrOperation`, …).
 - **logging** — `LoggedClass` base for `DecafComponent`, `DecafTranslateService`, and test mocks.
-- **for-angular / for-react / for-react-native / for-nextjs** — provide concrete `RenderingEngine` implementations and framework bindings for the contracts here (`IDecafModal`, `IDecafRouter`, `IDecafSpinner`, `IDecafToast`, `DecafComponent`). The for-angular graph workflow editor maps `GraphNodeDefinition`/`GraphWorkflowDefinition`/snapshots to a canvas editor (`ngDiagram`, optional) and is the primary frontend consumer of `./graph`.
+- **for-angular / for-react / for-react-native / for-nextjs** — provide concrete `RenderingEngine` implementations and framework bindings for the contracts here (`IDecafModal`, `IDecafRouter`, `IDecafSpinner`, `IDecafToast`, `DecafComponent`). The for-angular graph workflow editor projects the canonical `GraphWorkflowDocument`/manifests (imported from `@decaf-ts/as-graph/shared`) onto a canvas editor (`ngDiagram`, optional) and is the primary frontend consumer of the graph layer.
 - **integrations / for-fabric / demo / web-page** — consumers that build graph nodes/workflows and UI forms on top of this package.
 
 ## 11. Consumer Notes & Trade-offs
 
-- **Subpath imports matter.** `Metadata.nodes()`/`Metadata.workflows()` and `RenderingEngine#renderAsNode` are only attached when `@decaf-ts/ui-decorators/graph` is imported; the root barrel does **not** pull graph. The `user-requests` surface is only available via `./user-requests`.
+- **Subpath imports matter.** `Metadata.nodes()`/`Metadata.workflows()` and `RenderingEngine#renderAsNode` are only attached when the graph metadata layer is imported; the root barrel does **not** pull graph. The canonical graph metadata import is `@decaf-ts/as-graph/shared` — `@decaf-ts/ui-decorators/graph` is the superseded legacy mirror (do not use in new code). The `user-requests` surface is only available via `./user-requests`.
 - **Engine registration is global and flavour-unique.** Constructing a concrete engine registers it and sets it as `current`; a duplicate flavour throws `InternalError`. The test mocks avoid collisions via a monotonic `mock-user-requests-N` flavour.
 - **`initialize()` is fire-and-forget on boot.** Consumers needing async init should `await engine.initialize()` before rendering, or rely on the `initialized` flag.
 - **Exactly one of `@uiprop`/`@uichild`/`@uielement` per property.** `toFieldDefinition` throws `RenderingError` otherwise. `@hideOn`/`@hidden` require a `@uielement` on the same property.

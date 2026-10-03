@@ -24,8 +24,9 @@ contract lives in `@decaf-ts/ui-decorators`, which defines:
 - `Renderable` — the interface a decorated model satisfies (`model.render(...)`).
 - `DecafComponent`, `DecafEventHandler`, `IDecafRouter`/`Spinner`/`Toast`/`Modal`
   — the host-service contracts an engine implements.
-- `@uimodel` / `@uilayout` / `@uielement` / `@uichild` (and the `ui-decorators/graph`
-  subpath: `@graph` / `@node` / `@input` / `@output`) — the model metadata that
+- `@uimodel` / `@uilayout` / `@uielement` / `@uichild` (from `@decaf-ts/ui-decorators`)
+  and the graph decorators (`@graph` / `@node` / `@input` / `@output` /
+  `@connection`) from `@decaf-ts/as-graph/shared` — the model metadata that
   drives rendering.
 
 Each `for-*` package supplies one *flavour* of that contract. An engine is
@@ -44,6 +45,11 @@ this tag", "which form primitive for this control") is framework-specific. One
 shared contract plus one thin flavour each lets the same decorated model render
 on web (Angular/Ionic), on React (web), and on React Native, without duplicating
 the metadata-reading or validation logic.
+
+Engines depend on
+`ui-decorators` + `decorator-validation` + `db-decorators` + `core`; the
+graph editor additionally depends on `@decaf-ts/as-graph` (the `/shared`
+export only) and `for-http`.
 
 ```mermaid
 flowchart LR
@@ -94,7 +100,8 @@ created Angular/Ionic components, so a decorated model renders as a full CRUD
 UI (form, fieldset, list, table, modal, stepped form) with no hand-written
 templates. It also ships a second, large subsystem — `src/graph` — an
 ng-diagram-based visual workflow editor that is a *document-native client* of
-the graph backend in `@decaf-ts/integrations`: it edits a canonical
+the graph backend in `@decaf-ts/as-graph` (the dedicated backend-only graph
+module, reached over HTTP/SSE): it edits a canonical
 `GraphWorkflowDocument`, discovers nodes from backend manifests, and drives
 the asynchronous run lifecycle over HTTP + run-scoped SSE.
 
@@ -328,12 +335,15 @@ will 404 (see Inaccuracies).
 ### 3.8 Graph workflow editor
 
 The graph editor lives in `src/graph` and is **not** part of the published
-package. Since the canonical cutover it is document-native and manifest-driven:
-the editor's state is one `GraphWorkflowDocument`
-(`@decaf-ts/ui-decorators/graph`), node discovery comes from backend
+package. It is document-native and manifest-driven: the editor's state is one
+`GraphWorkflowDocument`
+(`@decaf-ts/as-graph/shared`), node discovery comes from backend
 `GraphNodeManifest[]`, and no node constructors, legacy config-store state, or
 engine code reach the browser (`src/graph/bundle-wall.spec.ts` asserts both a
 static import wall and a runtime symbol wall over the production bundle).
+Angular imports the graph layer **only from `@decaf-ts/as-graph/shared`**;
+the `@decaf-ts/ui-decorators/graph` surface must not be used or extended in
+`for-angular` (`for-angular/AGENTS.md` records the rule).
 
 - **Node palette & catalogue.** `GraphNodeCatalogService` loads/refreshes
   manifests from the backend `GraphNodeCatalogApi` merged with offline
@@ -366,6 +376,39 @@ static import wall and a runtime symbol wall over the production bundle).
   `GraphMutationDetectorService`) read from the document store; snapshots are
   `{document, editor}` wrappers and legacy snapshots load through lossless
   read-path conversion.
+- **Declarative/builder coverage (normative).** Every workflow/node option
+  the editor exposes MUST also be settable through the as-graph
+  declarative/builder APIs: the workflow/document tier
+  (`GraphWorkflowDocumentBuilder`, `GraphFlowBuilder`, and the serialized
+  JSON document — all three converge on the same validated document) and the
+  node-authoring tier (the decoration API that produces the manifest the
+  editor renders). Angular must not expose an editor option that has no
+  declarative/builder counterpart; the option→path mapping and the honestly
+  flagged gaps (the editor not yet wiring the graphical|code condition editor
+  into the if/loop node editors; the editor not yet writing `expression`
+  bindings / `GraphValueTemplate` parameters) are specified in the graph design
+  specification §13. The if/while/until condition **code mode backend path** is
+  delivered — `GraphFlowBuilder.if/.elseIf/.while/.until` and the serialized
+  condition carriers accept `Condition = ConditionExpression | CodeCondition`, and
+  the if node and loop condition evaluator dispatch code through the registered
+  `CodeSandboxEvaluator` (shared dispatcher
+  `as-graph/src/engine/loops/ConditionEvaluator.ts`).
+- **Editor UI rules.** The normative rule set for the editor surface — base
+  metadata-driven node template and port placement (inputs left / outputs
+  right / `@connection` bottom; default ports on top and visually distinct;
+  dedicated action-icon areas), validation-fail red glow + `!` icon, the node
+  CRUD screen (ui-decorated properties, delegate-to-port checkbox,
+  code/string/formula/JSON input modes with `$input` sensitivity), global
+  per-port-combination connection styling, execution animation states for
+  nodes/connections, the panel set (workflow inputs, logs, info, output, top
+  bar with foldable I/O panels), modals/popups, canvas rules,
+  AutoCAD-style selection, keyboard shortcuts and mobile long-press
+  equivalents, autosave-never-persists-an-invalid-graph, first-save create
+  modal, and the minimalist look & feel with `CrudInputField`/list/layout
+  reuse — is specified in the graph design specification's **Angular editor
+  UI rules** section
+  ([`08-graph-design.md`](../design-specification/08-graph-design.md)); any
+  graph code change must observe and update those rules.
 
 *Why a canonical document contract:* the editor, the persistence layer, and
 the backend all consume the same `GraphWorkflowDocument`, so displayed state
@@ -433,18 +476,18 @@ sequenceDiagram
 - `@decaf-ts/ui-decorators` — the contract provider (`RenderingEngine`,
   `DecafComponent`, `DecafEventHandler`, `DecafTranslateService`, `Renderable`,
   `FieldProperties`, `IDecafRouter/Spinner/Toast/Modal`, `UIModelMetadata`,
-  `ComponentEventNames`, `UIKeys`, and the `ui-decorators/graph` subpath).
+  `ComponentEventNames`, `UIKeys`; the graph decorators and shared graph
+  contracts come from `@decaf-ts/as-graph/shared` instead).
 - `@decaf-ts/decorator-validation` — `Model`, `Validation`, `Primitives`,
   `ModelKeys`, `DEFAULT_PATTERNS`; drives field types and validators.
 - `@decaf-ts/db-decorators` — `OperationKeys`, `CrudOperations`, `InternalError`.
 - `@decaf-ts/core` — `Repository`, `ModelService`, `Service`, `Adapter`,
   `Condition`, `Paginator`; `core/ram` provides `RamAdapter`/`RamFlavour`.
-- `@decaf-ts/integrations` — no direct lib dependency: every
+- `@decaf-ts/as-graph` — the dedicated backend-only graph module. Angular
+  imports **only** its `/shared` export; the graph backend (engine, NestJS
+  graph controllers) is reached over HTTP/SSE only, and every
   `@decaf-ts/integrations` import specifier is forbidden in production graph
-  sources by the bundle wall; the NestJS graph backend
-  (`integrations/src/nest/graph`, run by `npm run start:backend`) is reached
-  over HTTP/SSE only, and shared graph contracts come from the
-  `ui-decorators/graph` subpath.
+  sources by the bundle wall (the backend runs via `npm run start:backend`).
 - `@decaf-ts/for-http` — `AxiosHttpAdapter`/`AxiosFlavour` (base of
   `DecafAxiosHttpAdapter`) and `ServerEventConnector` (SSE).
 - `@decaf-ts/decoration`, `@decaf-ts/logging`, `@decaf-ts/transactional-decorators`

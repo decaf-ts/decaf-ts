@@ -63,7 +63,7 @@ graph TD
     Found["Foundation<br/>(decoration/validation/DI)"]
     Core["Persistence core<br/>(Adapter/Repository/Query/Tasks/Migrations/Auth)"]
     Adapters["Adapters<br/>(CouchDB/Nano/Pouch/TypeORM/Fabric)"]
-    UI2["ui-decorators<br/>(rendering/graph)"]
+    UI2["ui-decorators<br/>(rendering) · as-graph (graph)"]
     Integ["Integrations<br/>(blob/secrets/keycloak/flags/namespaces)"]
   end
   subgraph External["External systems"]
@@ -109,7 +109,8 @@ composes from:
    `for-nest` (NestJS module bootstrapping, request pipeline, auth, controller
    generation from models). Use this to expose models as a REST API.
 3. **Full-stack distribution** — the backend distribution plus `ui-decorators`
-   (model-driven rendering, graph workflows, user-requests), a frontend engine
+   (model-driven rendering, user-requests), the backend-only `as-graph` graph
+   module (shared graph contracts + execution engine), a frontend engine
    (`for-angular`, `for-react`, or `for-react-native`), `styles`, and the
    `integrations` cloud glue. Use this to build a model-driven application end
    to end, as the `web-page` and `demo` apps demonstrate.

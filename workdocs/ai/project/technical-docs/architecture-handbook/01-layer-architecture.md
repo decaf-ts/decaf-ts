@@ -47,7 +47,7 @@ graph TD
 | L4 Backend | `for-http`, `for-nest` | L2 (+ L0/L1). `for-nest` depends on `for-http` (server controllers, auth handlers). |
 | L5 UI metadata | `ui-decorators` | L0 + L1 (`db-decorators` for operation keys/errors); `user-requests` also uses `core` (`Service`/`Context`). |
 | L6 Frontend engines | `for-angular`, `for-react`, `for-nextjs`, `for-react-native`, `styles` | L5 + L0/L1; `for-angular`/`for-react` also consume L4 (`for-http` Axios adapter). `styles` is pure CSS (no JS deps). |
-| L7 Integrations | `integrations` (blob/secrets/keycloak/kibana/feature-flags/namespaces/loader/plugins/docker/nest) | L2 (+ L1) and `crypto`; `nest` auth integrates with L4. The graph *execution* engine lives here (`integrations/graph`), separate from the `ui-decorators` graph *metadata*. |
+| L7 Integrations | `integrations` (blob/secrets/keycloak/kibana/feature-flags/namespaces/loader/plugins/docker/nest) | L2 (+ L1) and `crypto`; `nest` auth integrates with L4. The graph *backend* (shared contracts, execution engine, NestJS graph wiring) lives in the dedicated backend-only `as-graph` module, not here. |
 | L8 Apps & tooling | `web-page`, `demo`, `utils`, `cli`, `mcp-server`, `with-ai`, reusable-actions, templates, `bin`, `docker` | Compose the layers above. `utils` is a near-leaf (depends on `logging`); `cli` composes `utils`; `mcp-server` is a leaf app. |
 
 ## Why the stack is shaped this way
@@ -86,11 +86,12 @@ to the persistence layer.
 
 ### UI metadata decoupled from any one framework (L5/L6 split)
 `ui-decorators` defines the *rendering contract* (`RenderingEngine`, field
-definitions, list items, graph metadata) with no framework dependency. Each
+definitions, list items) with no framework dependency. Each
 frontend engine (L6) implements `RenderingEngine` for one framework. This lets
 the same decorated model render in Angular, React, or React Native, and lets
-the graph *metadata* (ports/workflows/snapshots) live in L5 while the graph
-*execution* engine lives in L7 — they meet only at runtime.
+the graph *contracts* live in the dedicated `as-graph` module's frontend-safe
+`shared` export while the graph *execution* engine lives in the same module's
+backend-only core — they meet only at runtime over HTTP/SSE.
 
 ### Integrations as optional cloud glue (L7)
 Blob, secrets, Keycloak, Kibana, feature flags, namespaces, and the loader are
@@ -116,10 +117,14 @@ tooling (and Jira/Xray/agent integration) over the Model Context Protocol.
   (`SynchronousLock`) and one in `core` (`ContextLock`); they are not
   interchangeable and consumers must import from `core`. This is documented as a
   divergence to fix, not a design intent.
-- **Graph is split across three layers**: metadata in `ui-decorators` (L5),
-  execution in `integrations/graph` (L7), and the in-browser editor in
-  `for-angular` (L6, in-repo and not published). The boundaries are deliberate
-  but make the full graph story hard to follow without this map.
+- **The graph backend lives in its own module (`as-graph`)**, spanning the
+  roles this table otherwise splits by layer: frontend-safe contracts in
+  `@decaf-ts/as-graph/shared` (the export Angular may import),
+  execution engine and persistence backend-only in the same module, and the
+  in-browser editor in `for-angular` (L6, in-repo and not published). The old
+  split — graph metadata in `ui-decorators` (L5) and execution in
+  `integrations/graph` (L7) — is superseded; `ui-decorators/graph` survives
+  only as a legacy mirror.
 
 ## Where to go next
 

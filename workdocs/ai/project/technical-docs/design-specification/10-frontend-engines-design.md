@@ -14,9 +14,11 @@ is implemented by four flavours: Angular/Ionic (`for-angular`, mature), React
 Next.js slot (`for-nextjs`, scaffold only). A shared SCSS design system
 (`styles`) provides `dcf-*` tokens and utility classes consumed at the app level.
 The Angular engine additionally hosts an in-repo graph workflow editor that is a
-document-native HTTP/SSE client of the `integrations` NestJS graph backend: it
+document-native HTTP/SSE client of the `@decaf-ts/as-graph` NestJS graph
+backend: it
 edits a canonical `GraphWorkflowDocument`, discovers nodes from backend
-manifests, and drives the asynchronous run lifecycle.
+manifests, and drives the asynchronous run lifecycle. Angular imports the
+graph layer only from `@decaf-ts/as-graph/shared`.
 
 This document specifies the design goals, principles, requirements, and
 acceptance criteria for the frontend engines. Maturity varies sharply across
