@@ -1,6 +1,6 @@
 # 07 — Integrations
 
-This chapter documents the `@decaf-ts/integrations` package: the cross-cutting "glue" layer that sits above the core persistence/transport packages and below application code. It provides provider-agnostic abstractions for binary blobs and secrets, provisioning helpers for Keycloak and Kibana, a NestJS-friendly auth handler, an org-based multi-tenant authorization scaffold, declarative feature flags, a dynamic object loader, a reference graph-workflow engine, BI dashboard embed plugins, and Docker compose orchestration.
+This chapter documents the `@decaf-ts/integrations` package: the cross-cutting "glue" layer that sits above the core persistence/transport packages and below application code. It provides provider-agnostic abstractions for binary blobs and secrets, provisioning helpers for Keycloak and Kibana, a NestJS-friendly auth handler, an org-based multi-tenant authorization scaffold, declarative feature flags, a dynamic object loader, BI dashboard embed plugins, and Docker compose orchestration. The graph execution engine and its NestJS backend are **no longer part of this package**: since the graph legacy cutover (SAA-503) the backend/metadata graph layer lives solely in the standalone `@decaf-ts/as-graph` package — a standalone server entry (`bin.as-graph-server` → `lib/cjs/nest/graph/main.cjs`) plus the `./shared` contract subpath (see the [Design Specification — Graph Design](../design-specification/08-graph-design.md)).
 
 The package is pre-1.0 (`0.7.0`). Several subsystems contain stubs and divergent error models; those are noted where relevant and consolidated in the inaccuracies list at the end of this document. This chapter records what the package *is*, not what prior doc versions claimed.
 
@@ -14,7 +14,7 @@ The package is pre-1.0 (`0.7.0`). Several subsystems contain stubs and divergent
 
 - **Package:** `@decaf-ts/integrations`, ESM (`"type": "module"`), `main = lib/index.js`.
 - **Description field:** absent from `package.json`; the root barrel self-describes the package as "Package entry point for shared integration helpers" (`src/index.ts:4`).
-- **Subpath exports (selected):** `.` (utils/namespaces/feature-flags), `./kibana`, `./docker`, `./keycloak`, `./nest`, `./nest/graph`, `./loader`, `./namespaces`, `./feature-flags`, `./user-requests`, `./secrets` (+ per-provider secret subpaths), `./blob` (+ per-provider blob subpaths), `./graph`, `./graph/shared`, `./plugins`, `./plugins/kibana`, `./plugins/superset` (`package.json:7-316`).
+- **Subpath exports (selected):** `.` (utils/namespaces/feature-flags), `./kibana`, `./docker`, `./keycloak`, `./nest`, `./loader`, `./namespaces`, `./feature-flags`, `./user-requests`, `./secrets` (+ per-provider secret subpaths), `./blob` (+ per-provider blob subpaths), `./plugins`, `./plugins/kibana`, `./plugins/superset` (`package.json`). The former `./graph`, `./graph/shared`, and `./nest/graph` subpaths were removed with the graph legacy cutover (SAA-503); the graph backend entry is now `@decaf-ts/as-graph` (`bin.as-graph-server`), and graph contracts are imported from `@decaf-ts/as-graph/shared`.
 
 The root `src/index.ts` re-exports only `./utils`, `./namespaces`, and `./feature-flags`, plus build-time version placeholders (`VERSION`/`COMMIT`/`FULL_VERSION`/`PACKAGE_NAME`) (`src/index.ts:6-16`). All other subsystems are reachable only through their explicit subpaths.
 
@@ -26,13 +26,13 @@ The root `src/index.ts` re-exports only `./utils`, `./namespaces`, and `./featur
 | Depends on | `@decaf-ts/crypto` | `CryptoService`, `JwtService` (via `@decaf-ts/crypto/integration`) |
 | Depends on | `@decaf-ts/db-decorators` | `@repository`, repository hooks |
 | Depends on | `@decaf-ts/decorator-validation` | `Model` base (builders) |
-| Depends on | `@decaf-ts/ui-decorators` | graph `@node`/`@pinnable`/port decorators; `user-requests` passthrough |
+| Depends on | `@decaf-ts/ui-decorators` | `user-requests` passthrough (re-export shims per DECAF-45) |
 | Depends on | `@decaf-ts/transactional-decorators` | `@transactional` in namespaces |
-| Peers | `@decaf-ts/for-nest`, `@decaf-ts/for-http`, `jose` | Nest graph backend + SSE; optional peers |
+| Peers | `@decaf-ts/for-nest`, `@decaf-ts/for-http`, `jose` | Optional peers (declared for the removed integrations graph backend; the backend now lives in `@decaf-ts/as-graph`) |
 | Peers | `@decaf-ts/as-zod` | required peer |
-| Consumed by | Application code (Nest-based apps, graph consumers, namespaces scaffold, BI plugins) | auth handler, namespaces, graph engine, blob/secret providers, BI plugins |
+| Consumed by | Application code (Nest-based apps, namespaces scaffold, BI plugins) | auth handler, namespaces, blob/secret providers, BI plugins |
 
-External runtime deps of note: `axios` (Keycloak/Kibana HTTP), `acorn`/`acorn-walk` + `typescript` (graph code-sandbox AST validation/transpilation), `isolated-vm` (graph sandboxed execution), `node-fetch`, `uuid`, `tslib`.
+External runtime deps of note: `axios` (Keycloak/Kibana HTTP), `node-fetch`, `uuid`, `tslib`. (The `acorn`/`acorn-walk`/`isolated-vm` code-sandbox dependencies of the removed graph engine are still declared in `package.json` but are no longer imported by any source — flagged for cleanup on the graph cutover issue.)
 
 ---
 
@@ -88,13 +88,13 @@ Several patterns recur across the package and explain *why* it is shaped the way
 
 **Why:** NestJS requests arrive as framework-native objects; Decaf services operate against a `Context`. The handler bridges the two by translating a Keycloak JWT into Decaf auth data, so downstream Decaf services never see Keycloak-specific token shapes. Keeping it a plain wrapper (not a `@Module`) lets callers compose it into whatever Nest module structure they already have.
 
-### 2.8 Graph engine
+### 2.8 Graph execution (moved to as-graph)
 
-**What:** `GraphExecutionEngine` executes canonical `GraphWorkflowDocument`s: a nine-stage validation gate resolves every node kind against the trusted `GraphNodeCatalogue` (one kind → manifest+executor+methods registration; fail-fast on drift) into a backend-only `GraphResolvedWorkflow`, the planner builds topological layers (Kahn cycle detection) from resolved workflows only, and the engine seeds inputs into a `GraphValueStore`, executes layer-by-layer with concurrency, validates outputs against effective manifests, routes values along edges, and emits structured events. Pinning is all-or-nothing across upstream pin sets with TTL'd cached values (fingerprints exclude presentation-only UI state). Loops re-enter the engine with nested canonical documents and `parentRunId` propagation. The Nest module adds the manifests-only catalogue API, canonical persistence, and the asynchronous run lifecycle (`POST /graph/runs` → `202`, run-scoped authorized replayable SSE) under a centralized fail-closed ownership model: runs, workflows, and persisted results that carry an owner deny every other caller — anonymous ones included — unless the host opts into the `allowAnonymousAccess` standalone tolerance (default off), with per-caller concurrency buckets and a bounded event replay window. Code/Switch nodes run through a pluggable `CodeSandboxEvaluator`; `IsolatedVmCodeSandboxEvaluator` transpiles TS, validates the AST (blocking `eval`/`new Function`/imports/exports/blocked identifiers), and runs in an `isolated-vm` isolate with timeout/memory limits.
+**What:** The graph execution engine and its NestJS backend are no longer part of `@decaf-ts/integrations`. Since the graph legacy cutover (SAA-503/SAA-509) the backend/metadata graph layer lives solely in the standalone `@decaf-ts/as-graph` package: a standalone NestJS server entry (`bin.as-graph-server` → `lib/cjs/nest/graph/main.cjs`, also used by for-angular's `start:backend`) boots `GraphExecutionModule.forRoot(...)` with the standalone anonymous tolerances, and all frontend-safe graph contracts (decorators, document model, manifests/catalogue schemas, run wire contracts, `GraphExecutionStateMapper`) are exported from `@decaf-ts/as-graph/shared`. The integrations `src/graph/**`, `src/nest/graph/**` trees, their `./graph`, `./graph/shared`, `./nest/graph` export subpaths, and `GraphNodeObjectLoader` were deleted outright (no deprecation cycle).
 
-**Why:** A reference execution engine that is backend-agnostic (the engine takes a catalogue-backed registry, a value store, and a sandbox evaluator as injected dependencies) lets the same canonical documents run in-process for tests and behind a Nest controller in production. Making the backend catalogue the only source of node behavior (kind → registration, client definitions rejected) removes the trust gap where client-provided definitions could mislead planning. Sandboxing untrusted code via `isolated-vm` with AST validation is the safe-by-default answer to running user-authored node bodies; the engine does *not* wire it by default — consumers must pass `codeSandboxEvaluator` or Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED`.
+**Why:** A single canonical home for the graph engine removes the dual-maintenance of divergent copies between `integrations`, `ui-decorators`, and `as-graph`; the standalone entry lets the for-angular graph page boot an SSE backend without the full integrations package.
 
-> The graph engine's design and acceptance criteria are detailed in the [Design Specification — Graph Design](../design-specification/08-graph-design.md) and the graph handbook chapter. This chapter covers only its integrations-package surface.
+> The graph engine's design and acceptance criteria are detailed in the [Design Specification — Graph Design](../design-specification/08-graph-design.md). This chapter no longer documents any graph surface.
 
 ### 2.9 BI embed plugins
 
@@ -106,7 +106,7 @@ Several patterns recur across the package and explain *why* it is shaped the way
 
 **What:** ESM dynamic `import()` of normalized sources (paths → `file:` URLs, bare specifiers passed through), with ordered post-load hooks. `withHooks`/`withOptions` return a *new* immutable instance. Family subclasses fix the `family` and expose a family-verb loader.
 
-**Why:** Dynamic discovery of models, adapters, repositories, services, controllers, environments, Angular components, and graph nodes lets an application assemble itself from configuration rather than static imports. The immutable `withHooks`/`withOptions` design prevents a shared loader instance from accumulating hooks across unrelated call sites. Family subclasses give each domain a typed, named loader verb instead of a generic `load(family, ...)`.
+**Why:** Dynamic discovery of models, adapters, repositories, services, controllers, environments, and Angular components lets an application assemble itself from configuration rather than static imports. The immutable `withHooks`/`withOptions` design prevents a shared loader instance from accumulating hooks across unrelated call sites. Family subclasses give each domain a typed, named loader verb instead of a generic `load(family, ...)`.
 
 ---
 
@@ -409,9 +409,7 @@ const { tenantId } = await new BootstrapService().bootstrapTenantFromTemplate({
 
 ### 9.1 Public API
 
-`./nest`: `KeycloakAuthHandler`/`KeycloakNamespaceAuthHandler`/`KeycloakAuthData`; `KeycloakModule`/`AuthModule`; `namespace()` decorator + `AUTH_NAMESPACE_KEY`; utils `extractKeycloakRoles`/`extractKeycloakNamespaces`/`getRealmFromIssuer`/`getClientRoles`; types (`src/nest/index.ts:1-7`).
-
-`./nest/graph`: `GraphExecutionController`/`GraphExecutionModule` (deprecated synchronous path), `GraphNodeCatalogueController` (manifests API, ETag digest), `GraphRunController`/`GraphRunModel`/`GraphRunModelService` (async run lifecycle), `GraphWorkflowController`/`GraphWorkflowService`/`GraphWorkflowModel`/`GraphWorkflowDocumentLimits`, `GraphResultService`/`GraphExecutionResultModel`, `GraphExecutorRegistryFactory` (`createGraphNodeCatalogue`, `createGraphExecutorRegistry`, `createDemoEngineConfig`) (`src/nest/graph/index.ts`).
+`./nest`: `KeycloakAuthHandler`/`KeycloakNamespaceAuthHandler`/`KeycloakAuthData`; `KeycloakModule`/`AuthModule`; `namespace()` decorator + `AUTH_NAMESPACE_KEY`; utils `extractKeycloakRoles`/`extractKeycloakNamespaces`/`getRealmFromIssuer`/`getClientRoles`; types (`src/nest/index.ts:1-7`). The former `./nest/graph` NestJS graph module was removed with the graph legacy cutover (SAA-503); the graph backend lives in `@decaf-ts/as-graph` (`bin.as-graph-server`, `src/nest/graph/GraphExecutionModule` there).
 
 ### 9.2 Request → context flow
 
@@ -437,7 +435,6 @@ sequenceDiagram
 - `KeycloakModule`/`AuthModule` are plain classes (not `@Module()`-decorated) whose `create()` returns a `KeycloakNamespaceAuthHandler` (inaccuracy §nest-56, §nest-57).
 - `KeycloakAuthHandler` has a no-arg constructor and requires `JwtService` injected via `@service("jwt")` (inaccuracies §nest-53, §nest-54). A doc-claimed `AuthService` does not exist (inaccuracy §nest-50).
 - Importing `./nest` registers logging side-effects that add `user`/`organization` log params (`src/nest/logging.ts:14-38`).
-- Graph `main.ts` honors `GRAPH_BACKEND_PORT`/`argv[2]`/default `3000`.
 
 ---
 
@@ -445,7 +442,7 @@ sequenceDiagram
 
 ### 10.1 Public API
 
-`./loader`: `ObjectLoader` + `createLoaderHookContext`; family loaders `ModelObjectLoader`/`AdapterObjectLoader`/`RepositoryObjectLoader`/`ServiceObjectLoader`/`ControllerObjectLoader`/`EnvironmentObjectLoader`/`AngularComponentObjectLoader`/`GraphNodeObjectLoader`; `ObjectLoaderFamily`/`ObjectLoaderHook`/options types (`src/loader/index.ts`).
+`./loader`: `ObjectLoader` + `createLoaderHookContext`; family loaders `ModelObjectLoader`/`AdapterObjectLoader`/`RepositoryObjectLoader`/`ServiceObjectLoader`/`ControllerObjectLoader`/`EnvironmentObjectLoader`/`AngularComponentObjectLoader`; `ObjectLoaderFamily`/`ObjectLoaderHook`/options types (`src/loader/index.ts`). The former `GraphNodeObjectLoader` was removed with the graph legacy cutover (SAA-503).
 
 ### 10.2 Discovery flow
 
@@ -475,61 +472,21 @@ sequenceDiagram
 
 ---
 
-## 11. Graph Engine (integrations surface)
+## 11. Graph Engine — removed from integrations (SAA-503 cutover)
 
-The graph system lives in `src/graph/` (`engine/`, `shared/`, `log/`) and is exported via `./graph` and `./graph/shared`. Since the canonical cutover the engine executes `GraphWorkflowDocument`s only: `engine/catalog/` holds the trusted `GraphNodeCatalogue` (one kind → manifest+executor+methods registration, fail-fast validation), `engine/validation/` the nine-stage document gate producing backend-only `GraphResolvedWorkflow`, `engine/runs/` the asynchronous run lifecycle (run service, executor, event publisher, event/run stores, and the centralized `assertGraphResourceOwnership` ownership check), and `engine/` the planner (resolved workflows only), pinning, value store, loops, executors, registry facade, events, and snapshots (`src/graph/engine/index.ts`). `./graph/shared` exposes the frontend-safe built-in node manifests, run wire contracts (`GraphRunStatus`/`GraphRunEventEnvelope`), `GraphExecutionStateMapper`, and visual-state styles.
+The integrations graph engine was **deleted outright** in the graph legacy cutover (SAA-503/SAA-509), with no deprecation cycle and no replacement shim inside this package:
 
-```mermaid
-sequenceDiagram
-    participant App as Application
-    participant E as GraphExecutionEngine
-    participant V as GraphWorkflowDocumentValidator
-    participant Cat as GraphNodeCatalogue
-    participant P as GraphExecutionPlanner
-    participant VS as GraphValueStore
-    App->>E: execute(document, inputs, options)
-    E->>V: validate(document) — nine stages 1→9
-    V->>Cat: resolve kinds → manifests + executors
-    V-->>E: GraphResolvedWorkflow (or structured issues)
-    E->>VS: seedWorkflowInputs(inputs)
-    E->>P: plan(resolved) (Kahn topo + cycle detection)
-    loop each topological layer
-        E->>E: executeLayer (concurrency batch)
-        loop each node
-            E->>E: emit NODE_STARTED
-            E->>VS: resolve inputs (edges + literals + expressions)
-            alt pinned & cache hit: E->>E: emit NODE_CACHE_HIT
-            end
-            E->>E: run catalogue-resolved executor (§4.9 request contract)
-            E->>E: validate outputs vs effective manifest
-            E->>VS: routeOutgoingEdges -> emit EDGE_VALUE_ROUTED
-            E->>E: emit NODE_COMPLETED
-        end
-    end
-    E-->>App: buildGraphExecutionResult
-```
+- Deleted trees: `src/graph/**` (engine, shared, log), `src/nest/graph/**` (NestJS graph execution module, controllers, workflow/result services and models, `GraphExecutorRegistryFactory`, standalone `main.ts`), and the legacy graph test suites (`tests/unit/graph/*`, `tests/e2e/graph/*`, the graph suites under `tests/unit/nest/`).
+- Deleted export subpaths: `./graph`, `./graph/shared`, and `./nest/graph` (removed from `package.json` `exports`).
+- Deleted loader surface: `GraphNodeObjectLoader` (removed from `src/loader/families.ts` and its tests; the loader core — `ObjectLoader` and the remaining family loaders — is untouched and remains a supported feature).
+- Zero `@deprecated` markers were introduced; references in code, tests, and README were removed outright.
 
-### Usage example
+The graph backend/metadata layer now lives solely in **`@decaf-ts/as-graph`**:
 
-Adapted from `tests/unit/graph/GraphExecutionEngine.test.ts` and `src/nest/graph/GraphExecutorRegistryFactory.ts`:
+- **Standalone server entry:** `bin.as-graph-server` → `lib/cjs/nest/graph/main.cjs` boots `GraphExecutionModule.forRoot(...)` (standalone RamAdapter via `initAdapter: true`, per-surface `auth: "optional"` + `allowAnonymousAccess` tolerances for the run/workflow APIs), binds `127.0.0.1` only with localhost-only CORS, and honors `GRAPH_BACKEND_PORT`/`argv[2]` (default `3000`). for-angular's `start:backend` script launches this entry (`node ./node_modules/@decaf-ts/as-graph/lib/cjs/nest/graph/main.cjs`).
+- **Contract home:** `@decaf-ts/as-graph/shared` is the canonical frontend-safe contract surface (document model, manifests/catalogue schemas, run wire contracts, `GraphExecutionStateMapper`, visual-state styles) — the single import path for for-angular and any other frontend consumer.
 
-```ts
-const catalogue = new GraphNodeCatalogue();
-registerBuiltInGraphNodes(catalogue); // built-in manifest+executor pairs (fail-fast on drift)
-catalogue.registerExecutor("math.add", { execute: (r) => ({ sum: Number(r.inputs.a) + Number(r.inputs.b) }) });
-catalogue.registerExecutor("math.multiply", { execute: (r) => ({ product: Number(r.inputs.x) * 2 }) });
-const engine = new GraphExecutionEngine({ registry: new GraphNodeExecutorRegistry(catalogue) });
-const result = await engine.execute(linearDocument(), { a: 2, b: 3 }); // nine-stage gate runs first
-```
-
-### Consumer notes
-
-- The engine does **not** wire `IsolatedVmCodeSandboxEvaluator` by default; pass `codeSandboxEvaluator` in config or Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED` (inaccuracy §graph-72). `isolated-vm` is a native addon requiring a build toolchain.
-- Run options default `concurrency=4`, `failFast=true`, `usePinnedValues=true`. Validation is wired into the path: the nine-stage gate runs on every `execute()` and at every persistence boundary (the former silently-ignored `validateInputs/Outputs` gap, §graph-70, was fixed by the canonical cutover).
-- The Nest module exposes the catalogue API (`GET /graph/node-types*`, ETag-stable), canonical persistence (`PUT|GET /graph/workflows/{id}`, `POST /graph/workflows/validate`), and the async run lifecycle (`POST /graph/runs` → `202` + run-scoped authorized replayable SSE). `POST /graph/execute` is deprecated (kept, not removed); the global `GET /graph/events` SSE stream is disabled by default (`404`) and, when re-enabled via `enableGlobalEventStream`, ownership-gates every event at emit — the run-scoped `GET /graph/runs/{runId}/events` transport is canonical.
-- Graph resource ownership fails closed through the centralized `assertGraphResourceOwnership` check: runs, workflows, and persisted results that carry an owner deny every other caller, anonymous included, unless the host opts into `allowAnonymousAccess` (default `false`; the DECAF-50 §4.15 standalone tolerance, following the DECAF-48 pattern). Run and workflow controllers default to `auth: "required"`; the standalone `main.ts` demo opts into the anonymous profile explicitly.
-- Hosts must wire a `credentialAuthorizer` (via `GraphExecutionModule.forRoot`) for stage-8 credential checks beyond shape/type validation — without it a well-formed, type-matched reference is accepted without existence/authorization verification. Run governance is per-caller: `maxConcurrentRuns` caps in-flight runs per owner user (per-IP bucket for anonymous callers), and terminal runs' event state auto-releases after `eventReplayWindowMs` (default 5 minutes).
-- `GraphWorkflowService` receives its options through `configure()`, not constructor injection: `@service` classes resolve through the injectable-decorators singleton registry, which does not forward constructor arguments, so the module factory applies `GRAPH_WORKFLOW_OPTIONS` (limits, `allowAnonymousAccess`) deterministically via that method.
+Surviving integrations subsystems are unaffected and are not legacy: feature flags (including the `EngineCapabilityFeatureFlagService`, which reads a served as-graph engine-capability manifest), the namespaces scaffold plus the `nest` Keycloak/namespace auth handlers, and the loader core. Graph engine design, the nine-stage validation gate, run lifecycle, ownership model, and serving-error mapping are documented in the [Design Specification — Graph Design](../design-specification/08-graph-design.md); the integrations-mirror sections of the former engine documentation (engine anatomy, catalogue/planner sequence diagrams, `assertGraphResourceOwnership` notes, and the integrations serving-error mirror of SAA-123) were removed with the subsystem they described.
 
 ---
 
@@ -586,10 +543,10 @@ sequenceDiagram
 
 ## 14. Lifecycle, Configuration & Environment
 
-- **Boot/init:** Nest auth is pure import (registers `user`/`organization` log params). Graph `main.ts` honors `GRAPH_BACKEND_PORT`/`argv[2]`/default `3000` (`src/nest/graph/main.ts:15`); it binds `127.0.0.1` only, admits just `http://localhost`/`http://127.0.0.1` CORS origins, and boots its demo surfaces under the explicit standalone profile (`auth: "optional"` + `allowAnonymousAccess: true`). Blob/secret/Keycloak/Kibana services boot via `new X()` + `await initialize(config)`.
+- **Boot/init:** Nest auth is pure import (registers `user`/`organization` log params). Blob/secret/Keycloak/Kibana services boot via `new X()` + `await initialize(config)`. (The integrations graph `main.ts` was removed with the graph cutover; the standalone graph backend entry is `@decaf-ts/as-graph` `bin.as-graph-server`, which honors `GRAPH_BACKEND_PORT`/`argv[2]`/default `3000`, binds `127.0.0.1` only, admits just `http://localhost`/`http://127.0.0.1` CORS origins, and boots its demo surfaces under the explicit standalone profile `auth: "optional"` + `allowAnonymousAccess: true`.)
 - **Flavours:** Blob `BlobStoreFactory` keys = `s3|minio|r2|azure-blob|gcs|local|ipfs|memory` (`BlobTypes.ts:6-14`); secret providers = `model|aws-secrets-manager|azure-key-vault|gcp-secret-manager|hashicorp-vault|1password` (plus an unused `"memory"` literal). Each provider config carries a `provider` discriminator.
-- **Env vars read by integrations code:** None of the blob/secret code reads `process.env` directly — credentials come via config objects / SDK default chains. Feature flags read from `FeatureFlagEnvironment.featureFlag` (env root `featureFlag`); the `FEATURE_FLAG_ENV_PREFIX` constant is declared but never wired. Keycloak/Kibana `isProduction()` defaults to `NODE_ENV` not in `["development","local"]`. Graph isolated-vm is opt-in (consumer passes `codeSandboxEvaluator`).
-- **Defaults:** Graph run options default `concurrency=4`, `failFast=true`, `usePinnedValues=true`, `validateInputs/Outputs=true` (`GraphExecutionEngine.ts:726-741`). IPFS API defaults to `http://localhost:5001` (`IpfsBlobStoreService.ts:55`). BI plugin boot targets Kibana `8.14.3` / Superset `6.1.0` (`package.json:327-328`).
+- **Env vars read by integrations code:** None of the blob/secret code reads `process.env` directly — credentials come via config objects / SDK default chains. Feature flags read from `FeatureFlagEnvironment.featureFlag` (env root `featureFlag`); the `FEATURE_FLAG_ENV_PREFIX` constant is declared but never wired. Keycloak/Kibana `isProduction()` defaults to `NODE_ENV` not in `["development","local"]`.
+- **Defaults:** IPFS API defaults to `http://localhost:5001` (`IpfsBlobStoreService.ts:55`). BI plugin boot targets Kibana `8.14.3` / Superset `6.1.0` (`package.json:327-328`).
 
 ---
 
@@ -605,9 +562,8 @@ Test layout mirrors `src/`: `tests/unit/<subsystem>/`, `tests/integration/`, `te
 | kibana | defaults, builders (thorough) | space/role/user/data-view | `KibanaAuthService`, dashboard clone/embed, `setDefaultDataView`, `setupOrganization` e2e. |
 | feature-flags | env normalization, decorators, rule eval, reader swap, subject access | — | `syncFromEnvironment`/grant/revoke/find/list, `blockFeatureOperations`, `getFeatureGateMetadata`. |
 | namespaces | pure helpers + `canAccess` visibility; services (tenant tier, storage, group principal) | — | `BootstrapService`, `EffectivePermissionService.rebuildForPrincipal`, `OrgUnitService` closure ops, `RoleAssignmentService`, `SystemManagementService`, `ResourceLifecycleService`. |
-| nest | JWT extraction, handler paths, `namespace()`; graph-execution-module | sse-auth-extraction, graph full-stack, graph-execution | `logging.ts`, `KeycloakModule.create()`, `getClientRoles`, `main.ts`. |
-| loader | default/named export, identity, hook ordering, all 8 family loaders | — | URL/`data:` sources, single-named-export fallback, `withOptions`, `createLoaderHookContext`. |
-| graph | engine, planner, topology, nine-stage validator, catalogue + registrations + manifest resolver + method registry, pinning, value store, code/switch/foreach/condition/log executors, isolated-vm sandbox, events, state mapper, run logger, errors | nest: catalogue API (controller suite), run lifecycle (202/SSE/replay/ownership), workflow persistence, graph-execution module | `While/Until` executors, snapshot mapper. |
+| nest | JWT extraction, handler paths, `namespace()` | sse-auth-extraction | `logging.ts`, `KeycloakModule.create()`, `getClientRoles`, `main.ts`. |
+| loader | default/named export, identity, hook ordering, family loaders | — | URL/`data:` sources, single-named-export fallback, `withOptions`, `createLoaderHookContext`. |
 | plugins | contract/kibana/superset (constants, manifest, file gen, embed URL, install) | Playwright kibana/superset (+visual) | Superset `build:true` in-process path; `boot-plugin.mjs`. |
 | docker/shared/user-requests | `shared/runtime` (basic parse/serialize) | — | `DockerComposeService` untested; `user-requests` barrel untested. |
 
@@ -619,7 +575,7 @@ Test layout mirrors `src/`: `tests/unit/<subsystem>/`, `tests/integration/`, `te
 - There is no secret factory: import the provider's subpath, `new X()`, then `await initialize(config)`. No provider `extends SecretService`, so the abstract contract is documentary only (inaccuracy §secrets-11).
 - `BlobStoreFactory.create` returns the abstract base; cast or hold the concrete subclass for provider-specific members (inaccuracy §blob-10).
 - For namespaces, provision the Postgres schema + RLS SQL and set `app.principal_id` for RLS-scoped reads; `AuthzService` must be fed by repository-backed data sources, never fixtures.
-- The graph engine does not wire `IsolatedVmCodeSandboxEvaluator` by default — pass `codeSandboxEvaluator` or Code/Switch nodes throw. `isolated-vm` needs a build toolchain. Stage-8 credential checks stay shape/type-only until the host wires `credentialAuthorizer`. Backend run stores are in-memory reference implementations; durable run/event history across restarts needs a persistent `GraphRunStore`/`GraphRunEventStore`.
+- Graph execution is not an integrations surface anymore: import contracts from `@decaf-ts/as-graph/shared` and boot the backend via `@decaf-ts/as-graph` `bin.as-graph-server` (see §11).
 - Keycloak/Kibana services require `initialize(config)` and an `isProduction()`-aware TLS setting; supply `isProduction: () => false` in tests (the config type omits this field — inaccuracies §keycloak-30, §kibana-36).
 - BI plugins are org-agnostic; Superset is pinned to 6.1.x via a hard-named patch script. `boot:plugins:*` only materializes files; the real build happens inside `docker compose build`.
 - Maturity: package is `0.7.0` (pre-1.0); several subsystems have stubs (IPFS postgres/local-json indexes, Superset manifest "stub" wording) and divergent error models (cloud secret providers throw Decaf errors while 1Password/model throw `SecretError` — inaccuracy §secrets-26).
@@ -760,8 +716,6 @@ Reproduced verbatim from the research brief. Nothing was modified.
 
 **[nest]** `getClientRoles` is re-exported twice from the nest barrel — via `export * from "./utils"` and an explicit `export { getClientRoles } from "./utils"` at `src/nest/keycloakAuthHandler.ts:129` (redundant). | Evidence: src/nest/index.ts:2, src/nest/keycloakAuthHandler.ts:129 | Suggested fix: drop line 129.
 
-**[nest]** `GraphWorkflowModel` declares `workflowId`/`name`/`document`/`owner` (plus the transitional `snapshot`) but `GraphWorkflowService` still sets/constructs an `updatedAt` field relying on an undeclared inherited `BaseModel` field. | Evidence: src/nest/graph/GraphWorkflowModel.ts, GraphWorkflowService.ts (saveDocument/saveSnapshot) | Suggested fix: explicitly declare `@column() updatedAt`.
-
 ### loader
 
 **[loader]** `ObjectLoaderExportSelection` exported twice from the same barrel — via `export * from "./types"` and `export type { ObjectLoaderExportSelection }` at `src/loader/ObjectLoader.ts:193` (redundant). | Evidence: src/loader/index.ts:8, src/loader/ObjectLoader.ts:193 | Suggested fix: drop line 193.
@@ -792,13 +746,7 @@ Reproduced verbatim from the research brief. Nothing was modified.
 
 ### graph
 
-> Entries §graph-70 (validation options silently ignored), §graph-71 (event `nodeId` inconsistency), and §graph-75 (README omitted the graph subpaths/engine) were fixed by the DECAF-50 canonical cutover and removed from this register: validation is wired (nine-stage gate on every execute), `GraphExecutionContext.emit` now uses the plan node's `id`, and the README documents `./graph`, `./graph/shared`, `./nest/graph` and the graph modules.
-
-**[graph]** `IsolatedVmCodeSandboxEvaluator` described as "the default" but isn't wired by default — `GraphExecutionEngine` leaves `codeSandboxEvaluator` `undefined` unless supplied; Code/Switch nodes throw `GRAPH_CODE_SANDBOX_NOT_CONFIGURED` out of the box. | Evidence: src/graph/shared/nodes/flow-control.ts:380-382, GraphExecutionEngine.ts:93-101 | Suggested fix: document explicit registration or default to it when `isolated-vm` is available.
-
-**[graph]** `GraphTopology.isBoundary` hard-codes `"$workflow"` instead of `GRAPH_WORKFLOW_BOUNDARY`. | Evidence: GraphTopology.ts:63-65, constants.ts:13 | Suggested fix: import and compare against the constant.
-
-**[graph]** dead import — `GraphPinningService` imports `GRAPH_PINNING_METADATA_KEY` only to `void` it at module end. | Evidence: GraphPinningService.ts:15, GraphPinningService.ts:271 | Suggested fix: remove the unused import.
+> The integrations graph subsystem was deleted outright in the graph legacy cutover (SAA-503/SAA-509), so all graph entries of this register were removed along with the code they described: §graph-70 (validation options silently ignored) and §graph-71 (event `nodeId` inconsistency) were fixed by the DECAF-50 canonical cutover; §graph-72 (isolated-vm sandbox not wired by default), §graph-73 (`GraphTopology.isBoundary` hard-coded `"$workflow"`), §graph-74 (dead `GRAPH_PINNING_METADATA_KEY` import), and the `[nest]` `GraphWorkflowModel.updatedAt` entry above referenced `src/graph/**`/`src/nest/graph/**` files that no longer exist and were dropped from the register with the subsystem. The former §graph-75 note that "the README documents `./graph`, `./graph/shared`, `./nest/graph`" describes the pre-cutover README and is superseded: those subpaths no longer exist. Graph-engine inaccuracies are now owned by the `@decaf-ts/as-graph` documentation (design-specification `08-graph-design.md`).
 
 ### plugins
 

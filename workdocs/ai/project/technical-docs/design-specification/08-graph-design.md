@@ -1,6 +1,6 @@
 # 08 — Graph Design (Canonical Documents, Node Catalogue & Execution Engine)
 
-The architecture is detailed in the [Architecture Handbook](../architecture-handbook/06-ui-layer.md) (metadata layer), [../architecture-handbook/07-integrations.md](../architecture-handbook/07-integrations.md) (engine/catalogue surface), and [../architecture-handbook/08-frontend-engines.md](../architecture-handbook/08-frontend-engines.md) (Angular editor).
+The architecture is detailed in the [Architecture Handbook](../architecture-handbook/06-ui-layer.md) (metadata layer), [../architecture-handbook/07-integrations.md](../architecture-handbook/07-integrations.md) (surviving integrations subsystems; the graph engine was removed from integrations in the SAA-503 cutover), and [../architecture-handbook/08-frontend-engines.md](../architecture-handbook/08-frontend-engines.md) (Angular editor).
 
 > **Scope note.** This design covers the graph feature. The whole backend
 > lives in the dedicated, backend-only module **`as-graph`**
@@ -171,9 +171,14 @@ kind `core.utility.code`) — the reference application of R1–R9:
     modal (an optional port-provided property).
 - `timeoutMs?: number` — `@uielement` (number field) + `@input({ handle:
   "timeoutMs" })`: **user-controllable sandbox timeout**, read via
-  `this.timeoutMs ?? GRAPH_CODE_DEFAULT_TIMEOUT_MS` and forwarded to the
+  `clampGraphCodeTimeoutMs(this.timeoutMs, maxTimeoutMs)`: an absent,
+  non-numeric, or non-positive value falls back to
+  `GRAPH_CODE_DEFAULT_TIMEOUT_MS`; a positive value is floored and capped at
+  the ceiling — `GraphEnvironment.graph.execution.maxCodeTimeoutMs`
+  (default `GRAPH_CODE_MAX_TIMEOUT_MS` = 30 000) — and forwarded to the
   `CodeSandboxContext` (R1 in action: the timeout left `@node` metadata and
-  became a property).
+  became a property; the SAA-567 ceiling guard keeps a user-supplied value
+  from exceeding the backend ceiling).
 - `defaultCode?: string` — `@uielement("code-editor")` +
   `@input({ handle: "defaultCode", userControlled: true })`: the
   fill-or-expose category (R5 #3).
@@ -561,12 +566,14 @@ Boundary rules (all lint- or test-enforced):
   Node-only APIs, the engine, or executors; the DECAF-35 ESLint
   `no-restricted-imports` wall extends to them.
 - `for-angular` production graph sources may import the graph layer **only
-  from `@decaf-ts/as-graph/shared`**; the `@decaf-ts/ui-decorators/graph`
-  surface must not be used or extended in `for-angular` (see §13). Forbidden
-  specifiers (asserted by `bundle-wall.spec.ts`): every
+  from `@decaf-ts/as-graph/shared`**. The `@decaf-ts/ui-decorators/graph`
+  subpath was deleted from `ui-decorators` in the graph legacy cutover
+  (SAA-503/SAA-510) and remains on the bundle-wall ban list as a forbidden
+  specifier. Forbidden specifiers (asserted by `bundle-wall.spec.ts`): every
   `@decaf-ts/integrations` specifier (all subpaths — the lib never depends
   on integrations; only the app provisions the backend), `@decaf-ts/for-nest`,
-  `@decaf-ts/for-server`, `node:`, `isolated-vm`, `vm:`; the as-graph root,
+  `@decaf-ts/for-server`, `@decaf-ts/ui-decorators/graph`, `node:`,
+  `isolated-vm`, `vm:`; the as-graph root,
   `/nest`, and `/ram` entries are backend-only and equally out of bounds.
 - The production browser bundle must contain no engine-side executable
   symbols (`GraphExecutionEngine`, catalogue runtime, validators, run stores);
@@ -1315,7 +1322,11 @@ does not forward constructor arguments, the service options take the
 deterministic non-injectable path: workflow service options (`limits`,
 `allowAnonymousAccess`) are accumulated into the `GraphEnvironment` before
 the providers are built (the services read them from the accumulated
-environment at call time), and run service options (`limits`,
+environment at call time); because that accumulate is a raw-object write of
+the `graph` leaf, the same call also re-accumulates the `execution` sibling
+leaf (`maxCodeTimeoutMs: GRAPH_CODE_MAX_TIMEOUT_MS`) so the
+Code-node timeout ceiling survives the accumulate
+(SAA-567) — and run service options (`limits`,
 `allowAnonymousAccess`, `documentResolver`) are passed straight to the
 `GraphRunService` provider factory — the path by which the tolerance and
 limits actually reach the services.
@@ -1342,7 +1353,14 @@ body — never `e.message` or `String(e)`, which would leak adapter internals
 client. The underlying error message/stack plus the request correlation ids
 (`runId`/`workflowId`, when known) are logged **server-side only** through
 `@decaf-ts/logging` in `src/nest/graph/servingErrors.ts`; the log never
-reaches the response body.
+reaches the response body. The correlation ids are serialized directly into
+the log message (`Graph request failed with an unmapped error
+{JSON.stringify(meta)}`) rather than relying on the logger's `meta` channel:
+the default RAW log pattern has no `{meta}` placeholder, so a meta-only id
+would never render under default text logging (SAA-134). The whole body is
+guarded by a `try`/`catch`, so a hostile thrown value or a
+logging-infrastructure failure can never make the mapper throw past the
+constant generic `500` (SAA-135).
 
 ## 13. Angular Canonical Frontend
 
@@ -1406,7 +1424,8 @@ reach the browser.
 `@decaf-ts/as-graph/shared`** — the frontend-safe contracts (decorators,
 readers, constants, catalog/manifest and document types, execution-state
 projections). The `@decaf-ts/ui-decorators/graph`
-surface must not be used or extended anywhere in `for-angular`. The as-graph root, `/nest`, and `/ram`
+subpath was deleted from `ui-decorators` in the graph legacy cutover
+(SAA-503/SAA-510) and remains a forbidden specifier on the bundle wall. The as-graph root, `/nest`, and `/ram`
 entries, and every `@decaf-ts/integrations` specifier, are backend-only and
 never reach an Angular bundle (`bundle-wall.spec.ts` asserts the wall). The
 editor reaches the graph backend exclusively over HTTP/SSE.

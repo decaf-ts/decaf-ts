@@ -19,7 +19,7 @@ Terms and acronyms used across this handbook, alphabetical.
 | Feature flag | A toggle persisted as a model and evaluated by `integrations/feature-flags`, with env-reader + persisted-flag merge and subject-scoped access. |
 | Flavour | A string identifying an adapter/metadata variant; models declare `@uses(flavour)` and `Decoration.flavouredAs(flavour)` resolves overrides. |
 | FS adapter | `FilesystemAdapter` — restart-safe local persistence on disk (subpath `@decaf-ts/core/fs`). |
-| Graph | A node/port/workflow model; *metadata* lives in `ui-decorators`, *execution* in `integrations/graph`, *editor* in `for-angular`. |
+| Graph | A node/port/workflow model; contracts (`./shared`) and the execution backend live in `@decaf-ts/as-graph` (standalone server entry), the editor in `for-angular` (the former `ui-decorators` metadata layer and `integrations/graph` engine were removed in the SAA-503 cutover). |
 | Hooks | `db-decorators` `@on`/`@after` operation hooks; also HTTP webhook hooks in `for-http`/`for-nest`. |
 | Injectable | A class registered in the `Injectables` singleton/on-demand container. |
 | Keycloak | The identity provider `integrations/keycloak` provisions (realms/clients/users/roles) and that `for-nest`/`integrations/nest` authenticate against. |

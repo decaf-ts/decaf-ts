@@ -1,15 +1,16 @@
-# 05 — HTTP & NestJS Backend
+# 05 — HTTP & Node.js Backends
 
 > Source: research brief `workdocs/ai/project/technical-docs/_research-briefs/06-http-nest.md` (read-only review; no tests/builds run; no source modified). Every statement is grounded in that brief; where the brief is thin, it says so explicitly.
 
 ## 1. Overview
 
-The HTTP/NestJS backend of decaf-ts is split across two sibling packages:
+The HTTP/Node backend of decaf-ts is split across three sibling packages:
 
 - **`for-http` (`@decaf-ts/for-http`)** — the HTTP/REST integration layer. Provides a transport-agnostic REST adapter abstraction over `@decaf-ts/core`, a concrete Axios implementation, client-side `RestService`/`RestRepository`, a server-side controller/route builder toolset, an auth base handler, a webhook pub/sub engine, and an SSE event bridge. Sits between `core` and every platform integration.
 - **`for-nest` (`@decaf-ts/for-nest`)** — the NestJS integration layer. Binds `for-http`'s server abstractions onto the NestJS runtime: a DecafModel → NestJS controller factory, module wiring, request-context pipeline, auth guards/interceptors, an SSE events module, a webhooks module, OpenAPI/Swagger tooling, an exception filter, a fluent bootstrap helper, and a CLI.
+- **`for-express` (`@decaf-ts/for-express`)** — the Express.js integration layer. Binds `for-http`'s server abstractions onto Express: module wiring (`DecafModule.forRoot`), a request-context middleware pipeline, auth middleware/interceptor/decorators, a DecafModel → Express router factory, an SSE events router, OpenAPI/Swagger helpers, an error filter, a fluent bootstrap helper, and a small CLI (`boot`/`version`/`help`).
 
-`for-nest` is essentially the Nest-binding of `for-http`'s server abstractions; the two are intentionally separated so the server primitives remain reusable by future adapters (e.g. `for-express`).
+`for-nest` and `for-express` are both bindings of `for-http`'s server abstractions; the split is intentional so the server primitives remain reusable by future platform adapters. Where Nest resolves auth and handlers through its DI container, Express passes them explicitly through module options and middleware — `for-express` mirrors `for-nest`'s public surface with that one structural difference.
 
 ## 2. for-http
 
@@ -417,7 +418,185 @@ class ConfigOrder extends Model {
 - `sideEffects`: `decoration.js`, `overrides/index.js`, `overrides/overrides.js` are marked side-effectful (they install `Decoration.for(...).extend` and `Adapter`/`Context` patches) — tree-shakers must not drop them.
 - Maturity signals: pre-1.0; broad e2e/integration coverage; CI badges; migration/task CLI present but `DecafCoreModule.migrate` documented in README does not exist in code (see inaccuracies).
 
-## 4. Inaccuracies (from brief, not fixed)
+## 4. for-express
+
+> Added after the SAA-90 delivery, grounded in a direct read of `for-express`'s source (not a research brief). Where a detail was only partially verifiable while the workspace was mid-edit, it says so explicitly.
+
+### 4.1 Identity
+
+| Field | Value |
+|:------|:------|
+| Directory | `for-express` |
+| Package | `@decaf-ts/for-express` |
+| Description | `"Express decaf integration"` |
+| Type / license | ESM / MIT |
+| Engines | `node>=20`, `npm>=10` |
+| Subpath exports | `.` (main barrel only) |
+| Bin | `for-express` → `lib/cjs/bin/cli.cjs` |
+| Side-effectful modules | `./lib/{esm,cjs}/decoration.*`, `./lib/{esm,cjs}/overrides/index.*`, `./lib/{esm,cjs}/overrides/overrides.*` |
+| Key runtime deps | `express ^5.1.0`, `body-parser`, `cors`, `express-rate-limit`, `reflect-metadata`, `yaml`; all `@decaf-ts/*` pinned to `"latest"` |
+
+### 4.2 Purpose & Role
+
+`for-express` is the Express.js integration layer of decaf-ts. It wires the framework-agnostic server primitives from `@decaf-ts/for-http/server` into an Express application: request contextualization and handlers, auth, auto-generated model routes, SSE observer events, error mapping, OpenAPI/Swagger helpers, a fluent bootstrap helper, and a small CLI. It mirrors `@decaf-ts/for-nest`'s public surface (the reference implementation) while replacing Nest's DI/module system with explicit Express middleware and routers: the `authHandler`, request `handlers`, and controller configs are all passed explicitly in `DecafModuleOptions` instead of being resolved through a DI container.
+
+### 4.3 Source Layout
+
+| Area | Files | Responsibility |
+|:-----|:------|:----------------|
+| Root barrel | `index.ts` | Side-effect-imports `./decoration` and `./overrides`; aggregates sub-barrels; registers the library (`Metadata.allowReregistration` toggle); build placeholders |
+| Module wiring | `module.ts`, `core-module.ts` | `DecafModule.forRoot(options)` → `ExpressDecafApp` (`router`/`adapters`/`flavours`/`contextFor`/`shutdown`); `DecafCoreModule` static helpers — `bootPersistence` (PersistenceService + per-flavour transformer registration + `initialization()`), `buildRequestPipeline` (auth middleware + handlers middleware + `contextFor`), `shutdown`; empty `runMigrations()` stub kept for Nest parity |
+| Controllers | `controllers.ts` | Abstract `DecafController` / `DecafModelController<M>` (persistence resolution: `Service.get` → `ModelService.getService` → `Repository.forModel`, with ctx overrides) |
+| Model routes | `decaf-model/` | `getModuleFor(flavour).forRoot(...)` → `DecafModelModuleResult` (`models`/`routes`/`Router`); `FromModelController.create(model, controllerConfig, globalDefaults)` produces `ExpressRoute[]` via `ModelControllerFactory` (from `for-http/server`) and `resolveRouteArgs` binds Express params/query/body to route implementations; decorators `@expose(...flavours)`, `@controllerConfig(config)` |
+| Auth | `auth/` | `AuthMiddleware` (contextualize + best-effort `authHandler.prime`), `AuthInterceptor` (explicit `AuthInterceptorOptions`, `authHandler.authorize` + `applyTransformers`), `DecafAuthHandler`/`DecafRoleAuthHandler` (Bearer-as-role), decorators `@Auth`/`@Public`/`@RequireRoles`/`@RequireNamespaces`/`@SkipModelRoles`/`@SkipModelNamespaces`, metadata keys (`AUTH_HANDLER`, `AUTH_META_KEY`, `IS_PUBLIC_KEY`, `REQUIRED_ROLES_KEY`, `REQUIRED_NAMESPACES_KEY`, `SKIP_MODEL_ROLES_KEY`, `SKIP_MODEL_NAMESPACES_KEY`) |
+| Request pipeline | `request/` | `DecafRequestContext extends RequestContext<Request>` (uuid, `put(record)` override accumulation, `toResponse` writes `x-pending-task`); `DecafHandlerExecutor` runs `DecafRequestHandler[]`; `contextualizeRequestContext` (once per request: default flags, headers, overrides, timestamp, operation, IP-bound logger from `x-forwarded-for`/`x-real-ip`) |
+| SSE events | `events-module/` | `EventsRouter` (`GET /`, `GET /:model`, subscription-mode `POST /subscribe`/`POST /unsubscribe`, 15s heartbeat, fingerprint resolution/claiming via `ObserverSubscriptionRegistry`); `normalizeEventResponse`, `eventTopicFor`, `resolveRequesterFingerprint`, `sanitizeTopics` |
+| Factory | `factory/` | `ExpressBootstraper` (fluent static bootstrap: `initialize`/`enableLogger`/`enableCors`/`useHelmet`/`useRateLimit`/`setupSwagger`/`useGlobalMiddleware`/`useGlobalInterceptors`/`useGlobalFilters`/`start`); `DecafErrorFilter` (terminal error handler mapping to the decaf error contract); `SwaggerBuilder` + `SwaggerSetupOptions`; `CorsError`, `ToManyRequestsError` (not re-exported — internal to the error filter) |
+| Overrides | `overrides/` | Monkey-patches `Adapter.transformerFor`/`Adapter.flavoursToTransform` (transformer registry lookups) and `Context.prototype.toResponse` (`x-pending-task`); `ModelBuilderExtensions`; side-effect `logging` import |
+| CLI | `bin/cli.ts` | `for-express boot [entry]` (spawns the resolved entry; candidates `./lib/main.cjs`/`./lib/main.js`/`./src/main.ts`/`./lib/app.cjs`/`./lib/app.js`/`./src/app.ts`), `for-express version`, `help` |
+| Decorators / swagger types / utils | `decorators.ts`, `swagger-types.ts`, `utils.ts` | Re-exports `for-http/server` route decorators (`route`/`get`/`post`/`put`/`patch`/`del`) — on Express these only record route metadata; local Swagger type interfaces; `repoForModel(modelName)` |
+| `namespace/` | `Class.ts`, `Interface.ts`, `children/*`, `type.ts` | ts-workspace scaffold demo residue (0% coverage, no functional role in the integration) |
+
+### 4.4 Public API Surface
+
+**Module wiring:** `DecafModule.forRoot(options)` (async → `ExpressDecafApp`), `DecafCoreModule` (`bootPersistence`/`buildRequestPipeline`/`shutdown`), `runMigrations` (empty stub), `DecafModuleOptions`, `ObserverEventsOptions` (incl. `subscriptionMode` and `authenticate`), `DecafRequestHandler`, `AuthHandler` (Express-narrowed alias of the for-http base), `ExpressDecafApp`.
+
+**Model routes/factory:** `getModuleFor(flavour)`, `DecafModelModuleOptions`/`DecafModelModuleResult`, `FromModelController`, `ExpressRoute`, `resolveRouteArgs`, `@expose`, `@controllerConfig`, `repoForModel`, `ControllerConstructor`/`DecoratorBundle` types.
+
+**Auth:** `AuthMiddleware`, `AuthInterceptor` + `AuthInterceptorOptions`, `DecafAuthHandler`/`DecafRoleAuthHandler`, decorators `Auth`/`Public`/`RequireRoles`/`RequireNamespaces`/`SkipModelRoles`/`SkipModelNamespaces`, `defineClassMetadata`/`defineMethodMetadata`, metadata key constants; re-exported for-http types (`AuthHandler as AuthHandlerBase`, `AuthData`, `UserData`, `AuthRequestLike`).
+
+**Request pipeline:** `DecafRequestContext`, `DecafHandlerExecutor`, `contextualizeRequestContext`, `DecafServerFlags`/`DecafServerCtx`, `DECAF_CONTEXT_KEY` and other DI-style token constants (`DECAF_MODULE_OPTIONS`, `DECAF_ADAPTER_ID`, `DECAF_TASK_SERVICE_ID`, `DECAF_ROUTE`, `DECAF_HANDLERS`, `DECAF_EXPOSE`, `DECAF_CONTROLLER_CONFIG`) — declared for parity, since Express has no DI container to resolve them.
+
+**SSE events:** `EventsRouter` + `EventsRouterOptions`, `ObserverSubscriptionRegistry`, `LISTENING_ADAPTERS_FLAVOURS`/`OBSERVER_EVENTS_OPTIONS` tokens, utils (`normalizeEventResponse`, `eventTopicFor`, `resolveRequesterFingerprint`, `fingerprintLabel`, `sanitizeTopics`).
+
+**Controllers:** `DecafController`, `DecafModelController`.
+
+**Factory/bootstrap/OpenAPI/exceptions:** `ExpressBootstraper` + `SwaggerSetupOptions`, `SwaggerBuilder`, `DecafErrorFilter`, `CorsError` (the `ToManyRequestsError` used for 429 is **not** re-exported through `factory/errors`).
+
+**Route decorators:** `route`/`get`/`post`/`put`/`patch`/`delete` (re-exported from `for-http/server`).
+
+**Overrides:** `Adapter` augmentation, `Context.prototype.toResponse`, `ModelBuilder` extensions (side-effect).
+
+**Swagger types:** `SecuritySchemeObject`, `SchemaObject`, `ReferenceObject`.
+
+### 4.5 Architectural Patterns (and Why)
+
+- **Module options replace DI.** `DecafModuleOptions` carries `authHandler`, `handlers`, `controllerConfig`, `controllerExposure` and the adapter `conf` tuples explicitly. *Why:* Express has no DI container or module lifecycle; a single `forRoot` boot call composes persistence, pipeline, controllers and events so an Express app boots decaf with one call, mirroring `for-nest`'s `forRootAsync` ergonomics.
+- **Generated routes carry auth config explicitly.** `FromModelController.create` merges config (`globalDefaults` ⊕ `@controllerConfig` ⊕ per-model module override) and each generated route registration instantiates `AuthInterceptor` with a literal `AuthInterceptorOptions` (model, public, roles, namespaces, skip flags). The `@Auth`/`@Public`/... decorators exist for custom controllers written on top of `DecafController`/`DecafModelController`. *Why:* Express has no reflection layer; metadata must travel with the route.
+- **Middleware pipeline instead of interceptors/guards.** Router order is `AuthMiddleware` (contextualize + `prime`) → `handlersMiddleware` (`DecafHandlerExecutor` runs registered handlers) → generated routes → `DecafErrorFilter` as the terminal error handler. *Why:* Express's linear middleware chain is the natural equivalent of Nest's middleware→interceptor→guard→filter pipeline.
+- **Model→router factory.** `getModuleFor(flavour).forRoot` filters `Adapter.models(flavour)` by exposure (`controllerExposure` override ⊕ `@expose` metadata ⊕ default exposed), warms `ModelService.forModel` for each tracked model, then maps each model through `FromModelController.create` and mounts each model's routes on a per-model `Router` under `/${toKebabCase(Model.tableName(model))}` (literal segments before parameterized ones; `201` for POST, `200` otherwise, `204` when empty). Each exposed model's kebab-cased base path is precomputed and validated for uniqueness before any route is built: a duplicate base path fails `forRoot` fast with an `InternalError` naming both colliding models. *Why:* route surface parity with `for-nest`/`for-http`'s `ModelControllerFactory` while returning a mountable Express router instead of a Nest `DynamicModule`; fail-fast on base-path collisions guarantees no two models silently shadow each other's flat routes.
+- **Fingerprint-claimed SSE.** `EventsRouter` resolves a requester fingerprint (`user:<user>:<x-correlation-id>` when authenticated, `cid:<correlation-id>`, else `conn:<uuid>`), claims the connection in the in-memory `ObserverSubscriptionRegistry` in subscription mode (a newer stream from the same fingerprint supersedes — closes — the older one), registers an `Observer` per adapter with a topic `ObserverFilter`, and merges a 15s heartbeat. *Why:* mirrors the Nest `EventsController` behaviour with routers instead of `@Sse()` controllers.
+- **Explicit OpenAPI assembly.** `SwaggerBuilder` assembles the OpenAPI 3.0 document via `addPath`/`addSchema`/`addSecurityScheme` (no decorator-driven metadata on Express) and serves JSON/YAML always, Swagger UI only when the optional `swagger-ui-express` package is installed. *Why:* optional UI tooling must not become a hard runtime dependency.
+- **Graceful degradation for optional middleware.** `enableCors`/`useHelmet`/`useRateLimit` dynamically `require` `cors`/`helmet`/`express-rate-limit` and log-and-skip when absent. *Why:* keeps them optional for consumers who proxy/handle these concerns elsewhere.
+- **Side-effect overrides.** Importing the barrel patches `Adapter.transformerFor`/`flavoursToTransform` and `Context.prototype.toResponse` — declared in `package.json` `sideEffects` so tree-shakers keep them. *Why:* the same registry/patching contract `for-nest` relies on.
+
+### 4.6 Lifecycle / Configuration / Environment
+
+- Bootstrap: `await DecafModule.forRoot(options)` → `DecafCoreModule.bootPersistence` (PersistenceService, adapter boot, per-flavour transformer registration via `requestToContextTransformer(flavour)`, `options.initialization()`) → `DecafCoreModule.buildRequestPipeline` → optional per-flavour model routers (`autoControllers`) → optional `EventsRouter` (`observerOptions.enableObserverEvents`, mounted at `observerApiPath` default `/events`) → returns `ExpressDecafApp`; app mounts `decaf.router` and `ExpressBootstraper` chain ends in `.start(port?)`; shutdown via `decaf.shutdown()` (adapter + `Service.shutdown()`).
+- Env: `ExpressBootstraper.start` reads `process.env.PORT` (default 3000); `DecafErrorFilter` reads `LoggedEnvironment.env === "production"` (error name instead of message in the error body). No other `process.env` reads in `src/`.
+- Flavours drive model-route generation (`Adapter.models(flavour)`) and transformer registration, as in `for-nest`.
+- CLI: `for-express boot [entry]` spawns the entry as a child process (Docker-entrypoint friendly); `version`/`help` are informational only.
+
+### 4.7 Data & Control Flow (generated-route request)
+
+```mermaid
+sequenceDiagram
+    %%{init: {'theme':'base','themeVariables':{'primaryColor':'#e8eaf6','primaryBorderColor':'#5c6bc0','primaryTextColor':'#1a237e','lineColor':'#5c6bc0','actorBkg':'#c5cae9','actorBorder':'#3949ab','noteBkgColor':'#fff9c4','noteBorderColor':'#f9a825'}}}%%
+    autonumber
+    participant Req as HTTP request
+    participant AM as AuthMiddleware
+    participant HW as handlersMiddleware (DecafHandlerExecutor)
+    participant AI as AuthInterceptor (per route)
+    participant Ctrl as DecafModelController.persistence(ctx)
+    participant Persist as Adapter (per flavour)
+    participant EF as DecafErrorFilter
+    Req->>AM: hit mounted decaf router
+    activate AM
+    AM->>AM: create/reuse DecafRequestContext + contextualize once
+    AM->>AM: authHandler.prime (best-effort)
+    deactivate AM
+    Req->>HW: next()
+    activate HW
+    HW->>HW: executor.exec(req, res) runs DecafRequestHandler[]
+    deactivate HW
+    Req->>AI: generated route (guards skipped on public routes)
+    activate AI
+    AI->>AI: authHandler.authorize(model, roles, namespaces, ...) unless public
+    AI->>AI: applyTransformers() accumulates per-flavour transformer.from(context)
+    deactivate AI
+    Req->>Ctrl: route.implementation(resolved route args)
+    activate Ctrl
+    Ctrl->>Persist: ModelService / Repository.forModel (+ ctx.toOverrides())
+    Persist-->>Ctrl: result
+    Ctrl-->>Req: ctx.toResponse(res) (x-pending-task when pending); 201/200/204
+    deactivate Ctrl
+    Note over Req,EF: on error → DecafErrorFilter maps to the decaf error contract (401/403/400/409/422/404/429, else 500)
+    Req->>EF: next(e)
+    activate EF
+    EF-->>Req: { status, error, timestamp, path, method } (error name in production)
+    deactivate EF
+```
+
+SSE flow (when `enableObserverEvents`): connection resolves a requester fingerprint, `ObserverSubscriptionRegistry` claims it in subscription mode, an `Observer` per adapter filters events by topic, and a 15s heartbeat keeps the stream alive; disconnect triggers `unObserve` + release (removing the fingerprint when it has no other connections).
+
+### 4.8 Testing
+
+- `tests/unit/`: `DecafErrorFilter`, `events-utils`, `observer-subscription-registry`, `request-contextualize`, `resolve-route-args`.
+- `tests/integration/`: `auth`, `decaf-module-crud`, `decaf-module-routes`, `error-filter` (supertest-based).
+- `tests/e2e/`: `AuthExecutionOrder`, `DecafErrorFilter-logging`, `DecafModelModule-crud`, `ExpressBootstraper`, `events-subscriptions`, `sse-fingerprints` (with `fakes/` fixtures: `app`, `mockAuth`, `mockTransformer`, `Fake`/`Product`/`ProcessStep`/`ProductAdmin` models, `fake.handler`).
+- **Known issues observed during documentation** (workspace mid-edit under the SAA-90 delivery): a duplicated `const HEARTBEAT_INTERVAL_MS` declaration in `src/events-module/EventsRouter.ts` breaks every suite importing the barrel; the `AuthExecutionOrder` e2e has one failing assertion; coverage thresholds are not met (statements 71.38% vs 77%, branches 59.58% vs 60%, lines 71.29% vs 79%, functions 52.7% vs 81%), with `SwaggerBuilder` at ~11% line coverage and the scaffold `namespace/` residue at 0%. The jsdoc stage of `npm run docs` reports `@example`/type-expression JSDoc errors in `src/` (source-level JSDoc, not this handbook's content).
+
+### 4.9 Usage Example (real, from source docstring)
+
+```ts
+// src/module.ts — DecafModule.forRoot example (abridged)
+const app = express();
+app.use(express.json());
+const decaf = await DecafModule.forRoot({
+  conf: [[MyAdapter, {}]],
+  autoControllers: true,
+  authHandler: new MyAuthHandler(),
+});
+app.use(decaf.router);
+ExpressBootstraper.initialize(app).useGlobalFilters().start(3000);
+```
+
+```ts
+// tests/e2e/fakes/models/Product.ts (abridged) — exposed model driving generated routes
+@uses(RamFlavour) @table("product") @model()
+export class Product extends Model {
+  @pk({ type: String, generated: false })
+  @composed(["productCode", "batchNumber"], ":")
+  id!: string;
+  ...
+}
+```
+
+### 4.10 Relationships
+
+| Module | Relationship |
+|:-------|:-------------|
+| `for-http` (closest sibling) | `DecafController` (HTTP base), `RequestContext`, `AuthHandler`/`AuthData`/`UserData`/`AuthRequestLike`, `RequestToContextTransformer`/`requestToContextTransformer`, `ModelControllerFactory`/`ModelControllerFactoryConfig`/`AuthConfig`/`ServerRoute`, route decorators (`route`/`get`/...), `RamTransformer` — for-express is the Express binding of the same server abstractions for-nest binds |
+| `core` | `Adapter`, `PersistenceService`, `ModelService`, `Repository`, `Service`, `Context`, `UUID`, `Observer`/`ObserverFilter`, `DefaultAdapterFlags` |
+| `db-decorators` | Error classes (`NotFoundError`, `ConflictError`, `BadRequestError`, `ValidationError`, `InternalError`, …), `DBKeys.COMPOSED` |
+| `decoration` / `decorator-validation` | `Metadata` (exposure/controller-config/auth metadata), `Model`/`ModelConstructor` |
+| `logging` / `transactional-decorators` / `injectable-decorators` | `Logger`/`Logging`, `toKebabCase`, context-bound loggers |
+| Express ecosystem | `express ^5`, `body-parser`; optional/dynamically required: `cors`, `helmet`, `express-rate-limit`, `swagger-ui-express`; `yaml` for the OpenAPI YAML endpoint |
+| Consumer: `integrations` | `namespace(...)` model scopes are enforced through `AuthInterceptor` → `AuthHandler.authorize` (as in for-nest) |
+
+### 4.11 Consumer Notes / Trade-offs
+
+- **No webhooks module.** Unlike `for-nest`, `for-express` does not ship a webhook delivery module (no `./webhooks` subpath); the for-http webhook engine is not wired here.
+- **`autoServices` is accepted but has no additional effect** — generated controllers always back onto `ModelService` singletons (warmed for every exposed model).
+- **Auth is explicit.** Without `authHandler` in module options, no authorization is performed (logged and skipped). The default generated-route behaviour is authenticated (`@Auth(Model)` equivalent) unless `auth.public`/exposure config says otherwise.
+- **Aggregations on by default** (`aggregations: false` sets `allowGroupingQueries: false`); SSE off by default (`enableObserverEvents`); SSE endpoint at `/events` by default.
+- **Optional middleware degrades gracefully** (cors/helmet/rate-limit/Swagger UI log-and-skip); `yaml` is a real dependency (YAML endpoint always works).
+- `runMigrations()` is an exported empty stub kept for Nest parity.
+- The `ToManyRequestsError` (429 mapping) is internal to `DecafErrorFilter` — not re-exported through `factory/errors`.
+- `namespace/` scaffold demo files remain in `src/` with 0 coverage.
+- The `LISTENING_ADAPTERS_FLAVOURS`/`OBSERVER_EVENTS_OPTIONS`/`DECAF_*` tokens exist for surface parity; Express resolves nothing through them.
+
+## 5. Inaccuracies (from brief, not fixed)
 
 Recorded exactly as the brief lists them. Nothing was fixed.
 

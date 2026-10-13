@@ -22,8 +22,8 @@ the full picture, or jump to the area you need.
 | 02 | [Foundation](./02-foundation.md) | `decoration`, `decorator-validation`, `injectable-decorators` |
 | 03 | [Persistence core](./03-persistence-core.md) | `db-decorators`, `transactional-decorators`, `core` (Adapter/Context/Dispatch/Sequence/Statement/Paginator, Repository, query, Task Engine, migrations, auth, RAM/FS) |
 | 04 | [Persistence adapters](./04-persistence-adapters.md) | `for-couchdb`, `for-nano`, `for-pouch`, `for-typeorm`, `for-fabric` |
-| 05 | [HTTP backend](./05-http-backend.md) | `for-http`, `for-nest` |
-| 06 | [UI layer](./06-ui-layer.md) | `ui-decorators` (rendering, components, graph, user-requests) |
+| 05 | [HTTP backend](./05-http-backend.md) | `for-http`, `for-nest`, `for-express` |
+| 06 | [UI layer](./06-ui-layer.md) | `ui-decorators` (rendering, components, user-requests; graph contracts moved to `@decaf-ts/as-graph`) |
 | 07 | [Integrations](./07-integrations.md) | blob, secrets, keycloak, kibana, feature-flags, namespaces, plugins, loader |
 | 08 | [Frontend engines](./08-frontend-engines.md) | `for-angular`, `for-react`, `for-nextjs`, `for-react-native`, `styles` |
 | 09 | [Tooling & infrastructure](./09-tooling-infra.md) | `utils`, `cli`, `with-ai` (decaf CLI module + detached MCP server; the legacy `mcp-server` is retired), reusable-actions, templates, `bin`, `docker` |

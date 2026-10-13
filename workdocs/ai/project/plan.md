@@ -665,7 +665,7 @@ This plan tracks the prioritized work for the project, organized by Specificatio
   - [x] Phase 7 — Cutover: run the exact editor document, reject inline definitions, remove constructor palette discovery and independent `GraphNodeConfigStore`, remove raw-definition planning and the `GRAPH_CANONICAL_DOCUMENT_ENABLED` flag, complete the 12-step E2E, update docs — [SAA-394](/SAA/issues/SAA-394).
   - [x] Follow-up — backend security hardening ([SAA-576](/SAA/issues/SAA-576) findings F1–F8) — [SAA-595](/SAA/issues/SAA-595).
   - [x] Follow-up — frontend parameter-controls coverage (dynamic options, resource locator, credential picker, registered-UI fallback) — [SAA-596](/SAA/issues/SAA-596).
-  - [ ] Reopen — corrective boundary refactor (`for-angular` lib off `integrations`, shared types/models in `ui-decorators/graph`, session adapter, example nodes, node layout, build+tests) — [SAA-704](/SAA/issues/SAA-704), in progress.
+  - [ ] Reopen — corrective boundary refactor (`for-angular` lib off `integrations`, shared types/models in `ui-decorators/graph`, session adapter, example nodes, node layout, build+tests) — [SAA-704](/SAA/issues/SAA-704), in progress. **(2026-10-13 update, SAA-503 graph legacy cutover: the boundary refactor this item planned was delivered differently — the graph backend/contracts moved to `@decaf-ts/as-graph` (standalone entry `bin.as-graph-server` + `./shared`) and the `integrations`/`ui-decorators` graph surfaces were deleted outright; SAA-704's remaining scope, if any, is superseded by the cutover children SAA-509/SAA-510/SAA-511.)**
 
 ---
 

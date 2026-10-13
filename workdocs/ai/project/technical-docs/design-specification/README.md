@@ -21,7 +21,7 @@ always describes decaf-ts as it actually is.
 | 03 | [Task engine design](./03-task-engine-design.md) | TaskEngine/handlers/workers/leases/retries |
 | 04 | [Migrations design](./04-migrations-design.md) | `@migration`/versioning/execution plan |
 | 05 | [Auth & identity design](./05-auth-identity-design.md) | Guards/allow-block/identity/audit |
-| 06 | [HTTP & Nest design](./06-http-nest-design.md) | REST adapters/controllers/request pipeline/auth/webhooks/SSE |
+| 06 | [HTTP & Node backends design](./06-http-nest-design.md) | REST adapters/controllers/request pipeline/auth/webhooks/SSE (`for-http`, `for-nest`, `for-express`) |
 | 07 | [UI rendering design](./07-ui-rendering-design.md) | Renderable models/rendering engine/targets/list items |
 | 08 | [Graph design](./08-graph-design.md) | Node rules taxonomy, locale-key structure, optional namespace-decomposition auth, complete serialized workflow format, workflow authoring (code & serialized) — plus canonical workflow documents & manifests, graph decorators (authoring layer), backend node catalogue, nine-stage validation gate, execution engine (planning, executors, value store, pinning, loops, code sandbox), async run lifecycle, NestJS graph API, Angular canonical frontend with the normative editor UI rules (node/panel/modal/interaction/saving rules, `/shared`-only import rule, declarative/builder coverage rule) and the Phase-2 planned surfaces (storybook, workflow & execution lists) |
 | 09 | [Integrations design](./09-integrations-design.md) | Blob/secrets/keycloak/kibana/feature-flags/namespaces/loader |

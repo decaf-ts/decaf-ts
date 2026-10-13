@@ -8,6 +8,18 @@
 > modified. This is raw technical material for an Architecture handbook /
 > design specification.
 
+
+> **Graph cutover note (2026-10-13, SAA-503).** This brief is a read-only,
+> point-in-time research snapshot taken **before** the graph legacy cutover.
+> Since the cutover the integrations graph engine (`src/graph/**`,
+> `src/nest/graph/**`, the `./graph`/`./graph/shared`/`./nest/graph` subpaths,
+> `GraphNodeObjectLoader`) and the ui-decorators graph metadata mirror
+> (`src/graph/**`, the `./graph` subpath) were deleted outright; the canonical
+> graph contracts and backend live in `@decaf-ts/as-graph` (standalone server
+> entry `bin.as-graph-server` + `./shared` contracts). Graph-related claims,
+> file paths, and inaccuracies below describe the pre-cutover tree and are
+> retained verbatim as history.
+
 This brief treats the whole `ui-decorators` package as one module (it is
 published as a single package `@decaf-ts/ui-decorators` with three subpath
 exports: `.`, `./graph`, `./user-requests`) and follows the requested

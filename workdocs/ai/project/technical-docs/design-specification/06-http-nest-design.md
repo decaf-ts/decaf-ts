@@ -1,4 +1,4 @@
-# 06 — HTTP & NestJS Design
+# 06 — HTTP & Node Backends Design
 
 The architecture is detailed in the [Architecture Handbook](../architecture-handbook/05-http-backend.md).
 
@@ -6,12 +6,13 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 
 ## 1. Scope
 
-This specification covers the HTTP/NestJS backend layer of decaf-ts across two packages:
+This specification covers the HTTP/Node backend layer of decaf-ts across three packages:
 
 - **`for-http` (`@decaf-ts/for-http`)** — HTTP/REST integration layer: transport-agnostic REST adapters (client + server), Axios transport, server controller generation from models, auth handlers, webhook/hooks engine, request→context transformers, and SSE event bridging.
 - **`for-nest` (`@decaf-ts/for-nest`)** — NestJS binding of `for-http`'s server abstractions: DecafModel controller factory, module wiring, request pipeline, auth module, SSE events module, webhooks module, OpenAPI tooling, exception filter, fluent bootstrap, and CLI.
+- **`for-express` (`@decaf-ts/for-express`)** — Express.js binding of `for-http`'s server abstractions: `DecafModule.forRoot` wiring, request-context middleware pipeline, auth middleware/interceptor/decorators, DecafModel → Express router factory, SSE events router, OpenAPI/Swagger helpers, error filter, fluent bootstrap, and a small CLI (`boot`/`version`/`help`). No webhooks module.
 
-`for-nest` is essentially the Nest-binding of `for-http`'s server abstractions; the split is intentional so server primitives stay reusable by future adapters (e.g. `for-express`).
+`for-nest` and `for-express` are both bindings of `for-http`'s server abstractions; the split is intentional so server primitives stay reusable by future platform adapters. Where Nest resolves auth and handlers through DI, Express passes them explicitly in `DecafModuleOptions` — that is the one structural difference between the two bindings.
 
 ## 2. Design Principles
 
@@ -75,6 +76,12 @@ sequenceDiagram
     Resp->>Resp: ctx.toResponse(response) (monkey-patched; adds x-pending-task when pending)
     Note over Resp: on error → DecafExceptionFilter maps HttpException→BaseError and logs
 ```
+
+### 3.5 Request pipeline (for-express)
+
+Express has no DI container, interceptors or guards, so `for-express` runs the same pipeline as linear middleware on the router returned by `DecafModule.forRoot`: `AuthMiddleware` (create/reuse the request-scoped `DecafRequestContext`, contextualize once, best-effort `authHandler.prime`) → `handlersMiddleware` (`DecafHandlerExecutor` runs the registered `DecafRequestHandler[]`) → generated routes → `DecafErrorFilter` (terminal four-argument error handler). Generated routes instantiate `AuthInterceptor` with a literal `AuthInterceptorOptions` (model, public, roles, namespaces, skip flags) merged from `globalDefaults` ⊕ `@controllerConfig` ⊕ per-model module override — the `@Auth`/`@Public`/... decorators exist for custom controllers built on `DecafController`/`DecafModelController`. `resolveRouteArgs` binds Express `params`/`query`/`body` to the framework-agnostic route implementations (the Express counterpart of Nest's parameter decorators). Responses: `201` for POST, `200` otherwise, `204` when the implementation returns nothing; `DecafErrorFilter` maps thrown errors onto the decaf error contract (401/403/400/409/422/404/429 → typed errors, `UnsupportedError` → 406, else 500; error **name** in the body when `LoggedEnvironment.env === "production"`).
+
+Generated routes are mounted per model under `/${toKebabCase(Model.tableName(model))}`. Before any route is built, `getModuleFor(flavour).forRoot` precomputes each exposed model's kebab-cased base path and validates uniqueness: when two exposed models resolve to the same base path, startup fails fast with a decaf `InternalError` naming both colliding models (enforced by `tests/integration/decaf-module-duplicate-basepath.integration.test.ts`).
 
 ## 4. Auth Handler Design
 
@@ -142,6 +149,8 @@ sequenceDiagram
 
 **Server side (for-nest).** `DecafStreamModule.forFlavours(flavours, path, options)` registers `EventsController` (+ `EventsSubscriptionController` in subscription mode) under a `RouterModule` prefix (`observerApiPath` default `/events`). `EventsController.listen()` (`@Sse()`) resolves a requester fingerprint (`resolveRequesterFingerprint`), claims a single connection per fingerprint via `ObserverSubscriptionRegistry` (else `ConflictError`), registers an `Observer` per adapter (with a topic `ObserverFilter` in subscription mode), merges a 15s heartbeat, and tears down `unObserve`+`releaseConnection`. `listenForModel(model)` (`@Sse("/:model")`) scopes events to a model. `EventsSubscriptionController` exposes `POST subscribe`/`unsubscribe`. Tokens: `LISTENING_ADAPTERS_FLAVOURS`, `OBSERVER_EVENTS_OPTIONS`. `ObserverEventsOptions` includes `enableObserverEvents`/`observerFlavours`/`observerApiPath`/`subscriptionMode`.
 
+**Server side (for-express).** `EventsRouter` (mounted by `DecafModule.forRoot` at `observerApiPath`, default `/events`) is the Express equivalent: `GET /` streams all observed events with a 15s heartbeat, `GET /:model` streams raw refreshes scoped to one model, and in subscription mode `POST /subscribe`/`POST /unsubscribe` register/remove topics for the requester fingerprint in the shared `ObserverSubscriptionRegistry`. `observerOptions.authenticate` runs the auth middleware on the stream and subscription endpoints (a rejected stream gets the auth handler's HTTP error). A newer stream from the same fingerprint supersedes the older one (the old connection is closed). Events are written as `event: <type>` + `data: <json>` frames, payloads normalized to `[modelName, operation, id, serializedPayload]`; disconnect triggers `unObserve` + release (the fingerprint is removed when it has no other connections).
+
 ### SSE subscription lifecycle
 
 ```mermaid
@@ -174,6 +183,9 @@ sequenceDiagram
 - **FR-8** — `HttpDispatcher.startListening` shall throw `InternalError` when `eventsListenerPath` is absent; `events:false` shall disable SSE; `eventsSubscription` shall gate subscription mode.
 - **FR-9** — `DecafStreamModule` shall claim a single SSE connection per requester fingerprint (else `ConflictError`) and merge a 15s heartbeat.
 - **FR-10** — `DecafModule.forRootAsync` shall boot persistence, register transformers, register the global `DecafRequestHandlerInterceptor`, and (when `autoControllers`) build per-flavour controller modules.
+- **FR-11** — `for-express`'s `DecafModule.forRoot` shall boot persistence, register per-flavour transformers, run `initialization()`, build the middleware pipeline (`AuthMiddleware` → handlers middleware), and (when `autoControllers`) mount per-flavour generated model routers; when `observerOptions.enableObserverEvents`, it shall mount the SSE `EventsRouter` at `observerApiPath`.
+- **FR-12** — `for-express` generated routes shall merge controller config (`globalDefaults` ⊕ `@controllerConfig` ⊕ module override), resolve route args from Express `params`/`query`/`body`, answer `201`/`200`/`204` per method/result, and register `DecafErrorFilter` (or custom filters) as the terminal error handler mapping errors to the decaf error contract.
+- **FR-13** — `for-express` shall fail fast at startup with a decaf `InternalError` naming both colliding models when two exposed models resolve to the same kebab-cased base path, before any route is mounted.
 
 ## 8. Acceptance Criteria
 
@@ -181,6 +193,8 @@ sequenceDiagram
 - **Auth failure** — *Given* a model with `@Auth(Model)` (the default when `AuthConfig` is omitted) and a request without valid credentials, *when* the request reaches `AuthInterceptor`, *then* `authHandler.authorize(...)` throws an authorization error and `DecafExceptionFilter` maps it to an HTTP error response; `@Public()` routes bypass `authorize`.
 - **Webhook signature mismatch** — *Given* a `WebhookSubscription` for a `targetUrl` and an inbound POST with an `x-webhook-signature` that does not match the HMAC-SHA256 of the payload, *when* `WebhookSignatureMiddleware.verify` runs, *then* the request is rejected (constant-time comparison) and no delivery is accepted.
 - **Event subscription lifecycle** — *Given* `DecafStreamModule` in subscription mode and a client `ServerEventConnector`, *when* the client calls `GET /events` and `POST /subscribe {topics}`, *then* the server claims one connection per fingerprint, registers an `Observer` per adapter with a topic `ObserverFilter`, forwards only matched events to `observer.next`, and on `POST /unsubscribe`/disconnect releases the connection and `unObserve`s; a second concurrent connection with the same fingerprint receives `ConflictError`.
+- **Express generated CRUD + auth** — *Given* a model exposed via `@expose("ram")` and a booted `DecafModule.forRoot({ conf: [[RamAdapter, {}, new RamTransformer()]], autoControllers: true, authHandler })`, *when* a client POSTs to the generated route, *then* `AuthMiddleware`/`handlersMiddleware` run first, `AuthInterceptor` authorizes against the merged route config (skipped on public routes), the route handler invokes persistence through the `DecafModelController`, and the response is `201` (or `204` when empty); an auth failure reaches `DecafErrorFilter` and is answered with the mapped decaf error body.
+- **Express duplicate base path** — *Given* two exposed models whose distinct table names kebab-collapse onto the same base path, *when* `DecafModule.forRoot` boots, *then* it throws a decaf `InternalError` naming both models before any route is mounted.
 
 ## 9. Environment Variables
 
@@ -188,11 +202,11 @@ Read from `process.env` in `src/` (per brief):
 
 | Variable | Reader | Default | Purpose |
 |:---------|:-------|:--------|:--------|
-| `PORT` | `NestBootstraper.start` | `3000` | HTTP listen port |
+| `PORT` | `NestBootstraper.start`, `ExpressBootstraper.start` | `3000` | HTTP listen port |
 | `MANUAL_INSPECT` | `test:manual` runner | — | Gates manual Swagger inspection in the controller-builder e2e |
 | `MANUAL_INSPECT_TIMEOUT` | `test:manual` runner | — | Manual inspection timeout |
 
-Additional env reads (not `process.env`): `DecafExceptionFilter` reads `LoggedEnvironment.env === "production"` (via decaf logging env); CLI migrate reads `package.json` `decaf.migration` config. **`for-http` reads no `process.env` anywhere in `src/`.**
+Additional env reads (not `process.env`): `DecafExceptionFilter` (Nest) and `DecafErrorFilter` (Express) read `LoggedEnvironment.env === "production"` (via decaf logging env); CLI migrate reads `package.json` `decaf.migration` config. **`for-http` reads no `process.env` anywhere in `src/`; `for-express` reads only `PORT`.**
 
 ## 10. Secrets
 

@@ -34,7 +34,10 @@ constructed with a flavour string (`AngularEngineKeys.FLAVOUR = 'angular'`,
 `ReactEngineKeys.FLAVOUR = 'react'`, the literal `"react-native"`); the base
 self-registers the instance so `RenderingEngine.get()` works. Engines depend on
 `ui-decorators` + `decorator-validation` + `db-decorators` + `core`; the
-graph editor additionally depends on `integrations` and `for-http`.
+graph editor additionally depends on `for-http` (and talks to the
+`@decaf-ts/as-graph` backend over HTTP/SSE — every `@decaf-ts/integrations`
+import specifier is bundle-wall-forbidden in graph sources since the SAA-503
+cutover).
 
 **Why a per-framework engine.** Model-driven rendering needs to create real
 framework components (Angular `ComponentRef`s, React elements, RN components)
@@ -342,8 +345,9 @@ package. It is document-native and manifest-driven: the editor's state is one
 engine code reach the browser (`src/graph/bundle-wall.spec.ts` asserts both a
 static import wall and a runtime symbol wall over the production bundle).
 Angular imports the graph layer **only from `@decaf-ts/as-graph/shared`**;
-the `@decaf-ts/ui-decorators/graph` surface must not be used or extended in
-`for-angular` (`for-angular/AGENTS.md` records the rule).
+the `@decaf-ts/ui-decorators/graph` subpath was deleted from `ui-decorators`
+in the graph legacy cutover (SAA-503/SAA-510) and remains a bundle-wall-banned
+import specifier in `for-angular` (`for-angular/AGENTS.md` records the rule).
 
 - **Node palette & catalogue.** `GraphNodeCatalogService` loads/refreshes
   manifests from the backend `GraphNodeCatalogApi` merged with offline
@@ -368,9 +372,13 @@ the `@decaf-ts/ui-decorators/graph` surface must not be used or extended in
   `eventsUrl`/`resultUrl`; `GraphRunEventClient` replays run events from
   sequence zero, reconnects from the last sequence (bounded retry budget),
   falls back to run-status polling, and stops after the terminal event;
-  `GraphRunStateStore` folds envelopes into node/edge UI states. The
-  deprecated `GraphExecutionService.executeDocument` path
-  (`POST /graph/execute`) is retained for compatibility only.
+  `GraphRunStateStore` folds envelopes into node/edge UI states. The former
+  deprecated `GraphExecutionService.executeDocument` path targeted
+  `POST /graph/execute` — an integrations graph endpoint removed with the
+  SAA-503 cutover and not served by the as-graph backend; the stale
+  client-side path is reported for code cleanup on the graph cutover issue
+  (SAA-511) and the async `POST /graph/runs` lifecycle is the only live run
+  path.
 - **Persistence & history.** Save/history/autosave/mutation services
   (`GraphSaveService`, `GraphHistoryService`, `GraphAutoSaveService`,
   `GraphMutationDetectorService`) read from the document store; snapshots are
@@ -486,8 +494,11 @@ sequenceDiagram
 - `@decaf-ts/as-graph` — the dedicated backend-only graph module. Angular
   imports **only** its `/shared` export; the graph backend (engine, NestJS
   graph controllers) is reached over HTTP/SSE only, and every
-  `@decaf-ts/integrations` import specifier is forbidden in production graph
-  sources by the bundle wall (the backend runs via `npm run start:backend`).
+  `@decaf-ts/integrations` import specifier (plus `@decaf-ts/for-nest`,
+  `@decaf-ts/for-server`, and the removed `@decaf-ts/ui-decorators/graph`
+  subpath) is forbidden in production graph
+  sources by the bundle wall (the backend boots via `npm run start:backend`
+  → `@decaf-ts/as-graph` `lib/cjs/nest/graph/main.cjs`).
 - `@decaf-ts/for-http` — `AxiosHttpAdapter`/`AxiosFlavour` (base of
   `DecafAxiosHttpAdapter`) and `ServerEventConnector` (SSE).
 - `@decaf-ts/decoration`, `@decaf-ts/logging`, `@decaf-ts/transactional-decorators`

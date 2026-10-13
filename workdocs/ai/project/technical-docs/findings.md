@@ -8,7 +8,22 @@ decaf-ts module, in the module order the handbook uses, so the user can review
 each finding individually before approving any fix work.
 
 **Nothing here has been fixed.** All entries are reported only; fixes are
-**pending user approval**. This list does **not** include the deliverable-doc
+**pending user approval**.
+
+> **Graph cutover note (2026-10-13, SAA-503/SAA-509/SAA-510).** The
+> integrations graph engine (`src/graph/**`, `src/nest/graph/**`, the
+> `./graph`/`./graph/shared`/`./nest/graph` subpaths, `GraphNodeObjectLoader`)
+> and the ui-decorators graph metadata mirror (`src/graph/**`, the `./graph`
+> subpath, `tests/unit/graph*`) were **deleted outright** in the graph legacy
+> cutover, with the canonical contracts and backend moving to
+> `@decaf-ts/as-graph`. The entries below that reference those removed files
+> were written against the pre-cutover tree and are now resolved by the
+> removal itself: **F-196, F-198, F-199** ([ui-decorators] graph mirror),
+> **F-259** ([nest] `GraphWorkflowModel`), **F-275, F-276, F-277, F-278,
+> F-279, F-280** ([graph] engine). The for-angular in-repo `src/graph` editor
+> survived the cutover; **F-286–F-289, F-301, F-302** still describe live
+> files. This register is otherwise unchanged and remains a point-in-time
+> record. This list does **not** include the deliverable-doc
 defects fixed in SAA-207 Deliverable 1 (those are doc-quality fixes in the
 handbook/spec, not decaf-ts source inaccuracies).
 

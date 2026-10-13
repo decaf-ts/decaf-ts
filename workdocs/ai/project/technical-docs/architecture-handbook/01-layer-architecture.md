@@ -119,12 +119,14 @@ tooling (and Jira/Xray/agent integration) over the Model Context Protocol.
   divergence to fix, not a design intent.
 - **The graph backend lives in its own module (`as-graph`)**, spanning the
   roles this table otherwise splits by layer: frontend-safe contracts in
-  `@decaf-ts/as-graph/shared` (the export Angular may import),
-  execution engine and persistence backend-only in the same module, and the
-  in-browser editor in `for-angular` (L6, in-repo and not published). The old
-  split — graph metadata in `ui-decorators` (L5) and execution in
-  `integrations/graph` (L7) — is superseded; `ui-decorators/graph` survives
-  only as a legacy mirror.
+  `@decaf-ts/as-graph/shared` (the export Angular may import), execution
+  engine and persistence backend-only in the same module behind the standalone
+  server entry (`bin.as-graph-server`), and the in-browser editor in
+  `for-angular` (L6, in-repo and not published). The old split — graph
+  metadata in `ui-decorators` (L5) and execution in `integrations/graph` (L7)
+  — was removed outright in the graph legacy cutover (SAA-503): `ui-decorators`
+  no longer ships a graph subpath and `integrations` no longer ships a graph
+  engine.
 
 ## Where to go next
 

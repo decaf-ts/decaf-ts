@@ -1,5 +1,17 @@
 # DECAF-36 — Graph Canvas Save/Auto-Save & Undo/Redo
 
+
+> **Graph cutover note (2026-10-13, SAA-503).** This is a point-in-time approved
+> specification record. In the graph legacy cutover the surfaces it references
+> under `@decaf-ts/integrations` (`src/graph/**`, `src/nest/graph/**`, the
+> `./graph`/`./graph/shared`/`./nest/graph` subpaths, `GraphNodeObjectLoader`)
+> and under `@decaf-ts/ui-decorators` (`src/graph/**`, the `./graph` subpath)
+> were **deleted outright**; the canonical graph contracts and backend now live
+> solely in `@decaf-ts/as-graph` (standalone server entry `bin.as-graph-server`
+> + `./shared` contracts). References to the removed subpaths below are
+> historical and retained verbatim; the live surface is specified in
+> `technical-docs/design-specification/08-graph-design.md`.
+
 **Status:** Completed — all 8 tasks implemented. Save button, Auto-Save toggle, Undo/Redo with ring buffer history, keyboard shortcuts, mutation detection, backend PUT endpoint. 60 for-angular tests + 172 graph tests pass.
 **Priority:** High
 **Owner:** decaf-dev

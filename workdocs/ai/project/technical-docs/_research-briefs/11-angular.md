@@ -1,5 +1,17 @@
 # Research Brief 11 — for-angular (Angular Rendering Engine)
 
+
+> **Graph cutover note (2026-10-13, SAA-503).** This brief is a read-only,
+> point-in-time research snapshot taken **before** the graph legacy cutover.
+> Since the cutover the integrations graph engine (`src/graph/**`,
+> `src/nest/graph/**`, the `./graph`/`./graph/shared`/`./nest/graph` subpaths,
+> `GraphNodeObjectLoader`) and the ui-decorators graph metadata mirror
+> (`src/graph/**`, the `./graph` subpath) were deleted outright; the canonical
+> graph contracts and backend live in `@decaf-ts/as-graph` (standalone server
+> entry `bin.as-graph-server` + `./shared` contracts). Graph-related claims,
+> file paths, and inaccuracies below describe the pre-cutover tree and are
+> retained verbatim as history.
+
 Consolidated read-only research brief for the **Architecture handbook** and **design
 specification**. Scope: `for-angular` — the Angular integration of decaf-ts
 (`NgxRenderingEngine`, `DynamicModule`, CRUD/field/form/table/modal components,

@@ -1,5 +1,17 @@
 # DECAF-32 — Decaf Graph Execution Engine
 
+
+> **Graph cutover note (2026-10-13, SAA-503).** This is a point-in-time approved
+> specification record. In the graph legacy cutover the surfaces it references
+> under `@decaf-ts/integrations` (`src/graph/**`, `src/nest/graph/**`, the
+> `./graph`/`./graph/shared`/`./nest/graph` subpaths, `GraphNodeObjectLoader`)
+> and under `@decaf-ts/ui-decorators` (`src/graph/**`, the `./graph` subpath)
+> were **deleted outright**; the canonical graph contracts and backend now live
+> solely in `@decaf-ts/as-graph` (standalone server entry `bin.as-graph-server`
+> + `./shared` contracts). References to the removed subpaths below are
+> historical and retained verbatim; the live surface is specified in
+> `technical-docs/design-specification/08-graph-design.md`.
+
 **Status:** Completed — Phase 1 (core engine, 14 tasks) and Phase 2 (graph page UI, node-edit modal, node taxonomy, @connection ports, NestJS backend, full-stack e2e) all completed. 116 graph tests passing.
 **Priority:** High
 **Owner:** decaf-dev

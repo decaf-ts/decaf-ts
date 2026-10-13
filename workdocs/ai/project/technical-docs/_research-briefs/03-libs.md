@@ -1,5 +1,17 @@
 # Research Brief — Cross-cutting libs (`logging`, `crypto`, `as-zod`)
 
+
+> **Graph cutover note (2026-10-13, SAA-503).** This brief is a read-only,
+> point-in-time research snapshot taken **before** the graph legacy cutover.
+> Since the cutover the integrations graph engine (`src/graph/**`,
+> `src/nest/graph/**`, the `./graph`/`./graph/shared`/`./nest/graph` subpaths,
+> `GraphNodeObjectLoader`) and the ui-decorators graph metadata mirror
+> (`src/graph/**`, the `./graph` subpath) were deleted outright; the canonical
+> graph contracts and backend live in `@decaf-ts/as-graph` (standalone server
+> entry `bin.as-graph-server` + `./shared` contracts). Graph-related claims,
+> file paths, and inaccuracies below describe the pre-cutover tree and are
+> retained verbatim as history.
+
 Scope: three foundational/cross-cutting libraries in the decaf-ts monorepo:
 `@decaf-ts/logging` (`/workspaces/decaf-ts/logging`),
 `@decaf-ts/crypto` (`/workspaces/decaf-ts/crypto`), and

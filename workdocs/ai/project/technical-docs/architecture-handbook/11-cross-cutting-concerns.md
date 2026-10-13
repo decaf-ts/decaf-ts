@@ -129,12 +129,13 @@ Per-package registration points:
 | `db-decorators` | operation hooks (`@on`/`@after`), `Repository`/`Context` augmentation |
 | `core` | replaces the global `Injectables` registry; monkey-patches `Decoration.flavourResolver`; model/identity decorators |
 | `for-*` adapters | `Adapter.setCurrent(flavour)` as an import side effect; adapter-specific decorator overrides |
-| `ui-decorators` | `UIKeys`/`GraphKeys` metadata namespaces; `RenderingEngine` flavour registry |
-| `integrations` | `@service`-bound services; `Metadata.nodes()`/`workflows()` augmentations for graph |
+| `ui-decorators` | `UIKeys` metadata namespaces; `RenderingEngine` flavour registry |
+| `integrations` | `@service`-bound services (the graph `Metadata.nodes()`/`workflows()` augmentations moved to `@decaf-ts/as-graph` in the SAA-503 cutover) |
 
 There is **no unified introspection API**: consumers must know each package's
 reflect-key namespaces (`ValidationKeys.REFLECT`, `ModelKeys`, `DBKeys`,
-`TransactionalKeys`, `InjectablesKeys`, `UIKeys`, `GraphKeys`). This is a
+`TransactionalKeys`, `InjectablesKeys`, `UIKeys`; the graph `GraphKeys`
+namespace lives in `@decaf-ts/as-graph`). This is a
 known friction point, recorded but not fixed.
 
 ## Error hierarchy
