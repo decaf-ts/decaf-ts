@@ -33,3 +33,4 @@ opencode.json
 workdocs/locks/*
 !workdocs/locks/.gitkeep
 /.omo
+/.release-holds/

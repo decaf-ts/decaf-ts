@@ -58,6 +58,7 @@
             <path value="file://$PROJECT_DIR$/for-drizzle/workdocs" />
             <path value="file://$PROJECT_DIR$/weaver/workdocs" />
             <path value="file://$PROJECT_DIR$/testing/workdocs" />
+            <path value="file://$PROJECT_DIR$/as-graph/workdocs" />
           </resourceRoots>
         </entryData>
       </entry>

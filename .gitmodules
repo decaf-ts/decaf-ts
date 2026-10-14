@@ -104,3 +104,6 @@
 [submodule "as-graph"]
 	path = as-graph
 	url = https://github.com/decaf-ts/as-graph.git
+[submodule "for-express"]
+	path = for-express
+	url = https://github.com/decaf-ts/for-express

@@ -1,0 +1,437 @@
+{
+  "id": "documentation:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook",
+  "kind": "documentation",
+  "root": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook",
+  "nodes": [
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/specifications/DECAF_51.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/specifications/DECAF_51.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/11-angular.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/11-angular.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/12-react-next-styles.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/12-react-next-styles.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/13-react-native.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/13-react-native.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/00-overview.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/00-overview.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/02-foundation.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/02-foundation.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/03-persistence-core.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/03-persistence-core.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/04-persistence-adapters.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/04-persistence-adapters.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/05-http-backend.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/05-http-backend.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/06-ui-layer.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/06-ui-layer.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/07-integrations.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/07-integrations.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/09-tooling-infra.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/09-tooling-infra.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/10-apps-demos.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/10-apps-demos.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/11-cross-cutting-concerns.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/11-cross-cutting-concerns.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/12-glossary.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/12-glossary.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/04-migrations-design.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/04-migrations-design.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/08-graph-design.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/08-graph-design.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/README.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/README.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/specifications/DECAF_53.md",
+      "path": "/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/specifications/DECAF_53.md",
+      "kinds": [
+        "documentation"
+      ]
+    },
+    {
+      "id": "file:/SAA/issues/SAA-560",
+      "path": "/SAA/issues/SAA-560",
+      "kinds": [
+        "documentation"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "0c54444f203e740d9d67907167c7d8fe239f8d4888cead790cdd31c54a661fac",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/12-react-next-styles.md",
+      "kind": "link",
+      "specifier": "../_research-briefs/12-react-next-styles.md"
+    },
+    {
+      "id": "142360faf752448c8e63d213139a655af0fef548d956ec879c96d3706d1e9d0d",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/04-persistence-adapters.md",
+      "kind": "link",
+      "specifier": "./04-persistence-adapters.md"
+    },
+    {
+      "id": "15f8971649f4ad8f6c1ea7568bce6a93acb7f45492a39fa0ed83c730da4b8600",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/06-ui-layer.md",
+      "kind": "link",
+      "specifier": "./06-ui-layer.md"
+    },
+    {
+      "id": "16444f91df89a58fdedae0800aa725a29d0ee8b9a685619157250a37ce8fa542",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/00-overview.md",
+      "kind": "link",
+      "specifier": "./00-overview.md"
+    },
+    {
+      "id": "1ac34090d367579f07dcc583db650c1ef0a850ccd7e3aab7148e5e71c536ab1b",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/07-integrations.md",
+      "kind": "link",
+      "specifier": "./07-integrations.md"
+    },
+    {
+      "id": "1c9c0ccd3d2765de9f277aacc5bcc65495a6c657c501db98e5146fa2ed7b6982",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/10-apps-demos.md",
+      "kind": "link",
+      "specifier": "./10-apps-demos.md"
+    },
+    {
+      "id": "1d2ffde786cb5889a0829f913d79b939c9432725cc4df544ecb19a11bb9c0ca8",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/03-persistence-core.md",
+      "kind": "link",
+      "specifier": "./03-persistence-core.md"
+    },
+    {
+      "id": "1f657dfd1c865ce6155f0a93bbc5d78946b15874d9b2eb8f6818648632f6236b",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/10-apps-demos.md",
+      "kind": "link",
+      "specifier": "./10-apps-demos.md"
+    },
+    {
+      "id": "2606da86a9211c54fae968691ab9951b08273bed75518aca17cc610d5ece6234",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/09-tooling-infra.md",
+      "target": "file:/SAA/issues/SAA-560",
+      "kind": "link",
+      "specifier": "/SAA/issues/SAA-560"
+    },
+    {
+      "id": "2c6c645f65f167bb74813b90dc5e94c88d8469ad283b2d60846b6cc258baff2f",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/09-tooling-infra.md",
+      "kind": "link",
+      "specifier": "./09-tooling-infra.md"
+    },
+    {
+      "id": "378e8eb9b6e88669b3c221fb912a3a67ba19815bc7cfa66878862d00fdcae877",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/11-cross-cutting-concerns.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/03-persistence-core.md",
+      "kind": "link",
+      "specifier": "./03-persistence-core.md"
+    },
+    {
+      "id": "3c3866a3544d8e974353a8cb72da32c1ffa2c6eb9accb7c34cc030c4f251a79b",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/05-http-backend.md",
+      "kind": "link",
+      "specifier": "./05-http-backend.md"
+    },
+    {
+      "id": "3ea4932185770cff8f1882dabf89563392b35897a81efc3c2e31a3aaf546b199",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "kind": "link",
+      "specifier": "./01-layer-architecture.md"
+    },
+    {
+      "id": "4824cab6ee7cf6d614d87e4ce756482bce0a27896d4cadec1797b5558df5451f",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/04-persistence-adapters.md",
+      "kind": "link",
+      "specifier": "./04-persistence-adapters.md"
+    },
+    {
+      "id": "55ce4d4de123dfdc253781b77c45208a87f1ff0b11964f83ac539487d63b72ac",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/06-ui-layer.md",
+      "kind": "link",
+      "specifier": "./06-ui-layer.md"
+    },
+    {
+      "id": "6b26288a717bfadaf1d0b791b7115132e76a20f1923060f1ca37eb1167377304",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "kind": "link",
+      "specifier": "./08-frontend-engines.md"
+    },
+    {
+      "id": "79658152d61c4fa5de9de4b29dab1ce1d9e5434b08dd647a1fcc862ed88a3d49",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/09-tooling-infra.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/specifications/DECAF_51.md",
+      "kind": "link",
+      "specifier": "../../specifications/DECAF_51.md"
+    },
+    {
+      "id": "7b76b7653ad66e14234e113aa618946cc82ec7bc06f3e67df742c23bf7f6569b",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/11-cross-cutting-concerns.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/04-migrations-design.md",
+      "kind": "link",
+      "specifier": "../design-specification/04-migrations-design.md"
+    },
+    {
+      "id": "a4d0a4b2663554f6e34dee16848f4bac1bb091630611e448aa62f269f7148e74",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/05-http-backend.md",
+      "kind": "link",
+      "specifier": "./05-http-backend.md"
+    },
+    {
+      "id": "a8aefa983e18bd0dc4ffed34ed0ca6ed700a05ef28d24955bfb558f4cfca3244",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/08-graph-design.md",
+      "kind": "link",
+      "specifier": "../design-specification/08-graph-design.md"
+    },
+    {
+      "id": "a8c713eacea2572f815500db0f9b81b823896a5776dd26f8a87c0b7088e11a7c",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/00-overview.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/README.md",
+      "kind": "link",
+      "specifier": "../design-specification/README.md"
+    },
+    {
+      "id": "ad450f3a02ac7a3c4dc7f4e25946afff18656f3a34efd4bc4dd978a910f66757",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/00-overview.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/03-persistence-core.md",
+      "kind": "link",
+      "specifier": "./03-persistence-core.md"
+    },
+    {
+      "id": "b05d7c847e47f053f50a65317d3c9121ca2b11de79675152946e90b068e91291",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/13-react-native.md",
+      "kind": "link",
+      "specifier": "../_research-briefs/13-react-native.md"
+    },
+    {
+      "id": "b2791de1721b7dcfd906d8ff54c20b1f8096a53d2543f69df83b911254b5f19d",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/07-integrations.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/design-specification/08-graph-design.md",
+      "kind": "link",
+      "specifier": "../design-specification/08-graph-design.md"
+    },
+    {
+      "id": "b4881e69679ed49672c96abacf98ce1047e77d78f5e99697485a5dc68ee54b2c",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/07-integrations.md",
+      "kind": "link",
+      "specifier": "./07-integrations.md"
+    },
+    {
+      "id": "be794e5d05f15260e227ecedbf95cdc64a64669a8095107839ad8da154100d27",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/specifications/DECAF_53.md",
+      "kind": "link",
+      "specifier": "../specifications/DECAF_53.md"
+    },
+    {
+      "id": "c0998edeb126e51c0b33d6b8e4ffb5c2099ea3ba16ab800e140d24740ba4b4f6",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/02-foundation.md",
+      "kind": "link",
+      "specifier": "./02-foundation.md"
+    },
+    {
+      "id": "d19f53a3a1b09be998a1fbd03b3eb2ff8c346bbbdc6f9431ec75c4316e241e78",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/09-tooling-infra.md",
+      "kind": "link",
+      "specifier": "./09-tooling-infra.md"
+    },
+    {
+      "id": "d56eeffe5112891dded0a2e06bfa730bd7a0752dd183c64a5ee94beb3373c1bc",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/11-cross-cutting-concerns.md",
+      "kind": "link",
+      "specifier": "./11-cross-cutting-concerns.md"
+    },
+    {
+      "id": "dc0cb1838d62e49a32fbe525082830963580c8dcb9056c0ffc501d3ff083ebb8",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/00-overview.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/02-foundation.md",
+      "kind": "link",
+      "specifier": "./02-foundation.md"
+    },
+    {
+      "id": "e4e7d535130b54b9c204b7c39e9e585ed79714a7cc3b0010970a5c41ea70827b",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/12-glossary.md",
+      "kind": "link",
+      "specifier": "./12-glossary.md"
+    },
+    {
+      "id": "eba34fc223a977505797479b6e67111a6a1e5cf685be310fd10f2dfbbca728ec",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "kind": "link",
+      "specifier": "./08-frontend-engines.md"
+    },
+    {
+      "id": "eec9a69f278b78ce27dc78b2f7d151428df4d967bac2a9cc588b4d31d21c91fc",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/00-overview.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/01-layer-architecture.md",
+      "kind": "link",
+      "specifier": "./01-layer-architecture.md"
+    },
+    {
+      "id": "f1ab898f12116e2064da6f858e6d607819d25e52aee4acf213f0f1ba5775ed22",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/11-cross-cutting-concerns.md",
+      "kind": "link",
+      "specifier": "./11-cross-cutting-concerns.md"
+    },
+    {
+      "id": "f3df9263387a5454ddaf2c2937f5740f579afc40912dd112cded443536069238",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/03-persistence-core.md",
+      "kind": "link",
+      "specifier": "./03-persistence-core.md"
+    },
+    {
+      "id": "f3f007ff47a5f034d324a648cac750dc8c7c3c3b2ea0ff4782d90bf351a62e7d",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/README.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/02-foundation.md",
+      "kind": "link",
+      "specifier": "./02-foundation.md"
+    },
+    {
+      "id": "f7636da52bd365f0ea85ae5835ec195c792f6ed4ca4afaa54ea30e0fd37327ca",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/_research-briefs/11-angular.md",
+      "kind": "link",
+      "specifier": "../_research-briefs/11-angular.md"
+    },
+    {
+      "id": "f8fd3279dd089adf3760516bb44466119cf6252171152b7a08fc9442a551412d",
+      "source": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/11-cross-cutting-concerns.md",
+      "target": "file:/home/tvenceslau/local-workspace/decaf-ts/workdocs/ai/project/technical-docs/architecture-handbook/08-frontend-engines.md",
+      "kind": "link",
+      "specifier": "./08-frontend-engines.md"
+    }
+  ],
+  "fingerprint": "2ed562eec99b23208557a6a5491af706e59e18bec58fa7c5cda85bc10bbb1e03"
+}
