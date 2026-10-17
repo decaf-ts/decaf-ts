@@ -30,6 +30,7 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 | Package root | `@decaf-ts/as-graph` (`src/index.ts`) | Engine + node re-exports (backend convenience surface). |
 | `shared` subpath | `@decaf-ts/as-graph/shared` (`src/shared/graph/`) | Frontend-safe contracts: decorators, reader, constants, catalog (manifest/parameter schemas), document (canonical document model), persisted `GraphRunModel`/`GraphWorkflowModel`. |
 | `nest` subpath | `@decaf-ts/as-graph/nest` (`src/nest/graph/`) | `GraphExecutionModule.forRoot`, catalogue/workflow/run controllers, `GraphExecutorRegistryFactory`. |
+| `mastra` subpath | `@decaf-ts/as-graph/mastra` (`src/mastra/`) | Mastra execution backend: `MastraGraphExecutionBackend`, the workflow compiler, condition/event bridges, resume guard, and the `MASTRA_FEATURE_CAPABILITIES` capability table — plus the SAA-836 S1 backend contract: `MastraModelSchemaConverter` (`mastraSchemaFromModel`/`mastraModelFromSchema`, the single decaf↔mastra schema conversion path over `@decaf-ts/as-zod`), `MastraStructuredOutput` (the JSON-safe structured-output definition/resolution contract), and `MastraEnvironment` (the `MASTRA__*` engine environment with the credential fail-closed gate, §16). |
 | Engine | `src/engine/` | `auth`, `catalog`, `errors`, `events`, `execution`, `loops`, `pinning`, `planning`, `registry`, `runs`, `snapshots`, `store`, `validation`, services. |
 | Node declarations | `src/node/` | `@node`-decorated built-in node classes per category (`triggers/`, `flow/`, `utility/`, `agents/`, `boundary/`), `base.ts`, `manifests.ts` (structural overlays). |
 | Locale assets | `assets/i18n/en.json` | Repo-root `assets/`; shipped via `package.json` `files`. |
@@ -38,9 +39,33 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 Node kinds shipped (one `@node` class each, `src/node/**`): triggers
 `core.trigger.manual|webhook|schedule|event|form|chat`, flow
 `core.flow.if|switch|delay|log|errorBoundary|humanApproval|break`, loops
-`graph-foreach-loop-node|graph-while-loop-node|graph-until-loop-node`,
-utility `core.utility.map|code|utility-log`, agent `core.agent`, boundary
-`graph-input-value-node|graph-output-value-node`.
+`core.loop.foreach|while|until`,
+utility `core.utility.map|code|utility-log`, boundary
+`graph-input-value-node|graph-output-value-node`, and the mastra agent family
+(`src/node/agents/**`, category `Agent`): the agent node `core.agent` plus its
+`core.agent.*` family kinds — tools `core.agent.tool|toolSelector`, hooks
+`core.agent.hook|toolDeny|delegationHook`, skills
+`core.agent.skill|skillSelector`, sandbox `core.agent.sandbox`, scorers
+`core.agent.scorer|scorerSelector`, memory `core.agent.memory|memorySelector`,
+embedding `core.agent.embedding` plus the RAG family
+`core.agent.vectorStore|retriever|rerank|chunking`,
+`core.agent.chain.basic|qa|summarization`, and
+`core.agent.informationExtractor|langchainCode|structuredOutputParser`,
+processors `core.agent.inputProcessor|outputProcessor|guardrail`, HITL
+`core.agent.hitl`, voice `core.agent.voice`, channel triggers
+`core.agent.trigger.mcp|slack|discord|telegram|teams`, and channel responses
+`core.agent.response.slack|discord|telegram|teams`. Every `core.agent[.*]`
+kind requires the mastra engine (R11); the general (local) engine fails closed
+on it. Of the family, the zone connectors carry a `MASTRA_AGENT_ZONE`
+connection category (§0.2 R11): `tool|toolSelector` → `tools`, `hook` and
+`delegationHook` → `hooks`, `skill|skillSelector` → `skill`, `sandbox` →
+`sandbox`, `scorer|scorerSelector` → `scorers`, `memory|memorySelector` →
+`memory`, `embedding` → `embedding`, `inputProcessor` → `inputProcessors`, and
+`outputProcessor|guardrail` → `outputProcessors`; the remaining family kinds
+(channel triggers/responses, HITL, voice, and the RAG data-flow nodes
+`vectorStore|retriever|rerank|chunking|chain.*|informationExtractor|langchainCode|structuredOutputParser`
+— plus the hook sub-flow terminal `toolDeny`) declare no connection port and
+flow as plain workflow data nodes.
 
 ### 0.2 Node rules (normative taxonomy)
 
@@ -71,7 +96,10 @@ boundary node.** The default input is properly typed (with the expected
 data arriving from the workflow and the main flow of the graph. Implemented
 on all non-entry nodes (`CodeNode.input` typed `CodeInputSchema`,
 `GraphOutputValueNode.value`, `core.agent`, loops, …); triggers and
-`graph-input-value-node` are entry nodes and declare none.
+`graph-input-value-node` are entry nodes and declare none. Additional declared
+exceptions: the agent family resource nodes
+(`core.agent.tool|skill|scorer|sandbox`) declare no default data input — they
+are configuration suppliers wired onto the agent's zone ports (R11).
 
 **R3 — every node has at least one default `@output()` property, with
 declared exceptions.** Analogous to R2: properly typed with the expected
@@ -89,12 +117,17 @@ node** and **break node**.
 matching-direction ports **unprefixed** — e.g. `CodeInputSchema.code`/`.data`
 splice into `CodeNode`; the carrier itself is not a port); primitive-typed
 `@input`/`@output` properties are plain ports. `@connection` declares a
-third port kind — structural dependency ports (rendered on the bottom side
-of the node, colored by `category`: `model`/`memory`/`workspace` via
-`registerGraphCategoryStyle`; carry no workflow data; e.g. the Agent node's
-`model`/`memory`/`workspace`). The node's analog properties are decorated
-as such. `@pinnable({...})` is node metadata (pinning strategy), not a
-port.
+third port kind — structural dependency ports (carry no workflow data; placed
+per their declared **zone** when one is declared — see R11 — and on the
+bottom side of the node otherwise; colored by `category` via
+`registerGraphCategoryStyle`: `model`/`memory`/`workspace` plus the mastra
+agent zone categories `tools`/`hooks`/`skill`/`sandbox`/`scorers`/
+`embedding`; e.g. the Agent node's `memory`/`model`/`workspace` and its seven
+mastra zone ports). A connection rule may further restrict which source port
+categories may connect via `allowedPortCategories`
+(`GraphConnectionRule`, `src/shared/graph/constants.ts`). The node's analog
+properties are decorated as such. `@pinnable({...})` is node metadata (pinning
+strategy), not a port.
 
 **R5 — property taxonomy (exhaustive).** A node class's properties are
 **only** one of the following; there are no other options:
@@ -192,6 +225,113 @@ kind `core.utility.code`) — the reference application of R1–R9:
 - `@node` metadata carries only graphical fields (category `Utility`,
   color, icon, size, labels) plus locale-keyed `title`/`description`.
 
+**R11 — the agent node's port zones and the zone connection-category rule
+(SAA-836 M1/M3, SAA-837 M1).** The agent node (`core.agent`) is rectangular
+and declares its structural dependencies as `@connection()` ports grouped in
+**dedicated zones**:
+
+- **Zone declaration.** A `@connection()` port declares its zone through
+  `zone: { side, align, order }` (`GraphPortZone`,
+  `src/shared/graph/constants.ts`): `side` is the node edge the zone anchors
+  to (`top`/`bottom`/`left`/`right`), `align` is the position along that edge
+  (`start`/`center`/`end`; `center` default), and `order` orders ports
+  sharing the same side+align group (ascending; `0` default). The compiled
+  manifest copies the zone onto the connection port
+  (`GraphPortManifest.zone`, `src/shared/graph/catalog/GraphPortManifest.ts`)
+  — **the manifest, not the renderer, is authoritative for zone placement**;
+  a port without a zone stays on the default bottom row.
+- **The agent node's zones** (`src/node/agents/agent/node.ts`): `memory`
+  bottom-left (`bottom`/`start`/`0`), `scorers` top-right
+  (`top`/`end`/`0`), `embedding` bottom-right (`bottom`/`end`/`0`),
+  `hooks` top-middle (`top`/`center`/`0`) with `sandbox` (`top`/`center`/`1`)
+  and `inputProcessors` (`top`/`center`/`2`) to its right, and `tools`
+  bottom-middle (`bottom`/`center`/`0`) with `skill` (`bottom`/`center`/`1`)
+  and `outputProcessors` (`bottom`/`center`/`2`) to its right. The
+  bottom-left group completes with the explicit wiring connections `model`
+  (`bottom`/`start`/`1`) and `workspace` (`bottom`/`start`/`2`). There is
+  **no model-provider node kind** (R1): the LLM is carried as `modelAdapter`
+  configuration on the node; the `model` zone remains for explicit wiring
+  only. The `inputProcessors` zone carries mastra's preprocessor pipeline and
+  the `outputProcessors` zone its post-processor pipeline (guardrail kinds
+  connect there, composing with the output processors — SAA-836 M5).
+- **Zone categories are canonical.** The zone category strings are the
+  `MASTRA_AGENT_ZONE` constants (`src/node/agents/zones.ts`): `memory`,
+  `scorers`, `embedding`, `hooks`, `sandbox`, `tools`, `skill`,
+  `inputProcessors`, `outputProcessors`. The seven mastra agent zones
+  `memory`/`scorers`/`embedding`/`hooks`/`sandbox`/`tools`/`skill` are each
+  registered as a connection category style
+  (`registerGraphCategoryStyle`) and localized under
+  `graph.node.categories.connectionCategories`; the two processor zones
+  currently carry no registered category style and no
+  `connectionCategories` display entry (their port label groups live under
+  the node's `ports` locale keys). Every zone has dedicated family node
+  kinds (see below): `memory|memorySelector` (memory), `embedding` plus the
+  RAG data-flow family (embedding zone), `hook|delegationHook` (hooks),
+  `tool|toolSelector` (tools), `skill|skillSelector` (skill), `sandbox`
+  (sandbox), `scorer|scorerSelector` (scorers), `inputProcessor`
+  (inputProcessors), and `outputProcessor|guardrail` (outputProcessors).
+- **The zone connection-category rule.** A family node's `@connection()` port
+  carries the **same category as its agent zone** (e.g.
+  `core.agent.tool` connects via a `tools`-category port), so an edge is
+  valid only between a family port and the matching zone. The edge validator
+  enforces this directly (`validateCategoryMatch`,
+  `src/engine/validation/GraphConnectionPolicyValidator.ts`): when both
+  endpoints of a connection edge declare a `category` and they differ, the
+  edge is rejected with issue code `connection.category-mismatch`;
+  category-less structural connections are unaffected. Combined with
+  `allowedPortCategories` connection rules, a zone accepts only its matching
+  family.
+- **The `core.agent.*` family kinds** (`src/node/agents/**`, all category
+  `Agent`, all requiring the mastra engine): `core.agent.tool` /
+  `core.agent.toolSelector` (tools zone — one configured tool, or a dynamic
+  selection among the connected tools), `core.agent.hook` /
+  `core.agent.toolDeny` / `core.agent.delegationHook` (hooks zone —
+  `beforeToolCall`/`afterToolCall` and `onDelegationStart`/`onDelegationComplete`
+  hooks whose sub-flow outputs carry the hook context; a before-sub-flow may
+  terminate in the tool-deny node, which produces the
+  `{ proceed: false, output }` verdict), `core.agent.skill` /
+  `core.agent.skillSelector` (skill zone), `core.agent.sandbox`
+  (sandbox zone — `LocalSandbox`/`Workspace`, its `timeoutMs` clamped by the
+  same code-node ceiling guard), and `core.agent.scorer` /
+  `core.agent.scorerSelector` (scorers zone). The remaining family kinds:
+  `core.agent.memory` / `core.agent.memorySelector` (memory zone — mastra
+  memory providers, resolved into a live memory by `MastraMemory`),
+  `core.agent.embedding` (embedding zone — `MastraVectorStore` backs the RAG
+  vector-store layer) and the RAG data-flow nodes `core.agent.vectorStore`,
+  `core.agent.retriever`, `core.agent.rerank`, `core.agent.chunking`,
+  `core.agent.chain.basic|qa|summarization`,
+  `core.agent.informationExtractor`, `core.agent.langchainCode`, and
+  `core.agent.structuredOutputParser` (plain data-flow nodes composing the
+  RAG pipelines — no connection port), `core.agent.inputProcessor` /
+  `core.agent.outputProcessor` / `core.agent.guardrail` (processor zones —
+  mastra's input/output processor pipelines; guardrails compose with the
+  output processors, model resolution through the backend's
+  `resolveProcessorModel` seam), `core.agent.hitl` (human-in-the-loop step:
+  suspends with the node's message/prompt payload and routes the resumed
+  payload to `approved`/`rejected` like the general-engine human-approval
+  translation; a missing or degraded `resumeSchema` fails at translation
+  time), `core.agent.voice` (live voice step), and the channel triggers
+  `core.agent.trigger.mcp|slack|discord|telegram|teams` plus channel
+  responses `core.agent.response.slack|discord|telegram|teams` (§10.3). Per
+  R9 each family node resolves its configuration into a resource descriptor
+  on a real output port (`resource`); per R5 the family properties are
+  expose-as-port fields.
+- **Execution boundary.** `core.agent[.*]` executes only on the mastra
+  backend: the node classes fail closed with
+  `GRAPH_LOCAL_UNSUPPORTED_NODE_KIND` (`src/engine/constants.ts`) when the
+  general engine is asked to run them (checked via
+  `graphNodeRequiresMastraEngine`,
+  `src/engine/execution/GraphNodeEngineRequirements.ts` — single authority
+  for the kind prefix `core.agent`), and on the mastra backend the agent step
+  fails closed with `GRAPH_MASTRA_AGENT_UNAVAILABLE` when no agent runtime is
+  configured — no fabricated agent response, ever. The agent node itself
+  carries the mastra agent options as first-class fields (`name`,
+  `description`, `instructions`, `skillsFormat`, `maxRetries`,
+  `structuredOutput`, advanced `agentOptions` passthrough) per R5/R8, and its
+  `prompt` input accepts placeholder expressions. The `structuredOutput`
+  parameter carries the backend structured-output contract resolved per
+  §10.3 (`MastraStructuredOutput`), not a free-form schema object.
+
 ### 0.3 Locale-key structure (normative)
 
 All node string metadata is **locale keys**, never literal user-facing
@@ -208,7 +348,10 @@ itself"):
                        "utility": "Utility", "loop": "Loop",
                        "agent": "Agent", "boundary": "Boundary" },
       "connectionCategories": { "model": "Model", "memory": "Memory",
-                                 "workspace": "Workspace" },
+                                 "workspace": "Workspace", "tools": "Tools",
+                                 "hooks": "Hooks", "skill": "Skill",
+                                 "sandbox": "Sandbox", "scorers": "Scorers",
+                                 "embedding": "Embedding" },
       "<category>": {                       // same grouping as src/node/<category>/
         "<node>": {
           "name": "…localized…",
@@ -224,14 +367,17 @@ itself"):
 }
 ```
 
-Rules (all enforced on the working tree — 126 referenced `graph.node.*` keys,
+Rules (all enforced on the working tree — 147 referenced `graph.node.*` keys,
 0 missing):
 
 1. **`ports: { <category>: { … } }`** — port wrapper locale keys are
    grouped under the node's `ports` object **by connection category**:
    `input`/`output` direction groups, plus connection categories
-   (`model`/`memory`/`workspace`) for `@connection` ports (e.g. the agent
-   node has `ports: { input, output, model, memory, workspace }`).
+   (`model`/`memory`/`workspace` and the mastra agent zone categories
+   `tools`/`hooks`/`skill`/`sandbox`/`scorers`/`embedding`, R11) for
+   `@connection` ports (e.g. the agent node has
+   `ports: { input, output, model, memory, workspace, scorers, embedding,
+   hooks, sandbox, tools, skill, inputProcessors, outputProcessors }`).
    Uncategorized connection ports (the foreach loop body) stay under
    `connection`.
 2. **Categories are snake_case** (`flow_control`; snake_case node ids such
@@ -774,7 +920,9 @@ interface GraphNodeManifest {
 ```
 
 Ports carry optional `schema` (`GraphValueSchema`: any/string/number/boolean/
-array/object/enum/model), `required`, `hidden`, `category`, `handle`,
+array/object/enum/model), `required`, `hidden`, `category`, `zone`
+(`GraphPortZone` — side/align/order placement for `@connection` ports,
+copied from `@connection({ zone })`; §0.2 R11), `handle`,
 `connectionPolicy` (allowSelf/allowMultiple/allowedNodeKinds/blockedNodeKinds/
 allowedPortCategories/maxConnections — enforced by the backend, applied
 optimistically by the frontend only), `configurable`, and
@@ -860,11 +1008,13 @@ references a missing parameter; credential requirements are malformed; the
 executor is absent; a port/parameter id is a prototype-pollution key.
 
 **Built-in registrations** (`GraphBuiltInRegistrations.ts`) pair every shipped
-kind: `core.flow.map|delay|return|merge|if|parallel|errorBoundary|humanApproval|break|code|log|switch`,
-`core.agent`, `core.trigger.manual|webhook|schedule|event|form|chat`, and
-`core.utility.log`. `GraphNodeManifestResolver` resolves per-instance
-effective manifests (dynamic ports applied); `GraphNodeMethodRegistry` pairs
-declared methods with implementations.
+kind: `core.trigger.manual|webhook|schedule|event|form|chat`,
+`core.flow.if|switch|delay|log|errorBoundary|humanApproval|break`,
+`core.loop.foreach|while|until`, `core.utility.code|map|log`,
+`graph-input-value-node|graph-output-value-node`, and `core.agent` plus its
+`core.agent.*` family kinds (R11). `GraphNodeManifestResolver` resolves
+per-instance effective manifests (dynamic ports applied);
+`GraphNodeMethodRegistry` pairs declared methods with implementations.
 
 ## 9. Backend Validation — the Nine-Stage Gate
 
@@ -889,7 +1039,10 @@ failing abruptly:
 5. **Edge endpoints** — endpoints and referenced nodes/ports exist; directions
    valid; data and structural edges use compatible ports; duplicate/conflicting
    edges rejected.
-6. **Connection policies** — policy rules and max-connection counts enforced.
+6. **Connection policies** — policy rules and max-connection counts enforced,
+   including the same-category rule for connection ports whose both endpoints
+   declare a `category` (a mismatch is a `connection.category-mismatch`
+   issue; §0.2 R11).
 7. **Topology** — acyclicity preserved (Kahn's algorithm; loop constructs
    excepted, loop bodies independently acyclic); boundary routing valid;
    required values satisfiable.
@@ -983,6 +1136,129 @@ timeout/memory limits. The engine still does not wire a sandbox by default —
 consumers pass `codeSandboxEvaluator` or Code/Switch nodes throw
 `GRAPH_CODE_SANDBOX_NOT_CONFIGURED`. Code values are parameters, never
 manifest methods.
+
+### 10.3 Mastra execution backend (`@decaf-ts/as-graph/mastra`)
+
+The mastra backend translates the canonical document into a mastra workflow
+and runs it on a host-injected `@mastra/core` runtime, self-registering under
+the `mastra` flavour (`MASTRA_BACKEND_FLAVOUR`). `core.agent[.*]` kinds are
+mastra-only (§0.2 execution boundary); the local engine fails closed on them.
+
+**Environment boot.** The backend boots from Environment config only
+(`MastraEnvironment`, the `@decaf-ts/logging` accumulated environment):
+`initialize()` throws `GRAPH_MASTRA_ENGINE_DISABLED` when
+`MASTRA__ENGINE__ENABLED=false`, and the run-level terminal timeout defaults
+from `MASTRA__ENGINE__TERMINAL_TIMEOUT_MS` (a positive host
+`config.terminalTimeoutMs` still takes precedence). The provider credential
+is gate C: it is referenced by environment-variable **name** only
+(`MASTRA__CREDENTIALS__API_KEY_ENV`, default `MASTRA_PROVIDER_API_KEY`);
+`assertMastraProviderCredentials`/`hasMastraProviderCredentials` assert only
+the referenced variable's presence — a secret value is never read into, held
+by, or persisted in the graph layer, and a missing/unset credential fails
+closed with `GRAPH_MASTRA_CREDENTIALS_UNAVAILABLE` instead of attempting
+unauthenticated model traffic. See §16 for the environment-variable table
+and the `.env`/`.env.secret` operator workflow.
+
+**Single schema conversion path.** Every decaf↔mastra schema conversion goes
+through `@decaf-ts/as-zod` via `MastraModelSchemaConverter` —
+`mastraSchemaFromModel` (decaf Model constructor → mastra Zod object schema)
+and `mastraModelFromSchema` (reverse) — never a second metadata walker. Both
+directions fail closed with `GRAPH_MASTRA_MODEL_SCHEMA_UNAVAILABLE` when the
+conversion cannot produce a usable schema; only a Zod object schema with a
+non-empty declared shape can drive structured output.
+
+**Structured-output contract.** A document authors structured output as a
+plain, JSON-safe `MastraStructuredOutputDefinition` on a node's
+`structuredOutput` parameter: a decaf model **name** resolved through the
+host-supplied `MastraDecafModelResolver` registry (the host owns the model
+catalogue; the mastra backend never invents one), or a host-carried,
+already-converted Zod `schema` (takes precedence) — plus optional
+`instructions`, `jsonPromptInjection`, and `providerOptions` forwarded to
+mastra verbatim. `mastraStructuredOutputOf(node, resolveModel)` reads the
+definition and resolves it into mastra's `structuredOutput` generate option;
+an unresolvable definition (no schema source, or the named model the host
+registry does not resolve) fails closed with
+`GRAPH_MASTRA_STRUCTURED_OUTPUT_UNRESOLVED` — it never silently degrades to
+unstructured output — while an absent definition leaves the agent
+unstructured (mastra's default). The definition never carries a secret and
+never carries raw JSON Schema (mastra consumes Zod). The U1 model-builder UI
+consumes this same contract; no UI is authored in the backend.
+
+**Layered persistence (SAA-836 O1, gate A approved 2026-10-17).** Each
+mastra-layer object kind is routed to a best-fit storage adapter
+(`MastraPersistence`, `MASTRA__PERSISTENCE__*` env overrides — non-secret,
+`.env`): **replays** (versioned run replay snapshots backing restore —
+mastra's own time-travel mechanism stays the replay engine) default to the
+`fs` adapter (restart-safe, no database driver; `MastraReplaySnapshotModel`
+rows keyed `${runId}::v${version}`, so a run's snapshots are versioned and
+restorable), **cache** (compiled-workflow cache ledger keyed by document id +
+fingerprint, invalidated atomically on fingerprint change so recompilation
+happens only when the document changes) defaults to `ram`
+(`MastraCacheEntryModel`), and **pins** (durable user-owned pinned node
+states) defaults to `fs` — the mastra lane itself declares pinning
+`NOT-SUPPORTED` (capability table), so the routed adapter is exposed for host
+value-store wiring only. **Workflows are not routed here** — they persist via
+the as-graph adapter only (binding rule), versioned with restore. The
+built-in `RamAdapter`/`FilesystemAdapter` back the defaults, so no new
+database driver is ever required (R8); a host may override any layer with its
+own adapter (a driver-backed adapter activates only when the host configures
+it). Replay/cache recording is auxiliary: a recording failure never fails a
+run (logged and skipped), while restoring a missing snapshot fails closed
+explicitly (nil rows never, R7). Payloads are JSON-safe projections; no
+secret value is ever persisted.
+
+**Observability (langfuse, SAA-836 O1).** Mastra observability is configured
+on the mastra engine: the runtime's own observability entrypoint catches
+every signal the engine emits (workflow runs/steps, agent runs, model
+generations, tool calls, logs, metrics, scores) and exports them, by default
+and always, to the deployed langfuse target through mastra's official
+`@mastra/langfuse` exporter (R2 direct-library wrap — trace export has no
+decaf-service equivalent). Wiring is environment-driven
+(`MASTRA__OBSERVABILITY__*`, §16): the langfuse credentials are referenced by
+**name only** from `.env.secret` and the layer fails closed when they are
+missing (`GRAPH_MASTRA_OBSERVABILITY_CREDENTIALS_UNAVAILABLE`) — no
+unauthenticated trace export is ever attempted. On top of the engine-wide
+export, the `DecafNodeObservabilityExporter` implements the OUR
+observability layer: the compiler stamps a `decafNode` origin onto every
+translated mastra step, and the exporter attributes each trace to its
+canonical graph node, scoping OUR-node signals separately from
+engine-internal signals.
+
+**Run metrics & eval models (SAA-836 S2/O1).** The mastra storage is exposed
+to the editor through a read-only metrics layer: `MastraRunMetricModel`,
+`MastraScoreMetricModel`, and `MastraTraceMetricModel`
+(`MastraMetricsModels`) project mastra's run/score/span rows into
+persistable, frontend-safe models; `MastraMetricsAdapter` is a dedicated
+read-only Decaf adapter over the mastra storage (the persistence seam for
+read paths), `MastraMetricsStatement` + paginator build the raw metrics
+queries, `MastraMetricsGateway` is the only surface allowed to execute them
+(owner-scoped serving), and `MastraRunMetricsEndpoint` delegates mastra agent
+run metrics behind the editor's runs endpoint
+(`GET /graph/workflows/:workflowId/runs`). The eval side mirrors it with
+read-only `MastraEvalExperimentModel`/`MastraEvalResultModel`
+(`MastraEvalModels`) for eval pipelines. The standalone eval suite lives in
+`tests/evals/*.eval.ts` and runs independently of the main Jest config via
+`jest.eval.config.cjs` (`npm run test:evals`) so eval runs never gate the
+regular test suites.
+
+**Agent-family step handlers (fail-closed seams).** The backend resolves the
+agent-family configuration through default handler set seams, each failing
+closed when its runtime is absent: memory providers
+(`MastraMemory` + the `memories`/`createMemory` backend config), processor
+and guardrail nodes (`MastraAgentProcessors` + `resolveProcessorModel`),
+HITL (`createMastraHitlStepHandler`, above), voice
+(`MastraVoiceStepHandler` + `resolveVoice` — omitted wiring fails closed with
+`GRAPH_MASTRA_VOICE_UNAVAILABLE`), channel triggers and responses
+(`MastraChannelTrigger`/`MastraChannelResponse` +
+`resolveChannelAdapter`/`sendChannelResponse` — omitted wiring fails closed
+with `GRAPH_MASTRA_CHANNEL_UNAVAILABLE`), and the MCP server trigger
+(`MastraMcpTrigger` + `createMcpServer` — omitted wiring fails closed with
+`GRAPH_MASTRA_MCP_UNAVAILABLE`). Schedule triggers are translated
+declaratively: `mastraScheduleConfigsOf` resolves every
+`core.trigger.schedule` node of a document into the mastra schedule configs
+(`MastraScheduleTrigger`). Hosts author agents/tools fluently through
+`MastraAgentBuilder`/`MastraToolBuilder` (the agent/tool analogues of the
+workflow builders).
 
 ## 11. Run Lifecycle (Asynchronous Execution)
 
@@ -1482,9 +1758,14 @@ editor reaches the graph backend exclusively over HTTP/SSE.
     always on top** and visually distinct from the other input ports.
   - **`@output`** — right side, evenly distributed; the **default output port
     is always on top** and visually distinct from the other output ports.
-  - **Other connection types** — already defined: `@connection` ports
-    (structural dependencies: `model`/`memory`/`workspace`) render on the
-    **bottom side** of the node, colored by their category
+  - **Other connection types** — placed per the **zone** their port declares
+    (§0.2 R11): the manifest is authoritative (`GraphPortManifest.zone`,
+    copied from `@connection({ zone })`), and
+    `for-angular/src/graph/port-zones.ts` mirrors the zone wire contract and
+    anchors each connection port handle to its declared side/align/order —
+    zoned ports (the agent node's nine mastra zones) render on their declared
+    edge, while a port without a zone stays on the legacy **bottom side**.
+    Connection ports are colored by their category
     (`registerGraphCategoryStyle`); §0.2 R4 is the backend rule and the
     Angular template carries the matching sides (`side="left"|"right"|"bottom"`).
   - Default-port identification (which port is "the" default) comes from the
@@ -1785,6 +2066,58 @@ user's approval of this documentation):
   *create* shows an empty canvas ready to create a workflow; *read* shows
   replay mode/edit mode; *update* edits.
 
+### Mastra agent UI surfaces (delivered)
+
+The mastra layer's UI half ships in `for-angular` alongside the editor:
+
+- **`/agent` chat export (`for-angular/src/agent`, U3).** The public barrel
+  re-exports the complete agent chat surface: the transport contract types
+  (`AgentChatTransport` with `send`/`replay`/`cancel` over
+  `AgentChatRunDescriptor`), the `AGENT_CHAT_TRANSPORT` injection token, the
+  decaf ui-decorator composer/message models, the envelope fold
+  (`agentEnvelopeFold`) that projects graph-run SSE envelopes into chat
+  views, the default `GraphRunAgentChatTransport` (runs the configured
+  workflow over the graph backend's `POST /graph/runs` + SSE envelope stream,
+  with replay from sequence zero and idempotent cancel), `AgentChatService`
+  (create/stream/replay/cancel per conversation, session ids
+  `agent-chat-<epoch>-<seq>`), the translation fallback pipe, and the
+  standalone `ngx-decaf-agent-chat` component. The component renders a
+  transcript live region (`role="log"`, `aria-live="polite"`) with per-role
+  styling, action/attachment chips and auto-scroll, an Enter-to-send /
+  Shift+Enter-newline composer with metadata-only attachments (file contents
+  are never read) and a knowledge-base selector forwarded as
+  `knowledgeBaseIds` run inputs, a collapsible telemetry strip, a
+  structured-object panel reusing `GraphIoViewerComponent`, and namespace
+  chips derived from the workflow document's auth metadata (`§0.4`). Inputs:
+  `workflow` (the `GraphWorkflowDocument`), `workflowId`, `sessionId`,
+  `headerTitleKey`/`headerTitleFallback`, and `knowledgeSources`. All user
+  strings flow through the `agent.chat.*` i18n subtree with hardcoded
+  English fallbacks (locale rule above). The transport is the single seam:
+  hosts override `AGENT_CHAT_TRANSPORT` to plug a scripted transport or an
+  alternative (e.g. the optional `@ai-sdk/angular` peer); Storybook coverage
+  (`src/stories/agent-chat.stories.ts`) mounts the component with a scripted
+  transport so no backend is needed.
+- **Editor dark mode (`src/graph/styles/graph-theme.scss`).** The editor
+  surfaces' palette is lifted into `--gx-*` custom properties (plus canvas
+  `--ngd-*` remaps): `:root` carries the light values byte-identical to the
+  literals they replaced (light mode pixel-for-pixel unchanged), and the
+  dark palette applies under **both** dark triggers the decaf engine uses —
+  `html.dcf-palette-dark` (engine toggle) and
+  `@media (prefers-color-scheme: dark)` (OS preference) — so the editor
+  follows both without touching surfaces outside the graph editor (global
+  `--dcf-*`/`--ion-*` tokens stay light; Ionic widgets inside
+  controller-presented editor modals are darkened only inside a
+  `.gx-editor` scope). Host apps rendering the editor must load
+  `graph-theme.scss` globally.
+- **Accessibility gate (`tests/playwright/graph/a11y.spec.ts`, SAA-894).**
+  An axe-core Playwright gate (WCAG 2.x AA) covers the graph editor page
+  (canvas, toolbar, palette side panel), the node inspection split view with
+  inline editor (post-run), the node and switch edit modals
+  (controller-presented), the `/model-builder` surface, the first-save
+  workflow-create modal, and the workflow + workflow-executions list pages —
+  plus a forced dark-mode pass (`prefers-color-scheme: dark`) over the
+  editor's dark palette.
+
 ### Canvas → run sequence
 
 ```mermaid
@@ -1862,8 +2195,28 @@ sequenceDiagram
 |:---------|:-------|:--------|
 | `GRAPH_BACKEND_PORT` (or `argv[2]`) | `src/nest/graph/main.ts` | Overrides the default graph backend port `3000`. |
 | `GRAPH_BACKEND_URL` | `for-angular/src/graph/execution/GraphExecutionService` | Base URL of the graph backend for browser clients. |
+| `MASTRA__ENGINE__ENABLED` | `MastraEnvironment` (`src/mastra/MastraEnvironment.ts`) | Enables the mastra engine lane (default `true`). `false` makes `MastraGraphExecutionBackend.initialize()` fail closed (`GRAPH_MASTRA_ENGINE_DISABLED`) instead of half-configuring an engine that must not run. |
+| `MASTRA__ENGINE__TERMINAL_TIMEOUT_MS` | `MastraEnvironment` | Default run-level terminal timeout for mastra runs in milliseconds (default `300000`); the backend uses it when the host does not set its own `terminalTimeoutMs`. |
+| `MASTRA__PROVIDER__ENDPOINT` | `MastraEnvironment` | Reserved provider config (declared in `MastraEnvironment`; not yet consumed — agents take their model from the node's `modelAdapter` parameter). Non-secret host config — sourced from `.env`. |
+| `MASTRA__PROVIDER__MODEL` | `MastraEnvironment` | Reserved provider config (declared in `MastraEnvironment`; not yet consumed — agents take their model from the node's `modelAdapter` parameter). Non-secret host config — sourced from `.env`. |
+| `MASTRA__CREDENTIALS__API_KEY_ENV` | `MastraEnvironment` | The **name** of the environment variable carrying the provider credential (default `MASTRA_PROVIDER_API_KEY`). The value lives in the user-supplied `.env.secret` (git-ignored; tracked `.env.secret.template` carries placeholders only) and is referenced by name only — `assertMastraProviderCredentials` asserts its presence and returns the name; a secret value is never read into, held by, or persisted in the graph layer. A missing or empty credential fails closed (`GRAPH_MASTRA_CREDENTIALS_UNAVAILABLE`): no unauthenticated model traffic is attempted. |
+| `MASTRA__OBSERVABILITY__ENABLED` | `MastraEnvironment` | Enables the langfuse observability lane (default `true`); it **fails closed** when enabled and the langfuse credentials are missing (`GRAPH_MASTRA_OBSERVABILITY_CREDENTIALS_UNAVAILABLE`), so a mastra boot without `.env.secret` langfuse keys requires `false`. |
+| `MASTRA__OBSERVABILITY__SERVICE_NAME` / `MASTRA__OBSERVABILITY__ENVIRONMENT` | `MastraEnvironment` | Service name (`as-graph-mastra`) and environment label attached to observability exports. Non-secret — `.env`. |
+| `MASTRA__OBSERVABILITY__LANGFUSE__ENDPOINT` | `MastraEnvironment` | Langfuse web/API base URL traces are exported to (default `https://cloud.langfuse.com`). Non-secret — `.env`. |
+| `MASTRA__OBSERVABILITY__LANGFUSE__PUBLIC_KEY_ENV` / `MASTRA__OBSERVABILITY__LANGFUSE__SECRET_KEY_ENV` | `MastraEnvironment` | The **names** of the environment variables carrying the langfuse keys (defaults `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY`; values live in `.env.secret`, tracked `.env.secret.template`, and are read only at exporter construction; missing keys fail closed). |
+| `MASTRA__PERSISTENCE__REPLAYS__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the replay-snapshot layer (default `fs`; `ram` \| `fs` \| `host`) — §10.3 layered persistence. |
+| `MASTRA__PERSISTENCE__CACHE__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the compiled-workflow cache layer (default `ram`; atomically invalidated on document fingerprint change). |
+| `MASTRA__PERSISTENCE__PINS__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the pinned-values layer (default `fs`; exposed for host value-store wiring — the mastra lane declares pinning `NOT-SUPPORTED`). |
+| `MASTRA__PERSISTENCE__FS__ROOT` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Base directory for the filesystem adapters' persisted data (default `var/as-graph-mastra`; a per-adapter-alias sub-directory is created automatically; git-ignored). |
 
-The engine itself reads no environment variables. Run limits
+The graph engine itself reads no environment variables. The mastra execution
+backend reads its configuration through the accumulated `MastraEnvironment`
+(`@decaf-ts/logging`) above: non-secret config (engine flags, provider
+endpoint/model, observability labels, persistence adapter routing) is
+authored in the host's `.env`, while the credential **values** (provider API
+key, langfuse keys) are authored in the host's `.env.secret` — copy the
+tracked `.env.secret.template` to `.env.secret`, fill it in, and never
+commit either resolved file (both are git-ignored). Run limits
 (`DEFAULT_GRAPH_RUN_LIMITS`: per-caller concurrent runs, execution timeout,
 event retention, payload bounds, event replay window) and document limits
 (`GraphWorkflowDocumentLimits`: size, depth, node/edge counts) are
