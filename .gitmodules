@@ -107,3 +107,6 @@
 [submodule "for-express"]
 	path = for-express
 	url = https://github.com/decaf-ts/for-express
+[submodule "docaf"]
+	path = docaf
+	url = https://github.com/decaf-ts/docaf
