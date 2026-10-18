@@ -1330,6 +1330,35 @@ read-only `MastraEvalExperimentModel`/`MastraEvalResultModel`
 `jest.eval.config.cjs` (`npm run test:evals`) so eval runs never gate the
 regular test suites.
 
+**Real RAG execution (SAA-747 Stage 2).** The RAG data-flow family is no
+longer config-only in the mastra engine: `createMastraRagStepHandlers`
+(`src/mastra/MastraRagStepHandlers.ts`) registers real steps **after** the
+default handler set for `core.agent.embedding`, `core.agent.vectorStore`,
+`core.agent.retriever`, `core.agent.chain.basic|qa|summarization`,
+`core.agent.structuredOutputParser`, `core.agent.informationExtractor`,
+`core.agent.langchainCode`, and `core.agent.sandbox`. Insert steps embed the
+input documents (mastra `ModelRouterEmbeddingModel` by default, the backend's
+`embedding` config when the document carries none, or the host `embedText`
+port), create the index, and upsert into the mastra-native
+`MastraVector` resolved by `MastraVectorStore` (shared per-run store cache, so
+the retriever reads the same in-memory instance the insert wrote); retriever
+steps embed the query and read the store wired on the `store` data edge, with
+a `queryVector` bypass; chain/extractor steps build a mastra `Agent` from the
+node's `modelAdapter` (or the host `generateText` port) and emit `text`/
+`sourceDocuments`/`data`; the parser parses JSON on the real `text` input.
+Each step selects real execution only when the document wires the work the
+kind needs (documents, query, model config, or code); otherwise it emits the
+same JSON-safe `kind` descriptor as the default set, so an authored config-only
+node never makes a model or database call by accident. Missing embedding
+config, an invalid vector batch, or a failed generation fails closed with
+`GRAPH_MASTRA_EMBEDDING_UNAVAILABLE` / `GRAPH_MASTRA_RAG_UNAVAILABLE`; no
+vector, answer, or extraction is ever fabricated. The sandbox node stays
+config-only (`LocalSandbox`/`Workspace` zone config), while
+`core.agent.langchainCode` carrying code with no host `runSandboxedCode` runner
+fails closed with `GRAPH_MASTRA_SANDBOX_UNAVAILABLE` — never executing code
+outside a sandbox — and both reuse `GRAPH_CODE_SANDBOX_TIMEOUT` when the
+runner exceeds the ceiling-clamped timeout.
+
 **Agent-family step handlers (fail-closed seams).** The backend resolves the
 agent-family configuration through default handler set seams, each failing
 closed when its runtime is absent: memory providers
@@ -1349,7 +1378,22 @@ attacker-influenced value is never echoed back), as does a wired binding
 longer than `GRAPH_MASTRA_CHANNEL_THREAD_ID_MAX_LENGTH` (512) when no
 configured binding exists. The MCP server trigger
 (`MastraMcpTrigger` + `createMcpServer` — omitted wiring fails closed with
-`GRAPH_MASTRA_MCP_UNAVAILABLE`). Schedule triggers are translated
+`GRAPH_MASTRA_MCP_UNAVAILABLE`) binds delivery to a run-scoped
+`MastraMcpDeliveryGuard` handed to the factory as its second argument
+(SAA-747 Stage 2, C6): the descriptor's document-carried `serverId` is never
+the exposed id, a fresh id is minted per run, and the guard authenticates
+callers with a timing-safe token or HMAC-SHA256 signature. Credential
+material is referenced by name only (`authCredentialRef` must name a
+`MASTRA_*` environment variable, resolved through
+`resolveMastraCredentialValue`; a missing value fails closed with
+`GRAPH_MASTRA_CREDENTIALS_UNAVAILABLE`); when the node names no credential the
+run generates a scoped secret the host publishes to its clients, so an
+unauthenticated delivery is never served. The guard also caps concurrent
+pending deliveries (`pendingCap`, default 256) and prunes deliveries older
+than `pendingTimeoutMs` (default 60000), refusing excess deliveries with
+`GRAPH_MASTRA_MCP_UNAVAILABLE`. Only the secret and the run-scoped id are
+prototype accessors, so serializing or logging the guard never leaks them.
+Schedule triggers are translated
 declaratively: `mastraScheduleConfigsOf` resolves every
 `core.trigger.schedule` node of a document into the mastra schedule configs
 (`MastraScheduleTrigger`). Hosts author agents/tools fluently through
@@ -1410,6 +1454,79 @@ connection config fails closed at boot. The adapter module is imported
 lazily by the host for the same side-effect reason as (2) above. Without
 `GRAPH_DB_DRIVER=postgres` the standalone host keeps the development posture
 (`initAdapter: true` `RamAdapter`).
+
+### 10.5 General-engine containment & resource guards (SAA-958)
+
+The Stage 1 data/IO/flow kinds are backend-executed and must not grant a
+workflow document ambient host privileges. The following guards are normative.
+
+- **File IO containment (`core.io.readWriteFile`, C1).** All reads and writes
+  are rooted at `GRAPH_FILE_IO_BASE` (default: process cwd). The configured
+  `path` is resolved lexically against that root, absolute paths included (a
+  leading separator is stripped, so `/etc/passwd` is interpreted relative to
+  the root and cannot reach the system path), and the result must stay beneath
+  the root. `/etc`, `/proc`, `/root`, `~/.ssh`, and every `workdocs` directory
+  segment are denied. The target (read) or its nearest existing ancestor
+  (write, before `mkdir`) is `realpath`-resolved and re-checked, so a symlink
+  cannot redirect an operation out of the root. Violations fail with
+  `GRAPH_READ_WRITE_FILE_PATH_FORBIDDEN`; a missing read target fails with
+  `GRAPH_READ_WRITE_FILE_INVALID_PATH`.
+- **Literal prototype keys (`core.data.*`, C2).** The reserved-segment check
+  (`__proto__`, `constructor`, `prototype`) applies to dotted paths **and** to
+  literal keys (`dotNotation: false`). A literal `__proto__` assignment throws
+  `GRAPH_DATA_UNSAFE_PATH`; literal-key mode cannot reach a record's prototype
+  chain.
+- **Plain-secret deny-list (stage 8, C3).** `GRAPH_PLAIN_SECRET_KEYS` includes
+  the HTTP credential carriers `authorization`, `proxy-authorization`,
+  `x-api-key`, `x-auth-token`, `cookie`, and `set-cookie`. Matching is
+  case-insensitive, so a persisted `httpRequest.headers` entry or a
+  `respondToWebhook.responseHeaders` entry carrying a live credential is a
+  `credential.plain-secret` validation issue.
+- **HTTP request hardening (`core.io.httpRequest`, C4).** The configured URL
+  and every redirect target are checked against the `http:`/`https:` allowlist;
+  redirects are followed manually with a five-hop cap
+  (`GRAPH_HTTP_MAX_REDIRECTS`), so a redirect cannot pivot the request to
+  another protocol. Response bodies are read through a 10 MiB cap
+  (`GRAPH_HTTP_MAX_RESPONSE_BYTES`, `GRAPH_HTTP_RESPONSE_TOO_LARGE`), and
+  `timeoutMs` is clamped to 300 000 ms (`GRAPH_HTTP_MAX_TIMEOUT_MS`).
+- **Data-table scoping & caps (`core.data.dataTable`, C5).** Rows are selected
+  with a query-side `tableName` equality filter (never a full-adapter scan).
+  Table names exclude the `:` composite-id separator, so `t:x`/`y` and
+  `t`/`x:y` cannot collide; row ids are length-capped. Each row payload is
+  capped at 1 MiB (`GRAPH_DATA_TABLE_MAX_ROW_BYTES`), each table at 10 000 rows
+  (`GRAPH_DATA_TABLE_MAX_ROWS`), and list results at 10 000 rows
+  (`GRAPH_DATA_TABLE_MAX_LIST_ROWS`). Tables live in the engine's value adapter;
+  a shared multi-tenant adapter must add a host-level per-workflow/namespace
+  partition because the store itself scopes by table name only.
+- **Sub-workflow recursion & fan-out (C7).** The engine tracks sub-workflow
+  depth through the `parentRunId` chain (falling back to `path` `subworkflow`
+  segments) and fails with `GRAPH_SUB_WORKFLOW_DEPTH_EXCEEDED` above
+  `maxSubWorkflowDepth` (default 10). A root run also carries a shared child-run
+  budget (`maxChildRuns`, default 1000) so `perItem` fan-out cannot grow
+  without bound (`GRAPH_SUB_WORKFLOW_CHILD_LIMIT_EXCEEDED`). Loop bodies keep
+  their own iteration caps and do not consume depth.
+- **Catalogue read mediation (C8).** `engine.getWorkflow` forwards the caller's
+  context into the active backend. The local backend's `getWorkflow` reads
+  through `GraphWorkflowService` (owner-equality read check) and then applies
+  the document's workflow-level namespace/role requirements through the same
+  auth validator used at execution time. A sub-workflow lookup therefore cannot
+  harvest a foreign or ungranted document even though child execution would
+  re-authorize it. The backend's facade-engine reference is optional so a
+  standalone fixture boot still works; in that configuration there is no
+  execution validator to mediate the read and the service's owner-equality
+  check remains the only gate, so hosts that enable multi-user catalogue access
+  must pass the engine.
+
+**Host webhook delivery — design gate (C6).** `GraphWebhookResponseRegistry`
+is an internal correlation point today: `deliver` is only reachable through
+`core.io.respondToWebhook` with the engine-generated `context.runId`, and no
+external HTTP surface calls it. When a host webhook surface is added (Stage 2+)
+it MUST authenticate delivery before resolving a waiter — a run-scoped token or
+HMAC on the response call, with the `runId` treated as non-enumerable and never
+returned to the workflow author — and the pending map MUST enforce a default
+timeout and a hard cap on pending entries (currently `register()` can be armed
+but has no production caller; `cancel()` intentionally leaves waiter promises
+unsettled). This is a design gate, not a defect in the shipped Stage 1 scope.
 
 ## 11. Run Lifecycle (Asynchronous Execution)
 
@@ -2359,13 +2476,15 @@ sequenceDiagram
 | `MASTRA__PERSISTENCE__CACHE__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the compiled-workflow cache layer (default `ram`; atomically invalidated on document fingerprint change). |
 | `MASTRA__PERSISTENCE__PINS__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the pinned-values layer (default `fs`; exposed for host value-store wiring — the mastra lane declares pinning `NOT-SUPPORTED`). |
 | `MASTRA__PERSISTENCE__FS__ROOT` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Base directory for the filesystem adapters' persisted data (default `var/as-graph-mastra`; a per-adapter-alias sub-directory is created automatically; git-ignored). |
+| `GRAPH_FILE_IO_BASE` | `core.io.readWriteFile` (`src/node/io/read-write-file/node.ts`) | Root directory every read/write is confined to (default: process cwd, §10.5). Absolute-looking `path` values are resolved relative to it; traversal, symlink escapes, `/etc`, `/proc`, `/root`, `~/.ssh`, and `workdocs` segments fail closed with `GRAPH_READ_WRITE_FILE_PATH_FORBIDDEN`. |
 | `GRAPH_DB_DRIVER` | `src/nest/graph/main.ts` | Selects the durable Postgres lane for the standalone host (§10.4): `postgres` boots the durable `@decaf-ts/for-typeorm` adapter; anything else keeps the development `RamAdapter` posture. |
 | `GRAPH_DB_URL` | `src/nest/graph/main.ts` | Full Postgres DSN for the durable lane — an alternative to the host/port/user/database parts plus the password file below. |
 | `GRAPH_DB_HOST` / `GRAPH_DB_PORT` / `GRAPH_DB_USER` / `GRAPH_DB_DATABASE` | `src/nest/graph/main.ts` | Durable-lane connection parts used when `GRAPH_DB_URL` is unset (port defaults `5432`); an incomplete set fails closed at boot. |
 | `GRAPH_DB_PASSWORD_FILE` | `src/nest/graph/main.ts` | Path of the Docker secret file carrying the `mastra_app` runtime password (default `/run/secrets/postgres_app_password`); the value is read only into the connection options and never logged. |
 | `GRAPH_DB_SCHEMA` | `src/nest/graph/main.ts` | Postgres schema owning the as-graph decaf tables (default `asgraph`). |
 
-The graph engine itself reads no environment variables. The mastra execution
+The graph engine itself reads no environment variables; the file IO node alone
+consults `GRAPH_FILE_IO_BASE` (§10.5). The mastra execution
 backend reads its configuration through the accumulated `MastraEnvironment`
 (`@decaf-ts/logging`) above: non-secret config (engine flags, provider
 endpoint/model, observability labels, persistence adapter routing) is
@@ -2385,7 +2504,8 @@ configurable through their option objects and enforced backend-side.
 shared `"anonymous"` fallback); `eventReplayWindowMs` (default 5 minutes)
 bounds how long a terminal run's event state stays replayable before
 auto-release. Run-option
-defaults: `concurrency=4`, `failFast=true`, `usePinnedValues=true`.
+defaults: `concurrency=4`, `failFast=true`, `usePinnedValues=true`,
+`maxSubWorkflowDepth=10`, `maxChildRuns=1000`.
 `GRAPH_WORKFLOW_BOUNDARY` (`"$workflow"`) remains the synthetic boundary id in
 the value store and plan; documents use the explicit `GraphEndpoint` union.
 
