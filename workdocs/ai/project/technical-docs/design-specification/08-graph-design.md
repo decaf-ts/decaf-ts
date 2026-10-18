@@ -33,14 +33,16 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 | `mastra` subpath | `@decaf-ts/as-graph/mastra` (`src/mastra/`) | Mastra execution backend: `MastraGraphExecutionBackend`, the workflow compiler, condition/event bridges, resume guard, and the `MASTRA_FEATURE_CAPABILITIES` capability table — plus the SAA-836 S1 backend contract: `MastraModelSchemaConverter` (`mastraSchemaFromModel`/`mastraModelFromSchema`, the single decaf↔mastra schema conversion path over `@decaf-ts/as-zod`), `MastraStructuredOutput` (the JSON-safe structured-output definition/resolution contract), and `MastraEnvironment` (the `MASTRA__*` engine environment with the credential fail-closed gate, §16). |
 | `typeorm` subpath | `@decaf-ts/as-graph/typeorm` (`src/typeorm/`) | Durable production persistence (SAA-926 §6.4, §10.4): `createTypeormGraphAdapter({ dataSource })` builds and initializes a `@decaf-ts/for-typeorm` Postgres adapter for the as-graph decaf tables plus the mastra-layer decaf models, flavoured for the durable lane; postgres-only, `synchronize: false`, bootstrap-owned DDL, `jsonb`-pinned structured columns. |
 | Engine | `src/engine/` | `auth`, `catalog`, `errors`, `events`, `execution`, `loops`, `pinning`, `planning`, `registry`, `runs`, `snapshots`, `store`, `validation`, services. |
-| Node declarations | `src/node/` | `@node`-decorated built-in node classes per category (`triggers/`, `flow/`, `utility/`, `agents/`, `boundary/`), `base.ts`, `manifests.ts` (structural overlays). |
+| Node declarations | `src/node/` | `@node`-decorated built-in node classes per category (`triggers/`, `flow/`, `data/`, `io/`, `utility/`, `agents/`, `boundary/`), `base.ts`, `manifests.ts` (structural overlays). |
 | Locale assets | `assets/i18n/en.json` | Repo-root `assets/`; shipped via `package.json` `files`. |
 | Executor pairing | `src/engine/catalog/GraphBuiltInRegistrations.ts` | `registerBuiltInGraphNodes(catalogue)` pairs every built-in kind's compiled manifest with the executor derived from the node class (`executorOf` → `instantiate(graphNodeConfig(context.node))`). |
 
 Node kinds shipped (one `@node` class each, `src/node/**`): triggers
-`core.trigger.manual|webhook|schedule|event|form|chat`, flow
-`core.flow.if|switch|delay|log|errorBoundary|humanApproval|break`, loops
-`core.loop.foreach|while|until`,
+`core.trigger.manual|webhook|schedule|event|form|chat|executeWorkflow`, flow
+`core.flow.if|switch|delay|log|errorBoundary|humanApproval|break|executeSubWorkflow`,
+loops `core.loop.foreach|while|until`,
+data `core.data.set|merge|filter|splitOut|dateTime|dataTable|limit|sort|renameKeys`,
+io `core.io.httpRequest|respondToWebhook|extractFromFile|readPDF|readWriteFile`,
 utility `core.utility.map|code|utility-log`, boundary
 `graph-input-value-node|graph-output-value-node`, and the mastra agent family
 (`src/node/agents/**`, category `Agent`): the agent node `core.agent` plus its
@@ -1009,13 +1011,28 @@ references a missing parameter; credential requirements are malformed; the
 executor is absent; a port/parameter id is a prototype-pollution key.
 
 **Built-in registrations** (`GraphBuiltInRegistrations.ts`) pair every shipped
-kind: `core.trigger.manual|webhook|schedule|event|form|chat`,
-`core.flow.if|switch|delay|log|errorBoundary|humanApproval|break`,
-`core.loop.foreach|while|until`, `core.utility.code|map|log`,
-`graph-input-value-node|graph-output-value-node`, and `core.agent` plus its
-`core.agent.*` family kinds (R11). `GraphNodeManifestResolver` resolves
-per-instance effective manifests (dynamic ports applied);
-`GraphNodeMethodRegistry` pairs declared methods with implementations.
+kind: `core.trigger.manual|webhook|schedule|event|form|chat|executeWorkflow`,
+`core.flow.if|switch|delay|log|errorBoundary|humanApproval|break|executeSubWorkflow`,
+`core.loop.foreach|while|until`,
+`core.data.set|merge|filter|splitOut|dateTime|dataTable|limit|sort|renameKeys`,
+`core.io.httpRequest|respondToWebhook|extractFromFile|readPDF|readWriteFile`,
+`core.utility.code|map|log`, `graph-input-value-node|graph-output-value-node`,
+and `core.agent` plus its `core.agent.*` family kinds (R11).
+`GraphNodeManifestResolver` resolves per-instance effective manifests (dynamic
+ports applied); `GraphNodeMethodRegistry` pairs declared methods with
+implementations.
+
+The general-engine data and IO kinds operate on array-in/array-out values (no
+n8n item model): `core.data.*` nodes map over arrays where the operation is
+per-item and emit arrays, `core.io.*` nodes consume/produce a single file,
+document, or HTTP exchange. `core.data.dataTable` persists rows through
+`GraphExecutionEngine.dataTableStore` (a `GraphDataTableRepository` over the
+engine's `valueAdapter`) keyed by table name and row id, so rows survive across
+runs. `core.io.respondToWebhook` correlates its response through
+`GraphExecutionEngine.webhookResponses` using the current `runId`.
+`core.flow.executeSubWorkflow` executes a saved (`workflowId`) or inline child
+document through `GraphExecutionEngine.execute`, propagating `parentRunId`, and
+emits the child result boundary.
 
 ## 9. Backend Validation — the Nine-Stage Gate
 
