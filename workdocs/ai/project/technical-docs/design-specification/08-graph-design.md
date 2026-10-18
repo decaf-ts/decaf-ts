@@ -31,6 +31,7 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 | `shared` subpath | `@decaf-ts/as-graph/shared` (`src/shared/graph/`) | Frontend-safe contracts: decorators, reader, constants, catalog (manifest/parameter schemas), document (canonical document model), persisted `GraphRunModel`/`GraphWorkflowModel`. |
 | `nest` subpath | `@decaf-ts/as-graph/nest` (`src/nest/graph/`) | `GraphExecutionModule.forRoot`, catalogue/workflow/run controllers, `GraphExecutorRegistryFactory`. |
 | `mastra` subpath | `@decaf-ts/as-graph/mastra` (`src/mastra/`) | Mastra execution backend: `MastraGraphExecutionBackend`, the workflow compiler, condition/event bridges, resume guard, and the `MASTRA_FEATURE_CAPABILITIES` capability table — plus the SAA-836 S1 backend contract: `MastraModelSchemaConverter` (`mastraSchemaFromModel`/`mastraModelFromSchema`, the single decaf↔mastra schema conversion path over `@decaf-ts/as-zod`), `MastraStructuredOutput` (the JSON-safe structured-output definition/resolution contract), and `MastraEnvironment` (the `MASTRA__*` engine environment with the credential fail-closed gate, §16). |
+| `typeorm` subpath | `@decaf-ts/as-graph/typeorm` (`src/typeorm/`) | Durable production persistence (SAA-926 §6.4, §10.4): `createTypeormGraphAdapter({ dataSource })` builds and initializes a `@decaf-ts/for-typeorm` Postgres adapter for the as-graph decaf tables plus the mastra-layer decaf models, flavoured for the durable lane; postgres-only, `synchronize: false`, bootstrap-owned DDL, `jsonb`-pinned structured columns. |
 | Engine | `src/engine/` | `auth`, `catalog`, `errors`, `events`, `execution`, `loops`, `pinning`, `planning`, `registry`, `runs`, `snapshots`, `store`, `validation`, services. |
 | Node declarations | `src/node/` | `@node`-decorated built-in node classes per category (`triggers/`, `flow/`, `utility/`, `agents/`, `boundary/`), `base.ts`, `manifests.ts` (structural overlays). |
 | Locale assets | `assets/i18n/en.json` | Repo-root `assets/`; shipped via `package.json` `files`. |
@@ -1159,6 +1160,46 @@ closed with `GRAPH_MASTRA_CREDENTIALS_UNAVAILABLE` instead of attempting
 unauthenticated model traffic. See §16 for the environment-variable table
 and the `.env`/`.env.secret` operator workflow.
 
+**Backend connection credential gate (SAA-911 F4, gate C).** Mastra backend
+connection configs never carry credential values. A `pg` memory provider, a
+`pgvector` vector store, or a credentialed `redis` vector store resolves its
+password only through a `credentialRef` whose `credentialId` NAMES the
+environment variable carrying the credential (placeholders
+`MASTRA_PG_PASSWORD` / `MASTRA_PGVECTOR_PASSWORD` / `MASTRA_REDIS_PASSWORD`
+in the tracked `.env.secret.template`); the value is read from the host
+environment only at backend-construction time, flows only into the backend's
+own connection options, and is never logged, persisted, or held by the graph
+layer. Plaintext credential members in a config's `connection` options — the
+document-level plain-secret deny-list plus `connectionString`, `dsn`, `pwd`,
+and `passphrase` (`MASTRA_CONNECTION_PLAIN_CREDENTIAL_KEYS`) — are
+**refused, never stripped**, with `GRAPH_MASTRA_PLAIN_CREDENTIAL_REFUSED`.
+Fail-closed specifics: the `pg` memory provider requires a complete
+non-secret host config (`host`, `port`, `database`, `user`) plus its
+`credentialRef` — a `connectionString` is no longer an accepted alternative
+(`GRAPH_MASTRA_MEMORY_UNAVAILABLE` otherwise); `pgvector` always requires
+the `credentialRef` (PostgreSQL authenticates every connection); `redis`
+requires one only when a credential is configured, so a passwordless local
+instance stays usable. (`libsql` memory stays credential-free by
+configuration; credential-bearing URLs remain an SAA-911 residual-risk item
+for the O1 storage matrix.)
+
+**Workflow-manager write norm (SAA-911 F1–F3).** Every `MastraWorkflowManager`
+management mutation is write-mediated under the SAA-105 R3 write norm:
+overwriting an already wrapper-managed id is a write and requires the caller
+to own the existing registration (a fresh create is unconditional — the
+caller stamps their own owner, the same norm the `GraphWorkflowService`
+upsert applies); ownership is **strict owner equality** — deliberately
+stricter than the read-visibility predicate, the owner-less visibility
+branch that lets every caller *read* an owner-less workflow never
+authorizes a write. The provenance gate (C3 complete mediation) fails
+closed: a pre-existing registration — including a host `origin: "code"`
+workflow — is protected from overwrite/delete, and a runtime that exposes
+no `getWorkflow`, a failing `getWorkflowOrigin`, or an error other than the
+library's structured not-found while reading registration state all leave
+the provenance undeterminable, so the mutation is refused with
+`GRAPH_MASTRA_WORKFLOW_FORBIDDEN` rather than trusted onto a possibly
+foreign registration.
+
 **Single schema conversion path.** Every decaf↔mastra schema conversion goes
 through `@decaf-ts/as-zod` via `MastraModelSchemaConverter` —
 `mastraSchemaFromModel` (decaf Model constructor → mastra Zod object schema)
@@ -1207,6 +1248,37 @@ run (logged and skipped), while restoring a missing snapshot fails closed
 explicitly (nil rows never, R7). Payloads are JSON-safe projections; no
 secret value is ever persisted.
 
+**Explicit storage wiring (SAA-926 §6.2).** `MastraBackendConfig.storage` is
+applied to the wired Mastra runtime through its `setStorage` surface and then
+verified back through `getStorage()` (`wireMastraStorage`): the wiring fails
+closed with `GRAPH_MASTRA_STORAGE_UNWIRED` when the wired runtime is not a
+Mastra instance or exposes no `setStorage` surface — the declared storage
+would be silently ignored and persistence would fall back to in-memory — and
+with `GRAPH_MASTRA_STORAGE_DOMAIN_INMEMORY` when the resolved workflows
+domain is absent or silently in-memory: a composite storage that misses the
+workflows domain loses suspend/resume snapshots on restart, and core silently
+fills a missing domain with an in-memory implementation. The only accepted
+path to an in-memory workflows domain is the host explicitly declaring an
+`InMemoryStore`. The resolved outcome is exposed to hosts through the
+`MastraGraphExecutionBackend#storageStatus` getter (`{ wired,
+explicitInMemory, domains: { workflows: "durable" | "in-memory" | "absent" } }`;
+`undefined` when the host declared no storage config) — the acceptance seam
+for the "storage configured and durable" check: a production host must
+configure Mastra storage explicitly and durably
+(`domains.workflows === "durable"`).
+
+**Run recovery for resume (SAA-926 §6.3).** `@mastra/core` 1.77.0 exposes no
+public `getRun` on the `Mastra` class, so resume on a plain runtime used to
+fail closed. The backend's run loading now falls back to
+`recoverMastraRunHandle` — mastra's own restart-recovery pattern: resolve the
+persisted run record from the configured storage's workflows domain
+(`getWorkflowRunById`) to learn the workflow name, then rebind the run id
+onto the live workflow via `createRun({ runId })`. Hosts keep the
+`createMastraGetRunWrapper(runtime)` seam, which delegates to a
+runtime-provided `getRun` when present and otherwise recovers the handle the
+same way. Recovery resolves through the storage workflows domain, so it
+requires the same durable-storage contract as the storage wiring above.
+
 **Observability (langfuse, SAA-836 O1).** Mastra observability is configured
 on the mastra engine: the runtime's own observability entrypoint catches
 every signal the engine emits (workflow runs/steps, agent runs, model
@@ -1251,7 +1323,14 @@ HITL (`createMastraHitlStepHandler`, above), voice
 `GRAPH_MASTRA_VOICE_UNAVAILABLE`), channel triggers and responses
 (`MastraChannelTrigger`/`MastraChannelResponse` +
 `resolveChannelAdapter`/`sendChannelResponse` — omitted wiring fails closed
-with `GRAPH_MASTRA_CHANNEL_UNAVAILABLE`), and the MCP server trigger
+with `GRAPH_MASTRA_CHANNEL_UNAVAILABLE`). A channel response binds delivery
+to the node's **configured** conversation binding (SAA-911 F5): a wired
+`threadId` is honored only when it is the sole binding known or exactly
+matches the configured one — an override attempt fails closed with
+`GRAPH_MASTRA_CHANNEL_THREAD_MISMATCH` (the error carries lengths only; the
+attacker-influenced value is never echoed back), as does a wired binding
+longer than `GRAPH_MASTRA_CHANNEL_THREAD_ID_MAX_LENGTH` (512) when no
+configured binding exists. The MCP server trigger
 (`MastraMcpTrigger` + `createMcpServer` — omitted wiring fails closed with
 `GRAPH_MASTRA_MCP_UNAVAILABLE`). Schedule triggers are translated
 declaratively: `mastraScheduleConfigsOf` resolves every
@@ -1259,6 +1338,61 @@ declaratively: `mastraScheduleConfigsOf` resolves every
 (`MastraScheduleTrigger`). Hosts author agents/tools fluently through
 `MastraAgentBuilder`/`MastraToolBuilder` (the agent/tool analogues of the
 workflow builders).
+
+### 10.4 Durable persistence lane (`@decaf-ts/as-graph/typeorm`, SAA-926 §6.4)
+
+The as-graph persistence stores never create an adapter implicitly:
+development boots run the five as-graph decaf tables (`graph_workflow`,
+`graph_run`, `graph_run_event`, `graph_node`, `graph_value`) on the built-in
+`RamAdapter` (the `./ram` export), while production hosts must supply a
+durable adapter. The `./typeorm` subpath is the durable production path:
+`createTypeormGraphAdapter({ dataSource })` builds and initializes a
+`@decaf-ts/for-typeorm` Postgres adapter over the host-composed
+`DataSourceOptions` and registers it as the current decaf adapter under its
+flavour key (`type-orm` — a custom alias would resolve an empty entity list
+and fail with "No metadata").
+
+**Contract enforced on the host config (fail-closed).** The factory requires
+`type: "postgres"` (the durable as-graph production path is Postgres) and
+`synchronize: false` — the `asgraph` schema is owned by the stack's bootstrap
+migrations (`migrations/0001_asgraph_decaf_tables.sql`, executed by the
+`db-migrate` one-shot service as the `mastra_migrator` role); the
+least-privilege `mastra_app` runtime role must never mutate it, and the
+factory force-sets `synchronize: false` on the composed options regardless of
+what the host passed. Credentials are resolved by the host from its
+environment or Docker secrets — never hard-coded in the adapter factory.
+
+**Model alignment.** Before `initialize()` the factory (1) flavours the
+as-graph decaf models — the five tables above plus the mastra-layer decaf
+models (`MastraReplaySnapshotModel`, `MastraCacheEntryModel`,
+`MastraEvalExperimentModel`, `MastraEvalResultModel`, `MastraRunMetricModel`,
+`MastraScoreMetricModel`, `MastraTraceMetricModel`) — with
+`uses(TypeORMFlavour)`, because TypeORM builds entity metadata from
+`Adapter.models(flavour)` at initialize time and decaf only re-flavours
+lazily at repository binding; (2) imports those model modules lazily, so
+merely importing `./typeorm` never decorates the models or flips the current
+adapter — a development RAM boot sharing the process stays intact; (3) pins
+the structured Object/Array decaf columns to postgres `jsonb` in the TypeORM
+metadata, so the runtime shape matches the bootstrap DDL 1:1; and (4)
+canonicalizes the model class (`Metadata.constr`) before TypeORM entity
+resolution, because decaf's `@model()` wrapper constructor breaks TypeORM's
+identity-based entity matching. The inherited multi-dialect
+reserved-attribute keyword guard is narrowed to the empty-name check: the
+as-graph models legitimately use column names the broad `for-typeorm` guard
+would reject (`sequence`, `owner`, `type`, `path`, `timestamp`, `group`),
+postgres accepts them, and TypeORM escapes every identifier it emits.
+
+**Standalone-host durable lane.** `src/nest/graph/main.ts` selects the lane
+with `GRAPH_DB_DRIVER=postgres` (§16): either a full `GRAPH_DB_URL` DSN, or
+`GRAPH_DB_HOST`/`GRAPH_DB_PORT`/`GRAPH_DB_USER`/`GRAPH_DB_DATABASE` plus the
+password file `GRAPH_DB_PASSWORD_FILE` (default
+`/run/secrets/postgres_app_password`, the `mastra_app` runtime role; the
+value is read only into the connection options and never logged).
+`GRAPH_DB_SCHEMA` overrides the schema (default `asgraph`); an incomplete
+connection config fails closed at boot. The adapter module is imported
+lazily by the host for the same side-effect reason as (2) above. Without
+`GRAPH_DB_DRIVER=postgres` the standalone host keeps the development posture
+(`initAdapter: true` `RamAdapter`).
 
 ## 11. Run Lifecycle (Asynchronous Execution)
 
@@ -2208,13 +2342,22 @@ sequenceDiagram
 | `MASTRA__PERSISTENCE__CACHE__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the compiled-workflow cache layer (default `ram`; atomically invalidated on document fingerprint change). |
 | `MASTRA__PERSISTENCE__PINS__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the pinned-values layer (default `fs`; exposed for host value-store wiring — the mastra lane declares pinning `NOT-SUPPORTED`). |
 | `MASTRA__PERSISTENCE__FS__ROOT` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Base directory for the filesystem adapters' persisted data (default `var/as-graph-mastra`; a per-adapter-alias sub-directory is created automatically; git-ignored). |
+| `GRAPH_DB_DRIVER` | `src/nest/graph/main.ts` | Selects the durable Postgres lane for the standalone host (§10.4): `postgres` boots the durable `@decaf-ts/for-typeorm` adapter; anything else keeps the development `RamAdapter` posture. |
+| `GRAPH_DB_URL` | `src/nest/graph/main.ts` | Full Postgres DSN for the durable lane — an alternative to the host/port/user/database parts plus the password file below. |
+| `GRAPH_DB_HOST` / `GRAPH_DB_PORT` / `GRAPH_DB_USER` / `GRAPH_DB_DATABASE` | `src/nest/graph/main.ts` | Durable-lane connection parts used when `GRAPH_DB_URL` is unset (port defaults `5432`); an incomplete set fails closed at boot. |
+| `GRAPH_DB_PASSWORD_FILE` | `src/nest/graph/main.ts` | Path of the Docker secret file carrying the `mastra_app` runtime password (default `/run/secrets/postgres_app_password`); the value is read only into the connection options and never logged. |
+| `GRAPH_DB_SCHEMA` | `src/nest/graph/main.ts` | Postgres schema owning the as-graph decaf tables (default `asgraph`). |
 
 The graph engine itself reads no environment variables. The mastra execution
 backend reads its configuration through the accumulated `MastraEnvironment`
 (`@decaf-ts/logging`) above: non-secret config (engine flags, provider
 endpoint/model, observability labels, persistence adapter routing) is
 authored in the host's `.env`, while the credential **values** (provider API
-key, langfuse keys) are authored in the host's `.env.secret` — copy the
+key, langfuse keys, and the mastra pg/pgvector/redis backend passwords —
+`MASTRA_PG_PASSWORD` / `MASTRA_PGVECTOR_PASSWORD` / `MASTRA_REDIS_PASSWORD`
+placeholders in the tracked template, each referenced **by name** from a
+backend config's `credentialRef`, §10.3 backend connection credential gate)
+are authored in the host's `.env.secret` — copy the
 tracked `.env.secret.template` to `.env.secret`, fill it in, and never
 commit either resolved file (both are git-ignored). Run limits
 (`DEFAULT_GRAPH_RUN_LIMITS`: per-caller concurrent runs, execution timeout,
@@ -2306,3 +2449,8 @@ runEventClient.listen(created.runId, {
   backpressure are configurable but bounded. Terminal runs' event state
   auto-releases after `eventReplayWindowMs` (default 5 minutes); a durable
   store can keep events for audit by no-oping the optional `release()` hook.
+  The durable Postgres lane (§10.4, `@decaf-ts/as-graph/typeorm`) is the
+  shipped durable adapter for the as-graph decaf tables on the standalone
+  host; the Mastra storage domain must still be configured explicitly and
+  durably by the host (§10.3 storage wiring, verified through
+  `backend.storageStatus`).
