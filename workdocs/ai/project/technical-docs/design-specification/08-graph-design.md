@@ -1015,7 +1015,10 @@ kind: `core.trigger.manual|webhook|schedule|event|form|chat|executeWorkflow`,
 `core.flow.if|switch|delay|log|errorBoundary|humanApproval|break|executeSubWorkflow`,
 `core.loop.foreach|while|until`,
 `core.data.set|merge|filter|splitOut|dateTime|dataTable|limit|sort|renameKeys`,
-`core.io.httpRequest|respondToWebhook|extractFromFile|readPDF|readWriteFile`,
+`core.io.httpRequest|respondToWebhook|extractFromFile|readPDF|readWriteFile|googleSheets|airtable|spreadsheetFile|graphql`,
+`core.storage.postgres|mySql|microsoftSql|redis|s3|awsS3|googleCloudStorage|azureStorage`,
+`core.devops.crypto|jwt|executeCommand|ftp|github|gitlab`,
+`core.comms.slack|telegram|teams|gmail|emailSend`,
 `core.utility.code|map|log`, `graph-input-value-node|graph-output-value-node`,
 and `core.agent` plus its `core.agent.*` family kinds (R11).
 `GraphNodeManifestResolver` resolves per-instance effective manifests (dynamic
@@ -1033,6 +1036,21 @@ runs. `core.io.respondToWebhook` correlates its response through
 `core.flow.executeSubWorkflow` executes a saved (`workflowId`) or inline child
 document through `GraphExecutionEngine.execute`, propagating `parentRunId`, and
 emits the child result boundary.
+
+Storage, DevOps, Comms, and credential-bearing IO kinds resolve credentials at
+execution time from environment variables named `GRAPH_CREDENTIAL_*`. Their `credentialRef`
+parameter carries either the environment variable name or a
+`{ credentialId, credentialType }` reference whose `credentialId` is that
+name; secret values never enter workflow documents or persisted results.
+Database kinds use `@decaf-ts/for-typeorm` raw queries over `pg`, `mysql2`, or
+`mssql` (an omitted `parameters` array falls back to an array `value` input);
+blob kinds use the `@decaf-ts/integrations/blob` provider services, and `list`
+applies the configured prefix once, resolving an explicit list prefix relative
+to it;
+Redis uses the integrations Redis adapter; FTP uses
+`@decaf-ts/integrations/sftp` for list/download/delete; Crypto and JWT use
+`@decaf-ts/crypto`; Execute Command uses Node `child_process` under the
+engine's timeout and output-size caps.
 
 ## 9. Backend Validation — the Nine-Stage Gate
 
@@ -2482,9 +2500,11 @@ sequenceDiagram
 | `GRAPH_DB_HOST` / `GRAPH_DB_PORT` / `GRAPH_DB_USER` / `GRAPH_DB_DATABASE` | `src/nest/graph/main.ts` | Durable-lane connection parts used when `GRAPH_DB_URL` is unset (port defaults `5432`); an incomplete set fails closed at boot. |
 | `GRAPH_DB_PASSWORD_FILE` | `src/nest/graph/main.ts` | Path of the Docker secret file carrying the `mastra_app` runtime password (default `/run/secrets/postgres_app_password`); the value is read only into the connection options and never logged. |
 | `GRAPH_DB_SCHEMA` | `src/nest/graph/main.ts` | Postgres schema owning the as-graph decaf tables (default `asgraph`). |
+| `GRAPH_CREDENTIAL_*` | `core.storage.*` / `core.devops.*` / `core.comms.*` / credential-bearing `core.io.*` (`src/node/storage/`, `src/node/devops/`, `src/node/comms/`, `src/node/io/`) | Environment variables referenced by a node's `credentialRef`; the name must match `GRAPH_CREDENTIAL_[A-Z0-9_]+` and the value is read only at execution time. Database and Redis secrets are plain strings; S3 credentials are `{accessKeyId,secretAccessKey,sessionToken?}`; GCS is a service-account JSON object; Azure is a connection string or `{connectionString}`; SFTP is a password or `{password,privateKey,passphrase}`; Slack/Telegram/Teams/Gmail/Email/GitHub/GitLab/Google-Sheets/Airtable/GraphQL use either a raw token or a JSON object carrying the vendor fields (`token`, `apiKey`, `endpoint`, `username`, `password`, `from`, `webhookUrl`, `baseId`). |
 
-The graph engine itself reads no environment variables; the file IO node alone
-consults `GRAPH_FILE_IO_BASE` (§10.5). The mastra execution
+The graph engine itself reads no environment variables; the file IO node
+consults `GRAPH_FILE_IO_BASE` (§10.5), and storage/devops nodes read only the
+`GRAPH_CREDENTIAL_*` variable named by their `credentialRef` at execution time. The mastra execution
 backend reads its configuration through the accumulated `MastraEnvironment`
 (`@decaf-ts/logging`) above: non-secret config (engine flags, provider
 endpoint/model, observability labels, persistence adapter routing) is
