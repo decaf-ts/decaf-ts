@@ -31,9 +31,10 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 | `shared` subpath | `@decaf-ts/as-graph/shared` (`src/shared/graph/`) | Frontend-safe contracts: decorators, reader, constants, catalog (manifest/parameter schemas), document (canonical document model), persisted `GraphRunModel`/`GraphWorkflowModel`. |
 | `nest` subpath | `@decaf-ts/as-graph/nest` (`src/nest/graph/`) | `GraphExecutionModule.forRoot`, catalogue/workflow/run controllers, `GraphExecutorRegistryFactory`. |
 | `mastra` subpath | `@decaf-ts/as-graph/mastra` (`src/mastra/`) | Mastra execution backend: `MastraGraphExecutionBackend`, the workflow compiler, condition/event bridges, resume guard, and the `MASTRA_FEATURE_CAPABILITIES` capability table — plus the SAA-836 S1 backend contract: `MastraModelSchemaConverter` (`mastraSchemaFromModel`/`mastraModelFromSchema`, the single decaf↔mastra schema conversion path over `@decaf-ts/as-zod`), `MastraStructuredOutput` (the JSON-safe structured-output definition/resolution contract), and `MastraEnvironment` (the `MASTRA__*` engine environment with the credential fail-closed gate, §16). |
+| `mastra/nodes` subpath | `@decaf-ts/as-graph/mastra/nodes` (`src/mastra/nodes/`) | Mastra-only node-kind registry (SAA-1141): the authoritative list of `core.agent[.*]` kinds, their declaration classes, and the step-handler factory for each. `createMastraNodeStepHandlers` filters host options to mastra-only kinds; `auditMastraNodeCoverage` / `assertMastraNodeCoverage` prove zero missing implementations. |
 | `typeorm` subpath | `@decaf-ts/as-graph/typeorm` (`src/typeorm/`) | Durable production persistence (SAA-926 §6.4, §10.4): `createTypeormGraphAdapter({ dataSource })` builds and initializes a `@decaf-ts/for-typeorm` Postgres adapter for the as-graph decaf tables plus the mastra-layer decaf models, flavoured for the durable lane; postgres-only, `synchronize: false`, bootstrap-owned DDL, `jsonb`-pinned structured columns. |
 | Engine | `src/engine/` | `auth`, `catalog`, `errors`, `events`, `execution`, `loops`, `pinning`, `planning`, `registry`, `runs`, `snapshots`, `store`, `validation`, services. |
-| Node declarations | `src/node/` | `@node`-decorated built-in node classes per category (`triggers/`, `flow/`, `data/`, `io/`, `utility/`, `agents/`, `boundary/`), `base.ts`, `manifests.ts` (structural overlays). |
+| Node declarations | `src/node/` | `@node`-decorated built-in node classes per category (`triggers/`, `flow/`, `data/`, `io/`, `storage/`, `devops/`, `comms/`, `utility/`, `agents/`, `boundary/`), `base.ts`, `manifests.ts` (structural overlays). |
 | Locale assets | `assets/i18n/en.json` | Repo-root `assets/`; shipped via `package.json` `files`. |
 | Executor pairing | `src/engine/catalog/GraphBuiltInRegistrations.ts` | `registerBuiltInGraphNodes(catalogue)` pairs every built-in kind's compiled manifest with the executor derived from the node class (`executorOf` → `instantiate(graphNodeConfig(context.node))`). |
 
@@ -1038,10 +1039,17 @@ document through `GraphExecutionEngine.execute`, propagating `parentRunId`, and
 emits the child result boundary.
 
 Storage, DevOps, Comms, and credential-bearing IO kinds resolve credentials at
-execution time from environment variables named `GRAPH_CREDENTIAL_*`. Their `credentialRef`
-parameter carries either the environment variable name or a
-`{ credentialId, credentialType }` reference whose `credentialId` is that
-name; secret values never enter workflow documents or persisted results.
+execution time through the engine's ctx-bound `GraphNodeCredentialResolver`
+(`GraphExecutionEngine.nodeCredentials`), backed by Phase A
+`@decaf-ts/integrations` credential and secret services. A `credentialRef`
+carries `{ credentialId, credentialType }`; the resolver loads the credential
+record, validates its type, enabled state and expiry, then retrieves the secret
+by `secretName` through the model-backed or filesystem-backed secret service and
+returns either a string or a JSON record. Secret values never enter workflow
+documents or persisted results. Missing resolver services fail closed with
+`GRAPH_CREDENTIAL_SERVICE_UNAVAILABLE`; unsupported providers fail with
+`GRAPH_CREDENTIAL_PROVIDER_UNSUPPORTED`. The former `GRAPH_CREDENTIAL_*`
+environment lookup is not part of the node credential contract.
 Database kinds use `@decaf-ts/for-typeorm` raw queries over `pg`, `mysql2`, or
 `mssql` (an omitted `parameters` array falls back to an array `value` input);
 blob kinds use the `@decaf-ts/integrations/blob` provider services, and `list`
@@ -1417,6 +1425,22 @@ declaratively: `mastraScheduleConfigsOf` resolves every
 (`MastraScheduleTrigger`). Hosts author agents/tools fluently through
 `MastraAgentBuilder`/`MastraToolBuilder` (the agent/tool analogues of the
 workflow builders).
+
+**Mastra-only step-handler composition (`./mastra/nodes`, SAA-1141).** The
+mastra-only step handlers above are composed through the node-kind registry
+rather than wired ad hoc: `MastraNodeRegistry` (`src/mastra/nodes/`, published
+as the `@decaf-ts/as-graph/mastra/nodes` sub-export) is the authoritative list
+of mastra-only `core.agent[.*]` kinds — 38 of the 98 registered node kinds —
+pairing each kind with its declaration class and the handler group that owns
+its step-handler factory. The backend builds its registered handler set with
+`createMastraNodeStepHandlers(options)`, forwarding the host-supplied
+extension points (agent runtime, MCP server factory, channel adapters, voice
+resolver, RAG embedders/vector stores) and emitting one deduplicated step
+handler per mastra-only kind in deterministic kind order; host
+`stepHandlers` still come first, and a factory that receives nothing fails
+closed for the kinds that require its surface. `auditMastraNodeCoverage` /
+`assertMastraNodeCoverage` prove zero missing implementations — no
+mastra-only kind may lack either its declaration class or its step handler.
 
 ### 10.4 Durable persistence lane (`@decaf-ts/as-graph/typeorm`, SAA-926 §6.4)
 
@@ -2500,11 +2524,13 @@ sequenceDiagram
 | `GRAPH_DB_HOST` / `GRAPH_DB_PORT` / `GRAPH_DB_USER` / `GRAPH_DB_DATABASE` | `src/nest/graph/main.ts` | Durable-lane connection parts used when `GRAPH_DB_URL` is unset (port defaults `5432`); an incomplete set fails closed at boot. |
 | `GRAPH_DB_PASSWORD_FILE` | `src/nest/graph/main.ts` | Path of the Docker secret file carrying the `mastra_app` runtime password (default `/run/secrets/postgres_app_password`); the value is read only into the connection options and never logged. |
 | `GRAPH_DB_SCHEMA` | `src/nest/graph/main.ts` | Postgres schema owning the as-graph decaf tables (default `asgraph`). |
-| `GRAPH_CREDENTIAL_*` | `core.storage.*` / `core.devops.*` / `core.comms.*` / credential-bearing `core.io.*` (`src/node/storage/`, `src/node/devops/`, `src/node/comms/`, `src/node/io/`) | Environment variables referenced by a node's `credentialRef`; the name must match `GRAPH_CREDENTIAL_[A-Z0-9_]+` and the value is read only at execution time. Database and Redis secrets are plain strings; S3 credentials are `{accessKeyId,secretAccessKey,sessionToken?}`; GCS is a service-account JSON object; Azure is a connection string or `{connectionString}`; SFTP is a password or `{password,privateKey,passphrase}`; Slack/Telegram/Teams/Gmail/Email/GitHub/GitLab/Google-Sheets/Airtable/GraphQL use either a raw token or a JSON object carrying the vendor fields (`token`, `apiKey`, `endpoint`, `username`, `password`, `from`, `webhookUrl`, `baseId`). |
+| `GRAPH_CREDENTIAL_*` | *(removed)* | Not part of the node credential contract. Credential-bearing nodes resolve their `credentialRef` through the ctx-bound `GraphNodeCredentialResolver` and the Phase A `@decaf-ts/integrations` credential/secret services (see §8). Database and Redis secrets are plain strings; S3 credentials are `{accessKeyId,secretAccessKey,sessionToken?}`; GCS is a service-account JSON object; Azure is a connection string or `{connectionString}`; SFTP is a password or `{password,privateKey,passphrase}`; Slack/Telegram/Teams/Gmail/Email/GitHub/GitLab/Google-Sheets/Airtable/GraphQL use either a raw token or a JSON object carrying the vendor fields (`token`, `apiKey`, `endpoint`, `username`, `password`, `from`, `webhookUrl`, `baseId`). |
 
 The graph engine itself reads no environment variables; the file IO node
-consults `GRAPH_FILE_IO_BASE` (§10.5), and storage/devops nodes read only the
-`GRAPH_CREDENTIAL_*` variable named by their `credentialRef` at execution time. The mastra execution
+consults `GRAPH_FILE_IO_BASE` (§10.5), and credential-bearing storage, devops,
+comms, and IO nodes resolve their `credentialRef` through the ctx-bound
+`GraphNodeCredentialResolver` and Phase A secret services — never from
+`GRAPH_CREDENTIAL_*` environment variables. The mastra execution
 backend reads its configuration through the accumulated `MastraEnvironment`
 (`@decaf-ts/logging`) above: non-secret config (engine flags, provider
 endpoint/model, observability labels, persistence adapter routing) is
