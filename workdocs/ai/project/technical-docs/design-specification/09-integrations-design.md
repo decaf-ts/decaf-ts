@@ -1,6 +1,6 @@
 # 09 — Integrations Design
 
-**Scope:** the `@decaf-ts/integrations` package — provider-agnostic blob store, model-backed + cloud secrets, Keycloak provisioning + auth, Kibana provisioning, feature flags, namespaces authorization scaffold, dynamic object loader, BI dashboard embed plugins, and Docker compose orchestration.
+**Scope:** the `@decaf-ts/integrations` package — provider-agnostic blob store, model-backed + cloud secrets, Keycloak provisioning + auth, Kibana provisioning, feature flags, namespaces authorization scaffold, dynamic object loader, BI dashboard embed plugins, Docker compose orchestration, namespaced credential management over encrypted-at-rest model secrets, a filesystem-backed infrastructure-credential secret store, the namespace RLS bootstrap, non-Environment node service variants, and the nodemailer-backed SMTP client.
 
 The architecture is detailed in the [Architecture Handbook](../architecture-handbook/07-integrations.md).
 
@@ -19,6 +19,8 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 **Repository-agnostic policy engines.** Why: authorization decisions and feature-flag resolution must be answerable against any backing store, not embedded in a specific repository. Enforcing: `AuthzService.canAccess` operates over `AuthzDataSources` and emits backend-specific contexts (`AccessContext`/`ArangoAuthContext`/`QdrantAuthFilter`); `FeatureFlagService.isEnabled` answers from a cached, reader-fed registry. Spec: policy engines never read fixtures; they consume repository-backed data sources.
 
 **Encrypted-at-rest secrets, all crypto in `@decaf-ts/crypto`.** Why: secret material must never persist in plaintext, and crypto primitives must not drift into `integrations`. Enforcing: `ModelSecretService` encrypts `serialized.value` via `CryptoService` and persists `{encryptedPayload, encryption:{keyId,iv}}` on the `Secret` model. Spec: no symmetric/asymmetric primitive is implemented in `integrations`.
+
+**Non-Environment node service variants for application embedding.** Why: node-style consumers (graph nodes, agents, CLIs) must construct services with explicit configuration and must never inherit infrastructure Environment configuration, while the original `@service(...)` singletons stay Environment-configurable for infrastructure boot. Enforcing: `src/shared/node-service.ts` derives subclasses via `serviceImplementation(...)` + `nonEnvironmentService(...)`; the subclasses carry no `@service()` decorator, override `configFromEnvironment()` to return `undefined`, and reject a no-argument or `Context`-only `boot()` with a `ValidationError`. Spec: node services are always booted `await new XxxNodeService().boot(config)` (see [§15](#15-node-usage-service-pattern-non-environment-boot)).
 
 **DOM-free `integrations`; iframe/React code confined to plugin output.** Why: the package must stay usable from non-browser runtimes and must not ship iframe/React code in its published artifacts. Enforcing: `lib: ["es2022"]`; BI plugin host code is DOM-free; iframe/React plugin code lives under gitignored `integrations/plugins/*` and the Angular host in `for-angular`. Spec: no DOM access from `@decaf-ts/integrations`.
 
@@ -105,7 +107,8 @@ expect(await store.has("k")).toBe(true);
 
 | Provider key | Class | Storage | Notes |
 |:-------------|:------|:--------|:------|
-| `model` | `ModelSecretService` | Decaf model row, encrypted at rest via `CryptoService` | Persists `{encryptedPayload, encryption:{keyId,iv}}`. |
+| `model` | `ModelSecretService` | Decaf model row, encrypted at rest via `CryptoService` | Persists `{encryptedPayload, encryption:{keyId,iv,salt}}` plus `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns. |
+| `filesystem` | `FsSecretService` | Local filesystem: AES-encrypted `decaf.fs-secret.v1` JSON envelopes in a `0o700` root (`0o600` files, default `.decaf/secrets`) | Bootstrap sink for infrastructure credentials via `InfraCredentialBootstrap`; `list`/`metadata` intentionally unsupported (`SECRET_UNSUPPORTED_OPERATION`). |
 | `aws-secrets-manager` | `AwsSecretService` | AWS Secrets Manager | LocalStack-compatible via `endpoint`. |
 | `azure-key-vault` | `AzureKeyVaultSecretService` | Azure Key Vault | `exists` implemented. |
 | `gcp-secret-manager` | `GcpSecretManagerService` | Google Secret Manager | |
@@ -119,12 +122,14 @@ There is **no secret factory**; each provider is constructed directly. No provid
 
 - `SecretService` (abstract): `store/retrieve/delete/exists/list/metadata` + optional `rotate`.
 - `SecretName`/`SecretReference`/`SecretSerialization`, `SecretErrors`/`translateError`, `SecretTypes`.
-- `model/` → `ModelSecretService`, `Secret` model, `ModelSecretServiceConfig`.
-- Per-provider subpaths export cloud services + config types.
+- `model/` → `ModelSecretService`, `Secret` model, `ModelSecretServiceConfig`, `ModelSecretNodeService`.
+- `fs/` → `FsSecretService`, `FsSecretServiceConfig` (+ `DEFAULT_FS_SECRET_ROOT`/`DEFAULT_FS_SECRET_KEY_ID`), `FsSecretEnvironment` (`secrets.fs` Environment slice), `FsSecretNodeService`.
+- `InfraCredentialBootstrap` + `InfraCredentialSeed`/`InfraSecretStore` + `createInfraCredentialBootstrap()`.
+- Per-cloud provider subpaths (`aws`/`azure`/`gcp`/`vault`/`onepassword`) export their services, config types, and `*SecretNodeService` node counterparts (see [§15](#15-node-usage-service-pattern-non-environment-boot)).
 
 ### 3.3 Secrets state, storage & access
 
-Secrets are never persisted in plaintext. The envelope is `SecretSerialization = {encoding, value}`; providers JSON-stringify the full envelope into a `SecretString` for storage. For the model provider, `serialized.value` is encrypted via `CryptoService` and the `Secret` row stores `{encryptedPayload, encryption:{keyId, iv}}`. Access is gated by the provider's own auth (cloud IAM / Vault token / 1Password credentials) supplied via the provider config object — never via `process.env` reads inside the integrations code. Names are validated/normalized through `validateSecretName`/`normalizeSecretName`. `SecretReference` carries `{provider, name}`; `parseSecretReference` parses `secrets/<provider>/<name>` strings.
+Secrets are never persisted in plaintext. The envelope is `SecretSerialization = {encoding, value}`; providers JSON-stringify the full envelope into a `SecretString` for storage. For the model provider, `serialized.value` is encrypted via `CryptoService` and the `Secret` row stores `{encryptedPayload, encryption:{keyId, iv, salt}}` — the per-secret salt is fed back into `deriveKeyFromSecret(keySecret, salt)` on retrieve, so master `keySecret` material can rotate without re-encrypting stored secrets. The model provider also stamps the row with `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns (taken from `StoreSecretOptions`) so the namespace RLS policies can scope it, and forwards decaf `Context` arguments to every repository call. The filesystem provider stores each secret as an isolated `decaf.fs-secret.v1` envelope `{name, provider, createdAt, updatedAt, contentType?, tags?, version?, encryption:{keyId, iv, salt}, payload}` written temp-file-then-rename with mode `0o600` under a `0o700` root directory (default `.decaf/secrets`). Access is gated by the provider's own auth (cloud IAM / Vault token / 1Password credentials) supplied via the provider config object — never via `process.env` reads inside the integrations code; the model and filesystem providers resolve their Environment slices (`secrets.model`, `secrets.fs`) through the decaf `SecretEnvironment` accumulator. Names are validated/normalized through `validateSecretName`/`normalizeSecretName`. `SecretReference` carries `{provider, name}`; `parseSecretReference` parses `secrets/<provider>/<name>` strings.
 
 ### 3.4 Functional requirements
 
@@ -133,6 +138,9 @@ Secrets are never persisted in plaintext. The envelope is `SecretSerialization =
 - **FR-S3:** `exists`/`list`/`metadata`/`delete` behave as CRUD over the secret namespace.
 - **FR-S4:** The model provider encrypts `serialized.value` via `CryptoService` and persists `{encryptedPayload, encryption:{keyId,iv}}`.
 - **FR-S5:** Names are validated via `validateSecretName` and normalized via `normalizeSecretName`.
+- **FR-S6:** The filesystem provider (`FsSecretService`) requires a master `keySecret` (boot fails with a `ValidationError` when neither the `secrets.fs` Environment slice nor the explicit config supplies one), derives per-secret keys via `CryptoService.deriveKeyFromSecret(keySecret, salt)`, and refuses to expose `list`/`metadata` with a `SECRET_UNSUPPORTED_OPERATION` `SecretError` — infrastructure credentials are never enumerable.
+- **FR-S7:** `InfraCredentialBootstrap.ensure(seeds)` is idempotent: it stores only seeds that do not exist yet (or that carry `overwrite: true`) and returns their `SecretReference`s; `createInfraCredentialBootstrap()` boots a default `FsSecretService` and wraps it.
+- **FR-S8:** `ModelSecretService` persists `tenantId`/`orgUnitId`/`ownerPrincipalId` from `StoreSecretOptions` onto the `Secret` row and forwards decaf `Context` arguments to every repository call (`create`/`select`/`count`/`update`/`delete`).
 
 ### 3.6 Secret resolution sequence (AWS)
 
@@ -162,7 +170,9 @@ sequenceDiagram
 
 - **Given** an initialized `AwsSecretService` against LocalStack, **when** `store("test-secret", {username:"testuser", password:"password123"})` then `retrieve("test-secret")` is called, **then** the returned object's `username` equals `"testuser"`.
 - **Given** a missing secret name, **when** `retrieve("does-not-exist")` is called, **then** the provider rejects with a not-found error.
-- **Given** the model provider, **when** a secret is stored then retrieved, **then** the persisted row contains `encryptedPayload` (not plaintext) and `encryption.{keyId,iv}`. *(Known correctness gap: `ModelSecretService.retrieve` hardcodes `encoding:"utf8"`, dropping the original encoding — handbook §secrets-14; binary/JSON secrets may come back as strings. This is a documented defect.)*
+- **Given** the model provider, **when** a secret is stored then retrieved, **then** the persisted row contains `encryptedPayload` (not plaintext) and `encryption.{keyId,iv,salt}`. *(The former encoding round-trip defect is fixed: `retrieve` now JSON-parses the decrypted envelope and deserializes it, preserving the original `{encoding, value}` shape.)*
+- **Given** `FsSecretService` booted with a `keySecret`, **when** `store`/`retrieve` round-trip a payload, **then** the envelope file on disk contains only `{encryptedPayload, encryption:{keyId,iv,salt}}` (no plaintext), and `list`/`metadata` reject with `SECRET_UNSUPPORTED_OPERATION`.
+- **Given** `InfraCredentialBootstrap.ensure` called twice with the same seed and no `overwrite`, **when** the second run executes, **then** no additional store happens and the reference list is unchanged.
 
 ### 3.8 Usage example
 
@@ -173,6 +183,65 @@ await secrets.initialize({ provider: "aws-secrets-manager", region: "us-east-1",
 await secrets.store("test-secret", { username: "testuser", password: "password123" });
 const data = await secrets.retrieve("test-secret") as Record<string, unknown>;
 expect(data.username).toBe("testuser");
+```
+
+### 3.9 Filesystem secret provider (FsSecretService)
+
+`FsSecretService` is a `@service("secret-fs")`-decorated `ClientBasedSecretService` that implements the **never-exposed, retrieve-to-use-immediately** infrastructure-credential semantics:
+
+- Configuration resolves from the `secrets.fs` Environment slice (`rootPath`, `keySecret`, `keyId`) or an explicit boot config; a missing `keySecret` disables the Environment-derived path, and boot fails closed with a `ValidationError` when neither source supplies one.
+- Each secret is one JSON envelope file (`<normalizedName>.json`) in the resolved root; the root is created with mode `0o700` and envelopes are written through a temp-file-then-rename cycle with mode `0o600`.
+- `list` and `metadata` intentionally throw `SECRET_UNSUPPORTED_OPERATION` — the store is a minimal bootstrap sink, not a browsable vault.
+- The non-Environment node counterpart is `FsSecretNodeService` (explicit `boot(config)` only).
+
+### 3.10 Infrastructure credential bootstrap (InfraCredentialBootstrap)
+
+`InfraCredentialBootstrap` wraps any `InfraSecretStore` (`store`/`retrieve`/`delete`/`exists`) and provides the initialization hook for deployment-time infrastructure credentials:
+
+- `ensure(seeds)` checks `exists` per seed and stores only what is missing (or explicitly `overwrite: true`), returning the stored `SecretReference`s — safe to run on every boot.
+- `retrieve(name)` reads a credential back immediately before use; the value is never cached, logged, or exposed through listings.
+- `createInfraCredentialBootstrap(...)` is the convenience factory: it boots a default `FsSecretService` (Environment or explicit args) and wraps it.
+
+```ts
+const infra = await createInfraCredentialBootstrap({ keySecret: "infra-master-key" });
+await infra.ensure([{ name: "smtp/relay", value: { host: "...", password: "..." } }]);
+const creds = await infra.retrieve<{ host: string; password: string }>("smtp/relay");
+```
+
+### 3.11 Namespaced credentials (Credential model + CredentialService)
+
+The `Credential` model (`@table("credentials")`, extends `AuthorizationModel`) is the namespaced credential **metadata** record: `tenant` (required, `RESTRICT`), `orgUnit` (optional, `NULLIFY`), `owner` principal (optional, `NULLIFY`), `name`, `credentialType`, `secretName`, `provider` (`CredentialProvider`: `model` | `filesystem`), `description`, `enabled`, `metadata`, `expiresAt`, `lastUsedAt`. It never carries the secret value itself.
+
+`CredentialService` (extends `BaseModelService<Credential>`) manages the lifecycle:
+
+- The secret store is always the model-backed `ModelSecretService` — a configured store with `provider !== "model"` is rejected with a `ValidationError` (filesystem secrets stay infra-only and are never exposed through the credentials API).
+- `createCredential(input)` validates the name (`/^[A-Za-z0-9][A-Za-z0-9._-]*$/`, ≤255 chars), generates the secret name `credential-<uuid>`, **stores the secret first**, then creates the metadata row; if the row creation fails, the just-stored secret is force-deleted so no orphan remains.
+- `rotateCredential` delegates to the store's `rotate` when available, otherwise re-stores under the same secret name with a version; `getCredential`/`listCredentials`/`markCredentialUsed`/`deleteCredential` cover the remaining CRUD (delete removes the row first, then force-deletes the secret).
+- There is deliberately **no `resolveCredentialSecret`-style retrieval API** on the credentials surface: secret values are resolved through the RLS-restricted, context-bound `ModelSecretService` path (the as-graph node migration consumes this in Phase B).
+
+`sql/004_credentials.sql` provisions the namespacing columns and indexes: `secrets.tenant_id/org_unit_id/owner_principal_id`, a unique `credentials (tenant_id, org_unit_id, lower(name))` index, and owner/secret-name/tenant lookup indexes.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App
+    participant CS as CredentialService
+    participant MSS as ModelSecretService
+    participant Repo as Credential repository
+    App->>CS: createCredential({name, secret, tenantId, ...})
+    activate CS
+    CS->>CS: validate name / normalize
+    CS->>MSS: store("credential-<uuid>", secret, {tenantId, orgUnitId, ownerPrincipalId})
+    activate MSS
+    MSS->>MSS: serialize + deriveKey(keySecret, salt) + encrypt (CryptoService)
+    MSS-->>CS: SecretReference
+    deactivate MSS
+    CS->>Repo: create(Credential metadata row)
+    alt row creation fails
+        CS->>MSS: delete(secretName, {force:true}) (no orphan secret)
+    end
+    CS-->>App: Credential
+    deactivate CS
 ```
 
 ---
@@ -322,8 +391,9 @@ sequenceDiagram
 
 - **Types:** enums `IsolationTier`/`MembershipStatus`/`PrincipalKind`/`ScopeKind`/`PermissionCategory`/`ResourceVisibility`/`StorageKind`/`StorageBindingKind`; DTOs; `AuthzDataSources`/`AccessContext`/`ArangoAuthContext`/`QdrantAuthFilter`.
 - **Utils:** `BaseModelService`, `buildAccessContext`/`buildArangoContext`/`buildQdrantFilter`, `sameTenant`, relation policy constants.
-- **Models:** 21 authorization models (tenants, org-unit closure, principals/memberships, roles/permissions, role-assignments, protected resources/resource-grants, effective permissions, inheritance blocks).
-- **Services:** 24 repository-backed services incl. `AuthzService`, `BootstrapService`, `EffectivePermissionService`, `OrgUnitService`, `SystemManagementService`, `ResourceLifecycleService`.
+- **Models:** 22 authorization models (tenants, org-unit closure, principals/memberships, roles/permissions, role-assignments, protected resources/resource-grants, effective permissions, inheritance blocks, credentials).
+- **Services:** 25 repository-backed services incl. `AuthzService`, `BootstrapService`, `EffectivePermissionService`, `OrgUnitService`, `SystemManagementService`, `ResourceLifecycleService`, `CredentialService`.
+- **RLS:** the `src/namespaces/rls/` module — SQL template (`rls.template.ts`/`rls.constants.ts`/`rls.types.ts`), `RlsBootstrapService`, `runAsPrincipal`, and the `RLS_PERMISSION_KEYS`/`RLS_SETTINGS`/`RLS_ROLE_KEYS`/`RLS_PROTECTED_TABLES` constants (see §7.7).
 
 ### 7.2 Functional requirements
 
@@ -332,6 +402,8 @@ sequenceDiagram
 - **FR-N3:** `BootstrapService.bootstrapTenantFromTemplate` templates a full tenant setup transactionally (tenant + root org unit + permissions + roles + owner user + owner role assignment).
 - **FR-N4:** Postgres RLS (`sql/002_rls.sql`) enforces tenant isolation; `app.principal_id` scopes reads.
 - **FR-N5:** Multi-write services are `@transactional`.
+- **FR-N6:** The namespace RLS template is generated from `src/namespaces/rls/rls.template.ts` into `sql/002_rls.sql` (24 `SECURITY DEFINER` helper functions, 88 `CREATE POLICY` statements, ENABLE/FORCE RLS on 22 tables) and is applied idempotently via `RlsBootstrapService.apply()` through any `RlsQueryExecutor` (`pg.Client`/`pg.Pool`-shaped, no runtime `pg` import).
+- **FR-N7:** Session binding helpers validate principal/tenant UUIDs before binding: `setPrincipal`/`setTenant`/`clearPrincipal` use `set_config(..., is_local)` (transaction-local by default), `currentPrincipal` reads `app_rls_principal_id()`, and `runAsPrincipal(executor, principalId, run, {commit?})` wraps a callback in a transaction with the principal bound — rolling back by default so integration-test mutations stay isolated.
 
 ### 7.3 Effective-permission rebuild sequence
 
@@ -380,6 +452,45 @@ const { tenantId } = await new BootstrapService().bootstrapTenantFromTemplate({
   roles: [{ key: "owner", name: "Owner", permissionKeys: ["resource.read"] }],
   ownerUser: { displayName: "Admin", email: "admin@acme.example" }, ownerRoleKey: "owner",
 });
+```
+
+### 7.7 Namespace RLS template and bootstrap
+
+`sql/002_rls.sql` is **generated** from `src/namespaces/rls/rls.template.ts` ("do not edit by hand") and applied through application bootstrap or a migration runner instead of hand-run SQL. The template is idempotent and covers the 22 tables in `RLS_PROTECTED_TABLES` — the authorization machinery, org profiles, protected resources, and the credential/secret records (`credentials`, `secrets`).
+
+**Reader/writer/admin semantics.** Permission keys are `RLS_PERMISSION_KEYS` (`namespace.read`/`namespace.write`/`namespace.admin`) and the default role keys are `RLS_ROLE_KEYS` (`namespace-reader`/`namespace-writer`/`namespace-admin`):
+
+- **Reader** — read-only: sees content tables; never administrative tables (`permissions`, `roles`, `role_permissions`, `role_assignments`, `inheritance_blocks`, `storage_bindings` are admin-only for all four operations).
+- **Writer** — reader plus non-administrative writes (create/update/delete of content rows).
+- **Admin** — everything in the namespace, including administrative tables (`app_rls_is_scope_admin` gates `role_assignments`/`effective_permissions`; `app_rls_is_admin()` gates global admin tables).
+
+Enforcement is by scope kind (`tenant`, `org_unit`, `resource`) and principal identity: department/project/team structures map onto the org-unit closure hierarchy, and users always see their own identity rows (`users.id = app_rls_subject_id()`, own `principals`, own `tenant_memberships`) plus their own credentials/secrets (`owner_principal_id = app_rls_principal_id()`).
+
+Session settings are `RLS_SETTINGS`: `app.principal_id` (the acting principal; required for every request-scoped session or transaction) and `app.tenant_id` (diagnostic/multi-tenant checks). Credential/secret rows are readable by their owner or by a principal holding the credential-scope read permission (`app_rls_can_read_credential_scope(tenant_id, org_unit_id)`), and writable only via `app_rls_can_write_credential_scope`.
+
+Consumer contract:
+
+- Provision the namespace schema (`sql/001_constraints.sql`), then `sql/004_credentials.sql` (namespacing columns + indexes), then apply `sql/002_rls.sql` — via `RlsBootstrapService.apply()` or a migration runner — before request-scoped traffic reaches the database.
+- `RlsBootstrapService` is a `ClientBasedService` booted with a query executor (`pg.Client`, `pg.Pool`, or a compatible wrapper — the executor contract is structural, so `pg` stays an optional peer dependency): `boot(executor[, config])`, `apply()` → `{applied}`, `setPrincipal(id, {local?})`, `setTenant(id, {local?})`, `clearPrincipal({local?})`, `currentPrincipal()`.
+- `runAsPrincipal(executor, principalId, run, {commit?})` binds the principal inside a transaction and rolls back by default (IT isolation); pass `{commit: true}` for real writes. The executor must be a single connection (`pg.Client`), not a pool, because the transaction and the session setting are connection-scoped.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App
+    participant Rbs as RlsBootstrapService
+    participant PG as Postgres (pg.Client)
+    App->>Rbs: boot(executor)
+    activate Rbs
+    App->>Rbs: apply()
+    Rbs->>PG: CREATE OR REPLACE FUNCTION ... (24 helpers)
+    Rbs->>PG: CREATE POLICY ... (88 policies, 22 tables)
+    Rbs-->>App: { applied: <statements> }
+    App->>Rbs: setPrincipal(principalId)
+    Rbs->>PG: SELECT set_config('app.principal_id', id, true)
+    App->>Rbs: runAsPrincipal(executor, id, cb)
+    Rbs->>PG: BEGIN + set_config(...) + cb + COMMIT/ROLLBACK
+    deactivate Rbs
 ```
 
 ---
@@ -591,7 +702,7 @@ The integrations graph `main.ts` that used to read `GRAPH_BACKEND_PORT` (or `arg
 
 Feature flags read environment through `FeatureFlagEnvironment.featureFlag` (env root `featureFlag`), **not** through direct `process.env` reads. The constant `FEATURE_FLAG_ENV_PREFIX = "FEATURE_FLAG"` is declared but never wired — no `process.env.FEATURE_FLAG_*` reading exists (handbook §feature-flags-41).
 
-**Blob and secret code read no `process.env` directly.** Credentials come via config objects or the cloud SDKs' default credential chains (e.g. AWS `credentials`, Azure `DefaultAzureCredential`, GCP ADC). Any environment-based credential resolution is therefore the SDK's responsibility, not `integrations`'.
+**Blob and secret code read no `process.env` directly.** Secret configuration flows through decaf `Environment` slices accumulated onto `SecretEnvironment`: `FsSecretEnvironment.secrets.fs` (`rootPath`, `keySecret`, `keyId`) and `ModelSecretEnvironment.secrets.model` (`keySecret`, `keyId`). An empty `keySecret` disables the Environment-derived path, so the service requires an explicit boot config — a missing slice never silently degrades to an unencrypted store. Cloud secret/blob providers still receive credentials via config objects or the cloud SDKs' default credential chains (e.g. AWS `credentials`, Azure `DefaultAzureCredential`, GCP ADC).
 
 ---
 
@@ -600,15 +711,81 @@ Feature flags read environment through `FeatureFlagEnvironment.featureFlag` (env
 This section describes secret state, storage, and access — no literal secret values appear anywhere in this document.
 
 - **State:** secrets are modeled as a `SecretSerialization` envelope `{encoding, value}`. On store, the full envelope is JSON-stringified into a `SecretString` and handed to the provider.
-- **Storage (model provider):** `serialized.value` is encrypted via `CryptoService`; the `Secret` row persists `{encryptedPayload, encryption:{keyId, iv}}`. Plaintext is never written to the database.
+- **Storage (model provider):** the full serialized envelope is encrypted via `CryptoService` with a per-secret salt; the `Secret` row persists `{encryptedPayload, encryption:{keyId, iv, salt}}` plus the `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns. Plaintext is never written to the database.
+- **Storage (filesystem provider):** the encrypted envelope is stored as a `decaf.fs-secret.v1` JSON file (`<name>.json`) under the configured root (default `.decaf/secrets`, mode `0o700`; files mode `0o600`). The store is a bootstrap sink for infrastructure credentials: `list`/`metadata` are unsupported by design, and values are retrieved immediately before use.
 - **Storage (cloud providers):** the `SecretString` is stored in the cloud secret manager (AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, Vault, 1Password) under the provider's own naming and access controls.
-- **Access:** provider authentication is supplied via the provider config object (`credentials`, `endpoint`, tokens, etc.) at `initialize(config)` time; access is governed by the provider's IAM/ACL model. `integrations` never logs secret values; contextual logging uses `logCtx(...)` over operation metadata only.
+- **Access:** provider authentication is supplied via the provider config object (`credentials`, `endpoint`, tokens, etc.) at `initialize(config)` time, or — for the model and filesystem providers — via the `secrets.model`/`secrets.fs` Environment slices; access is governed by the provider's IAM/ACL model (and, for model-backed rows, by the namespace RLS policies). `integrations` never logs secret values; contextual logging uses `logCtx(...)` over operation metadata only.
+- **Bootstrap:** `InfraCredentialBootstrap.ensure(seeds)` seeds infrastructure credentials idempotently at initialization time; consumers retrieve a credential immediately before use and never cache or expose it.
 - **Reference:** `SecretReference {provider, name}` is the handle returned by `store` and accepted by `retrieve`/`delete`/`exists`/`metadata`.
-- **Rotation:** `rotate` is declared as an optional abstract method on `SecretService` but is not implemented by any provider (handbook §secrets-17).
+- **Rotation:** `rotate` is an optional abstract method on `SecretService`; the filesystem provider implements it (re-stores under the same name with the new version), while the cloud providers and the model provider still do not (handbook §secrets-17).
 
 ---
 
-## 15. Thin / Under-documented Areas
+## 15. Node-Usage Service Pattern (non-Environment boot)
+
+Infrastructure services in `integrations` are registered as `@service(...)` singletons configured from Environment slices. Node-style consumers (graph nodes, agent tools, CLIs) need the same service implementations with **explicit configuration and no Environment fallback**. `src/shared/node-service.ts` provides the internal plumbing:
+
+- `serviceImplementation(serviceKey, decorated)` resolves the undecorated original constructor from `Injectables.services()` — necessary because `@service(...)` replaces the exported constructor with an injectable factory, and extending the decorated export would extend the registered parent singleton.
+- `nonEnvironmentService(Base, provider?)` returns a subclass that (a) overrides `configFromEnvironment()` to return `undefined`, (b) validates its arguments through `explicitNodeConfig` — rejecting a no-argument or `Context`-only boot with a `ValidationError`, because no Environment fallback exists — and (c) when a fixed `provider` is supplied, overrides any `provider` in the explicit config before delegating (used by the blob and secret node services, whose provider is fixed by the subclass).
+- The generated `XxxNodeService` classes are **not** `@service()`-decorated: not registered in `Injectables`, not singletons, never auto-booted by static `Service.boot()`. Usage is always `await new XxxNodeService().boot(config)`; the original stays registered and Environment-configurable for infrastructure boot.
+
+**21 node service variants** ship across the package families:
+
+| Family | Node services |
+|:-------|:--------------|
+| comms | `SlackNodeService`, `TeamsNodeService`, `TelegramNodeService`, `GmailNodeService`, `EmailNodeService` |
+| devops | `GithubNodeService`, `GitlabNodeService` |
+| io | `AirtableNodeService`, `GoogleSheetsNodeService`, `GraphqlNodeService` |
+| blob | `S3NodeService`, `GcsNodeService`, `AzureNodeService` |
+| secrets | `FsSecretNodeService`, `ModelSecretNodeService`, `AwsSecretNodeService`, `AzureKeyVaultSecretNodeService`, `GcpSecretManagerNodeService`, `VaultSecretNodeService`, `OnePasswordSecretNodeService` |
+| shared | `HttpNodeService` |
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller
+    participant Node as XxxNodeService
+    participant Base as undecorated service implementation
+    Caller->>Node: new XxxNodeService().boot(config)
+    activate Node
+    Node->>Node: explicitNodeConfig(args)
+    alt no explicit config (missing or Context-only)
+        Node--xCaller: ValidationError
+    else explicit config found
+        Node->>Node: fixed provider override (when applicable)
+        Node->>Base: super.initialize(preparedConfig, ...rest)
+        activate Base
+        Base-->>Node: { config, client }
+        deactivate Base
+        Node-->>Caller: booted service (full original API)
+    end
+    deactivate Node
+```
+
+### 15.1 SMTP client (nodemailer) and EmailNodeService
+
+`SmtpClient` delegates the SMTP wire protocol to the optional `nodemailer` peer (the same library n8n uses) instead of hand-rolling it over `node:net`/`node:tls`. The public surface is unchanged (`connect`/`send`/`close` over a pre-built raw MIME message):
+
+- `secure: true` opens an implicit-TLS socket from the first byte (default port `465`); `secure: false` (default) connects in plaintext and upgrades via STARTTLS (default port `587`).
+- **Fail-closed plaintext AUTH:** with credentials configured and no encrypted session, the transport sets `requireTLS` and verification fails unless the session is encrypted; `allowPlaintextAuth` is the explicit, documented opt-out for servers that cannot offer TLS.
+- `nodemailer` is resolved with a dynamic import at `connect()` time — the file never statically imports the optional peer; a missing install fails with an `InternalError` telling the consumer to install it.
+- Envelope addresses are validated through `assertEmailAddress` (decaf `BadRequestError`s) before they reach any SMTP command; `disableFileAccess`/`disableUrlAccess` are forced on the transport.
+
+`EmailNodeService` is the non-Environment counterpart of `@service("email")` `EmailService` for `boot(config)`-based use; both are exported from the `@decaf-ts/integrations/comms/email` subpath (together with `SmtpClient`/`SmtpConfig`, also available via the `./smtp` subpath). `nodemailer` is an optional peer dependency (`>=7.0.0`) plus a dev dependency — only consumers of the SMTP surface install it.
+
+### 15.2 Optional peers and IT infrastructure
+
+`pg` (`>=8.0.0`) is likewise an additive optional peer + dev dependency: only the RLS/Credential/ModelSecret integration tests and RLS-consuming applications install it. The IT infrastructure is booted by one script:
+
+```sh
+npm run prepare-it-tests
+```
+
+which starts three compose stacks (`--wait` health-gated): the existing DragonflyDB stack, the new `docker/postgres-compose.yml` (`postgres:16`, host port `55435`, db `decaf_integration`, user `decaf`), and the new `docker/mailpit-compose.yml` (Mailpit SMTP sink on `1025`, HTTP API/UI on `8025`, accepting any AUTH incl. plaintext so the credential path is exercisable locally). The RLS matrix IT overrides the connection string via `DECAF_PG_URL` (default `postgresql://decaf:decaf-integration@localhost:55435/decaf_integration`).
+
+---
+
+## 16. Thin / Under-documented Areas
 
 The brief is explicit about coverage limits. The following are under-documented relative to a full design and should not be treated as fully specified:
 
@@ -622,7 +799,7 @@ Where a requirement above depends on an untested path, the acceptance criteria a
 
 ---
 
-## 16. Inaccuracies
+## 17. Inaccuracies
 
 The complete inaccuracies list (79 entries) is reproduced in the [Architecture Handbook — Integrations, §17 Inaccuracies Found](../architecture-handbook/07-integrations.md#17-inaccuracies-found). Representative entries per subsystem:
 

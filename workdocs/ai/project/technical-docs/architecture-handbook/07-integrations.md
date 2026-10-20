@@ -108,6 +108,12 @@ Several patterns recur across the package and explain *why* it is shaped the way
 
 **Why:** Dynamic discovery of models, adapters, repositories, services, controllers, environments, and Angular components lets an application assemble itself from configuration rather than static imports. The immutable `withHooks`/`withOptions` design prevents a shared loader instance from accumulating hooks across unrelated call sites. Family subclasses give each domain a typed, named loader verb instead of a generic `load(family, ...)`.
 
+### 2.11 Non-Environment node service subclassing (SAA-1104 Phase A)
+
+**What:** `src/shared/node-service.ts` derives standalone, node-style service subclasses from `@service(...)`-decorated originals: `serviceImplementation(serviceKey, decorated)` resolves the undecorated implementation registered in `Injectables.services()` (extending the decorated export would extend the registered parent singleton), and `nonEnvironmentService(Base, provider?)` builds a subclass that overrides `configFromEnvironment()` to `undefined`, requires an explicit config object (`explicitNodeConfig` rejects no-argument or `Context`-only boots with a `ValidationError`), and — when a fixed `provider` is given — overrides any `provider` in the supplied config before delegating. The generated `XxxNodeService` classes carry no `@service()` decorator: not registered in `Injectables`, not singletons, never auto-booted by static `Service.boot()`; usage is `await new XxxNodeService().boot(config)`.
+
+**Why:** Node-style consumers (graph nodes, agent tools, CLIs) must construct services with explicit configuration and must never inherit infrastructure Environment configuration, while the originals stay `@service(...)`-registered and Environment-configurable for infrastructure boot. 21 variants ship across comms (Slack/Teams/Telegram/Gmail/Email), devops (Github/Gitlab), io (Airtable/GoogleSheets/Graphql), blob (S3/Gcs/Azure), secrets (Fs/Model/Aws/AzureKeyVault/Gcp/Vault/OnePassword), and shared (`HttpNodeService`); the pattern is specified in [Design Specification — Integrations, §15](../design-specification/09-integrations-design.md#15-node-usage-service-pattern-non-environment-boot).
+
 ---
 
 ## 3. Blob Store
@@ -179,7 +185,8 @@ expect(await store.has("k")).toBe(true);
 
 | Provider key | Class | Notes |
 |:-------------|:------|:------|
-| `model` | `ModelSecretService` | Encrypted-at-rest via `@decaf-ts/crypto` `CryptoService`; persists `{encryptedPayload, encryption:{keyId,iv}}` on the `Secret` model. |
+| `model` | `ModelSecretService` | Encrypted-at-rest via `@decaf-ts/crypto` `CryptoService`; persists `{encryptedPayload, encryption:{keyId,iv,salt}}` plus `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns on the `Secret` model. |
+| `filesystem` | `FsSecretService` | Local filesystem: AES-encrypted `decaf.fs-secret.v1` JSON envelopes in a `0o700` root (`0o600` files, default `.decaf/secrets`). Minimal bootstrap sink for infrastructure credentials via `InfraCredentialBootstrap`; `list`/`metadata` intentionally unsupported. |
 | `aws-secrets-manager` | `AwsSecretService` | AWS Secrets Manager (LocalStack-compatible via `endpoint`). |
 | `azure-key-vault` | `AzureKeyVaultSecretService` | Azure Key Vault. |
 | `gcp-secret-manager` | `GcpSecretManagerService` | Google Secret Manager. |
@@ -191,7 +198,7 @@ There is **no secret factory**. Each provider is imported from its subpath and c
 
 ### 4.2 Public API
 
-`./secrets` (core + model): `SecretService` (abstract: `store/retrieve/delete/exists/list/metadata` + optional `rotate`), `SecretName`/`SecretReference`/`SecretSerialization`, `SecretErrors`/`translateError`, `SecretTypes`; `model/` → `ModelSecretService`, `Secret` model, `ModelSecretServiceConfig` (`src/secrets/index.ts:6-7`). Per-provider subpaths (`./secrets/aws|azure|gcp|vault|oneppassword`) export the cloud services + their config types.
+`./secrets` (core + model + fs + bootstrap): `SecretService` (abstract: `store/retrieve/delete/exists/list/metadata` + optional `rotate`), `SecretName`/`SecretReference`/`SecretSerialization`, `SecretErrors`/`translateError`, `SecretTypes`; `model/` → `ModelSecretService`, `Secret` model, `ModelSecretServiceConfig`, `ModelSecretNodeService`; `fs/` → `FsSecretService`, `FsSecretServiceConfig` (+ `DEFAULT_FS_SECRET_ROOT`/`DEFAULT_FS_SECRET_KEY_ID`), `FsSecretEnvironment` (`secrets.fs` Environment slice), `FsSecretNodeService`; `InfraCredentialBootstrap` + `InfraCredentialSeed`/`InfraSecretStore` + `createInfraCredentialBootstrap()`. Per-provider subpaths (`./secrets/aws|azure|gcp|vault|oneppassword`) export the cloud services + their config types + their `*SecretNodeService` counterparts.
 
 > The `onepassword` export is misspelled `oneppassword` in `package.json:162` (inaccuracy §secrets-12); there is no valid `./secrets/onepassword` export entry.
 
@@ -218,7 +225,7 @@ sequenceDiagram
     Sec-->>App: payload
 ```
 
-The model provider encrypts `serialized.value` via `CryptoService` and persists `{encryptedPayload, encryption:{keyId,iv}}` on the `Secret` model. **Known correctness issue:** `ModelSecretService.retrieve` (and `OnePasswordSecretService.retrieve`) hardcode `encoding: "utf8"`, dropping the original serialization encoding, so JSON/binary secrets come back as strings (inaccuracies §secrets-14, §secrets-25).
+The model provider encrypts the full serialized envelope via `CryptoService` (per-secret salt fed back into `deriveKeyFromSecret(keySecret, salt)` on retrieve, so master `keySecret` material can rotate without re-encrypting history) and persists `{encryptedPayload, encryption:{keyId,iv,salt}}` plus the `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns on the `Secret` model. **The former `encoding: "utf8"` round-trip defect in `ModelSecretService.retrieve` is fixed** — retrieve now JSON-parses the decrypted envelope and deserializes the original `{encoding, value}` shape. The 1Password provider still loses the original payload encoding (inaccuracy §secrets-25).
 
 ### 4.4 Usage example
 
@@ -403,6 +410,14 @@ const { tenantId } = await new BootstrapService().bootstrapTenantFromTemplate({
 });
 ```
 
+### 8.5 Namespace RLS template + bootstrap and credentials (SAA-1104 Phase A)
+
+The RLS SQL template is now **generated from source** (`src/namespaces/rls/rls.template.ts` → `sql/002_rls.sql`, "do not edit by hand": 24 `SECURITY DEFINER` helper functions, 88 `CREATE POLICY` statements, ENABLE/FORCE RLS on the 22 tables in `RLS_PROTECTED_TABLES`, including the new `credentials`/`secrets`) and applied through `RlsBootstrapService` (a `ClientBasedService` booted with a structural `RlsQueryExecutor` — `pg.Client`/`pg.Pool`-shaped, no runtime `pg` import): `boot(executor[, config])`, `apply()` → `{applied}`, `setPrincipal`/`setTenant`/`clearPrincipal` (`set_config(..., is_local)`, transaction-local by default, UUID-validated), `currentPrincipal()`, plus the standalone `runAsPrincipal(executor, principalId, run, {commit?})` transaction wrapper that rolls back by default for IT isolation.
+
+The policy matrix enforces the reader/writer/admin semantics via `RLS_PERMISSION_KEYS` (`namespace.read`/`namespace.write`/`namespace.admin`) and `RLS_ROLE_KEYS` (`namespace-reader`/`namespace-writer`/`namespace-admin`): readers see content tables only, writers additionally write non-administrative rows, admins see everything; administrative tables (`permissions`, `roles`, `role_permissions`, `role_assignments`, `inheritance_blocks`, `storage_bindings`) are admin-only. Enforcement is by scope kind (`tenant`/`org_unit`/`resource`) over the org-unit closure and by principal identity (`app.principal_id`/`app.tenant_id` session settings from `RLS_SETTINGS`); users always see their own identity rows and their own credentials/secrets. `sql/004_credentials.sql` provisions the `secrets`/`credentials` namespacing columns and indexes (incl. the unique `(tenant_id, org_unit_id, lower(name))` credential index).
+
+The `Credential` model (`@table("credentials")`, extends `AuthorizationModel`, namespaced via tenant/orgUnit/owner-Principal) is the credential **metadata** record; `CredentialService` stores secret values through the model-backed `ModelSecretService` (encrypted at rest, RLS-scoped rows) and deliberately exposes no `resolveCredentialSecret`-style retrieval — values resolve through the context-bound, RLS-restricted secret path.
+
 ---
 
 ## 9. Nest Auth Integration
@@ -543,21 +558,25 @@ sequenceDiagram
 
 ## 14. Lifecycle, Configuration & Environment
 
-- **Boot/init:** Nest auth is pure import (registers `user`/`organization` log params). Blob/secret/Keycloak/Kibana services boot via `new X()` + `await initialize(config)`. (The integrations graph `main.ts` was removed with the graph cutover; the standalone graph backend entry is `@decaf-ts/as-graph` `bin.as-graph-server`, which honors `GRAPH_BACKEND_PORT`/`argv[2]`/default `3000`, binds `127.0.0.1` only, admits just `http://localhost`/`http://127.0.0.1` CORS origins, and boots its demo surfaces under the explicit standalone profile `auth: "optional"` + `allowAnonymousAccess: true`.)
+- **Boot/init:** Nest auth is pure import (registers `user`/`organization` log params). Blob/secret/Keycloak/Kibana services boot via `new X()` + `await initialize(config)`. Node-style consumers boot the non-Environment `XxxNodeService` subclasses with explicit config (`await new XxxNodeService().boot(config)` — §2.11); infrastructure credential seeding runs through `InfraCredentialBootstrap.ensure(seeds)` (idempotent, backed by `FsSecretService` by default via `createInfraCredentialBootstrap()`). (The integrations graph `main.ts` was removed with the graph cutover; the standalone graph backend entry is `@decaf-ts/as-graph` `bin.as-graph-server`, which honors `GRAPH_BACKEND_PORT`/`argv[2]`/default `3000`, binds `127.0.0.1` only, admits just `http://localhost`/`http://127.0.0.1` CORS origins, and boots its demo surfaces under the explicit standalone profile `auth: "optional"` + `allowAnonymousAccess: true`.)
 - **Flavours:** Blob `BlobStoreFactory` keys = `s3|minio|r2|azure-blob|gcs|local|ipfs|memory` (`BlobTypes.ts:6-14`); secret providers = `model|aws-secrets-manager|azure-key-vault|gcp-secret-manager|hashicorp-vault|1password` (plus an unused `"memory"` literal). Each provider config carries a `provider` discriminator.
-- **Env vars read by integrations code:** None of the blob/secret code reads `process.env` directly — credentials come via config objects / SDK default chains. Feature flags read from `FeatureFlagEnvironment.featureFlag` (env root `featureFlag`); the `FEATURE_FLAG_ENV_PREFIX` constant is declared but never wired. Keycloak/Kibana `isProduction()` defaults to `NODE_ENV` not in `["development","local"]`.
+- **Env vars read by integrations code:** None of the blob/secret code reads `process.env` directly. Secret configuration flows through decaf `Environment` slices accumulated onto `SecretEnvironment`: `secrets.fs` (`rootPath`, `keySecret`, `keyId` — an empty `keySecret` disables the Environment-derived path and forces an explicit boot config) and `secrets.model` (`keySecret`, `keyId`). Cloud providers receive credentials via config objects / SDK default chains. Feature flags read from `FeatureFlagEnvironment.featureFlag` (env root `featureFlag`); the `FEATURE_FLAG_ENV_PREFIX` constant is declared but never wired. Keycloak/Kibana `isProduction()` defaults to `NODE_ENV` not in `["development","local"]`.
 - **Defaults:** IPFS API defaults to `http://localhost:5001` (`IpfsBlobStoreService.ts:55`). BI plugin boot targets Kibana `8.14.3` / Superset `6.1.0` (`package.json:327-328`).
 
 ---
 
 ## 15. Testing Posture
 
-Test layout mirrors `src/`: `tests/unit/<subsystem>/`, `tests/integration/`, `tests/e2e/` (plus Playwright for plugins). Jest runs with `--experimental-vm-modules`; the `test` script builds then runs all with coverage (`package.json:330`).
+Test layout mirrors `src/`: `tests/unit/<subsystem>/`, `tests/integration/`, `tests/e2e/` (plus Playwright for plugins). Jest runs with `--experimental-vm-modules`; the `test` script builds then runs all with coverage (`package.json:330`). `npm run prepare-it-tests` boots the Dockerized IT infrastructure with `--wait` health gating: DragonflyDB, `docker/postgres-compose.yml` (`postgres:16`, host port `55435`, db `decaf_integration`), and `docker/mailpit-compose.yml` (Mailpit SMTP sink on `1025`, HTTP API/UI on `8025`, any-AUTH incl. plaintext); the RLS/credential/model-secret ITs connect to `DECAF_PG_URL` (default `postgresql://decaf:decaf-integration@localhost:55435/decaf_integration`).
 
 | Subsystem | Unit coverage | Integration/e2e coverage | Notable gaps |
 |:----------|:--------------|:-------------------------|:-------------|
 | blob | `BlobServiceContract`, `BlobBundling` | minio-s3, azure-blob, gcs, ipfs (Dockerized) | No R2 test; no live `url()` for Azure/GCS; postgres/local-json IPFS indexes are stubs. |
-| secrets | `SecretServiceContract` (core utilities only) | aws/gcp/vault (LocalStack/emulator/Vault) | No Azure/1Password/model integration; no provider extends `SecretService`. |
+| secrets | `SecretServiceContract` (core utilities only) | aws/gcp/vault (LocalStack/emulator/Vault) | No Azure/1Password integration; no provider extends `SecretService`. |
+| secrets (fs/model/credentials) | `FsSecretService`, `FsSecretEnvironment` (incl. Environment fallback), `InfraCredentialBootstrap`, `SecretEnvironmentFallback` | `model-secret-service.test.ts` (Postgres IT), `credential.service.test.ts` | — |
+| namespaces (RLS + credentials) | `rls-bootstrap.service` (static + runtime), `rls.template`, `credential.service` | `rls.permission-matrix.test.ts` (34-its reader/writer/admin matrix vs live Postgres) | — |
+| shared (node services) | `NodeServices.test.ts` (89 tests: boot/explicit-config/env-isolation/provider-override across the 21 variants) | — | — |
+| comms (SMTP) | — | `smtp.mailpit.test.ts` (Mailpit, incl. plaintext-AUTH fail-closed path) | — |
 | keycloak | broker config | keycloak + broker-compose | No unit tests for orchestration/inner-service methods, `setupOrganization`, legacy IdP path. |
 | kibana | defaults, builders (thorough) | space/role/user/data-view | `KibanaAuthService`, dashboard clone/embed, `setDefaultDataView`, `setupOrganization` e2e. |
 | feature-flags | env normalization, decorators, rule eval, reader swap, subject access | — | `syncFromEnvironment`/grant/revoke/find/list, `blockFeatureOperations`, `getFeatureGateMetadata`. |
@@ -575,6 +594,8 @@ Test layout mirrors `src/`: `tests/unit/<subsystem>/`, `tests/integration/`, `te
 - There is no secret factory: import the provider's subpath, `new X()`, then `await initialize(config)`. No provider `extends SecretService`, so the abstract contract is documentary only (inaccuracy §secrets-11).
 - `BlobStoreFactory.create` returns the abstract base; cast or hold the concrete subclass for provider-specific members (inaccuracy §blob-10).
 - For namespaces, provision the Postgres schema + RLS SQL and set `app.principal_id` for RLS-scoped reads; `AuthzService` must be fed by repository-backed data sources, never fixtures.
+- Node-style consumers boot `XxxNodeService` subclasses with explicit config (`await new XxxNodeService().boot(config)`); Environment configuration is disabled for them by construction, and a no-argument or `Context`-only boot throws `ValidationError` (§2.11). Infrastructure credential seeding uses `InfraCredentialBootstrap.ensure(seeds)`.
+- `nodemailer` (SMTP delivery) and `pg` (RLS/Credential/ModelSecret ITs and RLS-consuming apps) are optional peer dependencies (`peerDependenciesMeta` optional) plus dev dependencies — install only what you use; `SmtpClient.connect()` fails with a descriptive `InternalError` when `nodemailer` is missing, and credentials are never sent over a plaintext session unless `allowPlaintextAuth` opts in.
 - Graph execution is not an integrations surface anymore: import contracts from `@decaf-ts/as-graph/shared` and boot the backend via `@decaf-ts/as-graph` `bin.as-graph-server` (see §11).
 - Keycloak/Kibana services require `initialize(config)` and an `isProduction()`-aware TLS setting; supply `isProduction: () => false` in tests (the config type omits this field — inaccuracies §keycloak-30, §kibana-36).
 - BI plugins are org-agnostic; Superset is pinned to 6.1.x via a hard-named patch script. `boot:plugins:*` only materializes files; the real build happens inside `docker compose build`.
@@ -616,13 +637,13 @@ Reproduced verbatim from the research brief. Nothing was modified.
 
 **[secrets]** SKILL imports 1Password from the broken typo path — `integrations-secrets SKILL.md:43` uses `@decaf-ts/integrations/secrets/oneppassword`. | Evidence: integrations-secrets SKILL.md:43 | Suggested fix: change to `.../onepassword`.
 
-**[secrets]** `ModelSecretService.retrieve` hardcodes `encoding: "utf8"`, dropping the original serialization encoding — only `serialized.value` is encrypted/persisted; retrieve rebuilds `{encoding:"utf8", value}` unconditionally, so JSON/binary secrets come back as strings. | Evidence: ModelSecretService.ts:71, ModelSecretService.ts:82-94, ModelSecretService.ts:178-183 | Suggested fix: persist `encoding` on the `Secret` model and restore it on retrieve.
+**[secrets]** `ModelSecretService.retrieve` hardcodes `encoding: "utf8"`, dropping the original serialization encoding — only `serialized.value` is encrypted/persisted; retrieve rebuilds `{encoding:"utf8", value}` unconditionally, so JSON/binary secrets come back as strings. | Evidence: ModelSecretService.ts:71, ModelSecretService.ts:82-94, ModelSecretService.ts:178-183 | Suggested fix: persist `encoding` on the `Secret` model and restore it on retrieve. **RESOLVED (SAA-1104 Phase A):** the full `{encoding, value}` envelope is now encrypted/persisted and deserialized on retrieve (per-secret salt included); only the 1Password provider still loses encoding (§secrets-25).
 
 **[secrets]** docs say to pass config to the constructor, but no provider accepts constructor args — actual path is `new AwsSecretService()` + `await initialize(config)`. | Evidence: SKILL.md:48, SKILL.md:53-57, workdocs/services/secrets.md:72-77, aws-secrets-manager.test.ts:31-32 | Suggested fix: update docs.
 
 **[secrets]** workdocs use invalid `provider` value `"aws"` — `SecretProvider`/`AwsSecretServiceConfig` require `"aws-secrets-manager"`. | Evidence: workdocs/services/secrets.md:75, SecretTypes.ts:10, AwsSecretServiceConfig.ts:9 | Suggested fix: change to `"aws-secrets-manager"`.
 
-**[secrets]** `rotate(...)` is recommended but never implemented — the only `rotate` occurrence is the optional abstract at `SecretService.ts:61-65`; no provider implements it. | Evidence: SKILL.md:31, SKILL.md:69, SecretService.ts:61-65 | Suggested fix: implement for versioned backends or remove the recommendation.
+**[secrets]** `rotate(...)` is recommended but never implemented — the only `rotate` occurrence is the optional abstract at `SecretService.ts:61-65`; no provider implements it. | Evidence: SKILL.md:31, SKILL.md:69, SecretService.ts:61-65 | Suggested fix: implement for versioned backends or remove the recommendation. **PARTIALLY RESOLVED (SAA-1104 Phase A):** `FsSecretService.rotate` now re-stores under the same name with the new version; cloud providers and the model provider still do not implement it.
 
 **[secrets]** `@grpc/grpc-js` imported but not declared — `GcpSecretManagerService.ts:2,49` imports `@grpc/grpc-js`, which is absent from `package.json` deps (resolves only transitively). | Evidence: GcpSecretManagerService.ts:2, GcpSecretManagerService.ts:49 | Suggested fix: add to `optionalDependencies` or drop the direct import.
 
