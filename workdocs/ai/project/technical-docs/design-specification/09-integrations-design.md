@@ -107,7 +107,7 @@ expect(await store.has("k")).toBe(true);
 
 | Provider key | Class | Storage | Notes |
 |:-------------|:------|:--------|:------|
-| `model` | `ModelSecretService` | Decaf model row, encrypted at rest via `CryptoService` | Persists `{encryptedPayload, encryption:{keyId,iv,salt}}` plus `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns. |
+| `model` | `ModelSecretService` | Decaf model row, encrypted at rest via `CryptoService` | Persists `{encryptedPayload, encryption:{keyId,iv,salt}}` plus `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns; enforces `(name, version)` uniqueness (`SECRET_ALREADY_EXISTS`). |
 | `filesystem` | `FsSecretService` | Local filesystem: AES-encrypted `decaf.fs-secret.v1` JSON envelopes in a `0o700` root (`0o600` files, default `.decaf/secrets`) | Bootstrap sink for infrastructure credentials via `InfraCredentialBootstrap`; `list`/`metadata` intentionally unsupported (`SECRET_UNSUPPORTED_OPERATION`). |
 | `aws-secrets-manager` | `AwsSecretService` | AWS Secrets Manager | LocalStack-compatible via `endpoint`. |
 | `azure-key-vault` | `AzureKeyVaultSecretService` | Azure Key Vault | `exists` implemented. |
@@ -129,7 +129,7 @@ There is **no secret factory**; each provider is constructed directly. No provid
 
 ### 3.3 Secrets state, storage & access
 
-Secrets are never persisted in plaintext. The envelope is `SecretSerialization = {encoding, value}`; providers JSON-stringify the full envelope into a `SecretString` for storage. For the model provider, `serialized.value` is encrypted via `CryptoService` and the `Secret` row stores `{encryptedPayload, encryption:{keyId, iv, salt}}` — the per-secret salt is fed back into `deriveKeyFromSecret(keySecret, salt)` on retrieve, so master `keySecret` material can rotate without re-encrypting stored secrets. The model provider also stamps the row with `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns (taken from `StoreSecretOptions`) so the namespace RLS policies can scope it, and forwards decaf `Context` arguments to every repository call. The filesystem provider stores each secret as an isolated `decaf.fs-secret.v1` envelope `{name, provider, createdAt, updatedAt, contentType?, tags?, version?, encryption:{keyId, iv, salt}, payload}` written temp-file-then-rename with mode `0o600` under a `0o700` root directory (default `.decaf/secrets`). Access is gated by the provider's own auth (cloud IAM / Vault token / 1Password credentials) supplied via the provider config object — never via `process.env` reads inside the integrations code; the model and filesystem providers resolve their Environment slices (`secrets.model`, `secrets.fs`) through the decaf `SecretEnvironment` accumulator. Names are validated/normalized through `validateSecretName`/`normalizeSecretName`. `SecretReference` carries `{provider, name}`; `parseSecretReference` parses `secrets/<provider>/<name>` strings.
+Secrets are never persisted in plaintext. The envelope is `SecretSerialization = {encoding, value}`; providers JSON-stringify the full envelope into a `SecretString` for storage. For the model provider, `serialized.value` is encrypted via `CryptoService` and the `Secret` row stores `{encryptedPayload, encryption:{keyId, iv, salt}}` — the per-secret salt is fed back into `deriveKeyFromSecret(keySecret, salt)` on retrieve, so master `keySecret` material can rotate without re-encrypting stored secrets. The model provider also stamps the row with `tenantId`/`orgUnitId`/`ownerPrincipalId` namespacing columns (taken from `StoreSecretOptions`) so the namespace RLS policies can scope it, and forwards decaf `Context` arguments to every repository call. The filesystem provider stores each secret as an isolated `decaf.fs-secret.v1` envelope `{name, provider, createdAt, updatedAt, contentType?, tags?, version?, encryption:{keyId, iv, salt}, payload}` written temp-file-then-rename with mode `0o600` under a `0o700` root directory (default `.decaf/secrets`). Access is gated by the provider's own auth (cloud IAM / Vault token / 1Password credentials) supplied via the provider config object — never via `process.env` reads inside the integrations code; the model and filesystem providers resolve their Environment slices (`secrets.model`, `secrets.fs`) through the decaf `SecretEnvironment` accumulator. Names are validated/normalized through `validateSecretName`/`normalizeSecretName`. `SecretReference` carries `{provider, name}`; `parseSecretReference` parses `secrets/<provider>/<name>` strings. Model-backed rows additionally enforce **`(name, version)` uniqueness** (SAA-1132): `store`/`rotate` pre-check the combination and reject a duplicate with a `SecretError("SECRET_ALREADY_EXISTS")` before writing (`rotate` excludes the row being updated), the unique `uq_secrets_name_version (name, coalesce(version, ''))` database index backstops the same rule against concurrent writers — versions are optional, so `NULL` versions collapse to `''` and exactly one default (unversioned) row per name is enforced alongside explicitly versioned rows — and `sql/004_credentials.sql` fails closed on legacy duplicate `(name, version)` rows before that index can be created. Name-based operations (`retrieve`/`delete`/`metadata`/`rotate`) order matches by `updatedAt DESC`, so when several rows share a name (or a name/version pair) the most recently updated row resolves deterministically.
 
 ### 3.4 Functional requirements
 
@@ -141,6 +141,7 @@ Secrets are never persisted in plaintext. The envelope is `SecretSerialization =
 - **FR-S6:** The filesystem provider (`FsSecretService`) requires a master `keySecret` (boot fails with a `ValidationError` when neither the `secrets.fs` Environment slice nor the explicit config supplies one), derives per-secret keys via `CryptoService.deriveKeyFromSecret(keySecret, salt)`, and refuses to expose `list`/`metadata` with a `SECRET_UNSUPPORTED_OPERATION` `SecretError` — infrastructure credentials are never enumerable.
 - **FR-S7:** `InfraCredentialBootstrap.ensure(seeds)` is idempotent: it stores only seeds that do not exist yet (or that carry `overwrite: true`) and returns their `SecretReference`s; `createInfraCredentialBootstrap()` boots a default `FsSecretService` and wraps it.
 - **FR-S8:** `ModelSecretService` persists `tenantId`/`orgUnitId`/`ownerPrincipalId` from `StoreSecretOptions` onto the `Secret` row and forwards decaf `Context` arguments to every repository call (`create`/`select`/`count`/`update`/`delete`).
+- **FR-S9:** Model-backed `(name, version)` uniqueness (SAA-1132): `store` and `rotate` reject a combination already held by another row with a `SecretError("SECRET_ALREADY_EXISTS")` before writing (`rotate` excludes the row being updated); the `uq_secrets_name_version` unique index in `sql/004_credentials.sql` treats `NULL` versions as `''`, and a fail-closed `DO` guard aborts the script while legacy duplicate `(name, version)` rows exist. Name-based `retrieve`/`delete`/`metadata`/`rotate` resolve multiple matches deterministically by `updatedAt DESC`.
 
 ### 3.6 Secret resolution sequence (AWS)
 
@@ -219,7 +220,7 @@ The `Credential` model (`@table("credentials")`, extends `AuthorizationModel`) i
 - `rotateCredential` delegates to the store's `rotate` when available, otherwise re-stores under the same secret name with a version; `getCredential`/`listCredentials`/`markCredentialUsed`/`deleteCredential` cover the remaining CRUD (delete removes the row first, then force-deletes the secret).
 - There is deliberately **no `resolveCredentialSecret`-style retrieval API** on the credentials surface: secret values are resolved through the RLS-restricted, context-bound `ModelSecretService` path (the as-graph node migration consumes this in Phase B).
 
-`sql/004_credentials.sql` provisions the namespacing columns and indexes: `secrets.tenant_id/org_unit_id/owner_principal_id`, a unique `credentials (tenant_id, org_unit_id, lower(name))` index, and owner/secret-name/tenant lookup indexes.
+`sql/004_credentials.sql` provisions the namespacing columns and indexes: `secrets.tenant_id/org_unit_id/owner_principal_id`, a unique `credentials (tenant_id, org_unit_id, lower(name))` index, and owner/secret-name/tenant lookup indexes. It also replaces the former non-unique `ix_secrets_name` with the unique `uq_secrets_name_version (name, coalesce(version, ''))` index (SAA-1132), and a fail-closed `DO` guard aborts the script with an exception while duplicate `(name, version)` rows remain.
 
 ```mermaid
 sequenceDiagram
@@ -404,6 +405,7 @@ sequenceDiagram
 - **FR-N5:** Multi-write services are `@transactional`.
 - **FR-N6:** The namespace RLS template is generated from `src/namespaces/rls/rls.template.ts` into `sql/002_rls.sql` (24 `SECURITY DEFINER` helper functions, 88 `CREATE POLICY` statements, ENABLE/FORCE RLS on 22 tables) and is applied idempotently via `RlsBootstrapService.apply()` through any `RlsQueryExecutor` (`pg.Client`/`pg.Pool`-shaped, no runtime `pg` import).
 - **FR-N7:** Session binding helpers validate principal/tenant UUIDs before binding: `setPrincipal`/`setTenant`/`clearPrincipal` use `set_config(..., is_local)` (transaction-local by default), `currentPrincipal` reads `app_rls_principal_id()`, and `runAsPrincipal(executor, principalId, run, {commit?})` wraps a callback in a transaction with the principal bound — rolling back by default so integration-test mutations stay isolated.
+- **FR-N8:** `RlsBootstrapService.apply()` fails closed before any DDL (SAA-1132): `assertFunctionOwnerPrivileges()` reads the connected role's `rolsuper`/`rolbypassrls` flags from `pg_roles` and requires `SUPERUSER` or `BYPASSRLS`; otherwise — or when the privileges cannot be determined — it throws `RlsFunctionOwnerError` (extends `InternalError`), because a `SECURITY DEFINER` helper-function owner that does not bypass RLS would make every policy evaluation recurse under `FORCE ROW LEVEL SECURITY`.
 
 ### 7.3 Effective-permission rebuild sequence
 
@@ -441,7 +443,7 @@ sequenceDiagram
 
 ### 7.5 Provisioning prerequisites
 
-Provision the Postgres schema plus `sql/001_constraints.sql`, `sql/002_rls.sql` (RLS), and `sql/003_indexes.sql`; set `app.principal_id` for RLS-scoped reads. `sql/003_indexes.sql` is currently an empty placeholder (handbook §namespaces-47). `AuthzService` must be fed by repository-backed data sources, never fixtures.
+Provision the Postgres schema plus `sql/001_constraints.sql`, `sql/004_credentials.sql` (credential/secret namespacing columns + indexes; its fail-closed guard aborts while legacy duplicate `(name, version)` secret rows exist, see [§3.11](#311-namespaced-credentials-credential-model--credentialservice)), `sql/002_rls.sql` (RLS — apply it through a `SUPERUSER` or `BYPASSRLS` executor role, see [§7.7](#77-namespace-rls-template-and-bootstrap)), and `sql/003_indexes.sql`; set `app.principal_id` for RLS-scoped reads. `sql/003_indexes.sql` is currently an empty placeholder (handbook §namespaces-47). `AuthzService` must be fed by repository-backed data sources, never fixtures.
 
 ### 7.6 Usage example
 
@@ -470,8 +472,8 @@ Session settings are `RLS_SETTINGS`: `app.principal_id` (the acting principal; r
 
 Consumer contract:
 
-- Provision the namespace schema (`sql/001_constraints.sql`), then `sql/004_credentials.sql` (namespacing columns + indexes), then apply `sql/002_rls.sql` — via `RlsBootstrapService.apply()` or a migration runner — before request-scoped traffic reaches the database.
-- `RlsBootstrapService` is a `ClientBasedService` booted with a query executor (`pg.Client`, `pg.Pool`, or a compatible wrapper — the executor contract is structural, so `pg` stays an optional peer dependency): `boot(executor[, config])`, `apply()` → `{applied}`, `setPrincipal(id, {local?})`, `setTenant(id, {local?})`, `clearPrincipal({local?})`, `currentPrincipal()`.
+- Provision the namespace schema (`sql/001_constraints.sql`), then `sql/004_credentials.sql` (namespacing columns + indexes; its fail-closed `DO` guard aborts the script while legacy duplicate `(name, version)` secret rows exist), then apply `sql/002_rls.sql` — via `RlsBootstrapService.apply()` or a migration runner — before request-scoped traffic reaches the database.
+- `RlsBootstrapService` is a `ClientBasedService` booted with a query executor (`pg.Client`, `pg.Pool`, or a compatible wrapper — the executor contract is structural, so `pg` stays an optional peer dependency): `boot(executor[, config])`, `apply()` → `{applied}`, `setPrincipal(id, {local?})`, `setTenant(id, {local?})`, `clearPrincipal({local?})`, `currentPrincipal()`, plus `assertFunctionOwnerPrivileges()` — called automatically by `apply()` before any DDL, it verifies through `pg_roles` that the connected role is `SUPERUSER` or `BYPASSRLS` and throws `RlsFunctionOwnerError` otherwise (or when the privileges cannot be determined), so connect the bootstrap executor as the database-owner/BYPASSRLS migration role.
 - `runAsPrincipal(executor, principalId, run, {commit?})` binds the principal inside a transaction and rolls back by default (IT isolation); pass `{commit: true}` for real writes. The executor must be a single connection (`pg.Client`), not a pool, because the transaction and the session setting are connection-scoped.
 
 ```mermaid
@@ -483,9 +485,15 @@ sequenceDiagram
     App->>Rbs: boot(executor)
     activate Rbs
     App->>Rbs: apply()
-    Rbs->>PG: CREATE OR REPLACE FUNCTION ... (24 helpers)
-    Rbs->>PG: CREATE POLICY ... (88 policies, 22 tables)
-    Rbs-->>App: { applied: <statements> }
+    Rbs->>PG: SELECT rolsuper/rolbypassrls FROM pg_roles (current_user)
+    PG-->>Rbs: role flags
+    alt SUPERUSER or BYPASSRLS
+        Rbs->>PG: CREATE OR REPLACE FUNCTION ... (24 helpers)
+        Rbs->>PG: CREATE POLICY ... (88 policies, 22 tables)
+        Rbs-->>App: { applied: <statements> }
+    else neither (or undeterminable)
+        Rbs-->>App: RlsFunctionOwnerError (fail closed, no DDL sent)
+    end
     App->>Rbs: setPrincipal(principalId)
     Rbs->>PG: SELECT set_config('app.principal_id', id, true)
     App->>Rbs: runAsPrincipal(executor, id, cb)
