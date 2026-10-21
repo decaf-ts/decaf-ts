@@ -631,6 +631,26 @@ CRUD inside `@transactional()` shares one transaction.
 so core's `maxConcurrentTransactions` semaphore is bypassed (documented in the
 README).
 
+Session binding (generic, RLS-agnostic): `TypeORMAdapter` accepts a config-only
+`sessionBinding` resolver — `TypeORMAdapterOptions = DataSourceOptions & {
+sessionBinding?: TypeORMContextSessionBinding }`, with the `sessionBinding` key
+destructured out before the remaining options reach the `DataSource` (no
+subclassing or method overrides; TypeORM never sees the key). The adapter has
+**no** namespace/RLS/principal knowledge: `sessionSettingsForContext(context?)`
+returns whatever the host's binding resolves — a primitive-valued
+`TypeORMSessionSettings` map normalized to strings (strings trimmed with empties
+dropped, numbers/booleans stringified, empty names skipped) — or `undefined`
+when no binding is configured, the binding returns nothing, every entry is
+dropped, or the binding throws (swallowed with a warning). Postgres-only,
+`TypeORMContextLock.begin(context?)` issues one parameterized
+`SELECT set_config($1, $2, true)` per resolved setting right after
+`startTransaction()`: transaction-local, so Postgres discards each value at
+commit/rollback and it never bleeds into pooled connections. No binding config
+or nothing resolving means zero extra statements and an unbound session —
+deny-by-default belongs to the host's binding (e.g. the integrations/namespaces
+RLS binding, which fails closed without a resolvable principal), never to the
+adapter.
+
 ### 6.4 Adapter-specific extensions to Statement / Paginator / Sequence
 
 `TypeORMStatement<M, R>.build()` produces a TypeORM `SelectQueryBuilder`. It
@@ -696,13 +716,28 @@ Transaction flow (nested `@transactional()`):
 
 ```mermaid
 sequenceDiagram
+  autonumber
   participant App
   participant TL as TypeORMContextLock
+  participant Adapt as TypeORMAdapter
   participant QR as QueryRunner
   participant DB as Postgres
 
-  App->>TL: begin (nested @transactional)
+  App->>TL: begin (nested @transactional, with ctx)
+  activate TL
   TL->>QR: ensure initialised, connect, startTransaction
+  activate QR
+  alt Postgres driver
+    TL->>Adapt: sessionSettingsForContext(ctx)
+    activate Adapt
+    Adapt-->>TL: settings | undefined
+    deactivate Adapt
+    opt settings resolved (undefined ⇒ nothing bound, RLS denies)
+      TL->>QR: SELECT set_config($1, $2, true) — one per setting
+    end
+  else non-Postgres driver
+    TL->>TL: session binding skipped (zero statements)
+  end
   loop nested CRUD
     App->>QR: getRepository from lock.manager()
     QR->>DB: SELECT/INSERT/UPDATE (same tx)
@@ -712,6 +747,8 @@ sequenceDiagram
   else throw
     TL->>QR: rollbackTransaction + release
   end
+  deactivate QR
+  deactivate TL
 ```
 
 Error translation (`parseError`) maps Postgres SQLSTATE: `23505`/`23503`/

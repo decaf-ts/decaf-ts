@@ -1049,7 +1049,24 @@ returns either a string or a JSON record. Secret values never enter workflow
 documents or persisted results. Missing resolver services fail closed with
 `GRAPH_CREDENTIAL_SERVICE_UNAVAILABLE`; unsupported providers fail with
 `GRAPH_CREDENTIAL_PROVIDER_UNSUPPORTED`. The former `GRAPH_CREDENTIAL_*`
-environment lookup is not part of the node credential contract.
+environment lookup is not part of the node credential contract. The execution
+context must carry the RLS principal for credential-bearing nodes: the Phase A
+credential/secret services now resolve inside principal-bound transactions
+(`CredentialService`'s explicit `withinTransaction` boundary,
+`ModelSecretService.withinPrincipalTransaction`), and on TypeORM-backed
+repositories the adapter never binds a principal by itself: the execution
+context must carry the resolved principal, and the TypeORM host wires
+`namespaceRlsTypeORMOptions()` (from `@decaf-ts/integrations/namespaces`) into
+the adapter config so the namespaced session binding maps the context's
+`principalId` to `app.principal_id` transaction-locally — without that wiring,
+or with an execution context lacking a resolvable principal, nothing is bound
+and RLS denies the protected credential
+reads (see [01-persistence-design §6](./01-persistence-design.md) and
+[09-integrations-design §7.7](./09-integrations-design.md)).
+Subject→principal resolution is an auth-priming concern on the privileged
+connection (`resolvePrincipalForSubject` via the integrations RLS helper
+`app_rls_principal_for_subject`); the execution context carries the resulting
+`principalId`.
 Database kinds use `@decaf-ts/for-typeorm` raw queries over `pg`, `mysql2`, or
 `mssql` (an omitted `parameters` array falls back to an array `value` input);
 blob kinds use the `@decaf-ts/integrations/blob` provider services, and `list`
