@@ -57,7 +57,22 @@
    ]
   },
   {
+   "path": "docaf",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
    "path": "for-couchdb",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-drizzle",
+   "classification": "non-ui",
+   "allowedVariants": []
+  },
+  {
+   "path": "for-express",
    "classification": "non-ui",
    "allowedVariants": []
   },
@@ -117,13 +132,6 @@
    "allowedVariants": []
   },
   {
-   "path": "mcp-server",
-   "classification": "non-ui",
-   "allowedVariants": [
-    "tickets-description"
-   ]
-  },
-  {
    "path": "transactional-decorators",
    "classification": "non-ui",
    "allowedVariants": []
@@ -137,6 +145,13 @@
    "path": "utils",
    "classification": "non-ui",
    "allowedVariants": []
+  },
+  {
+   "path": "weaver",
+   "classification": "non-ui",
+   "allowedVariants": [
+    "bundling"
+   ]
   },
   {
    "path": "with-ai",
@@ -153,16 +168,6 @@
   },
   {
    "path": "for-angular",
-   "classification": "ui",
-   "allowedVariants": []
-  },
-  {
-   "path": "for-nextjs",
-   "classification": "ui",
-   "allowedVariants": []
-  },
-  {
-   "path": "for-react",
    "classification": "ui",
    "allowedVariants": []
   },
