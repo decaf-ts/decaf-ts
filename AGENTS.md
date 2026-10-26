@@ -26,6 +26,18 @@ If you receive a request involving any of the following keywords or commands:
 
 3.  **FOLLOW** the protocols and command definitions found there.
 
+## Governance
+
+**Baseline test failures are owned and fixed, not carried** (CTO-approved
+governance decision, 2026-10-25). Any engineering or QA run in this workspace
+that encounters a pre-existing test failure must (a) document it with
+reproduction evidence in its own run/issue, and (b) ensure a tree-wide owner
+ticket exists for it (create one or cite the existing one). "Documented
+baseline" carve-outs in QA batteries are valid only while referencing an open
+owner ticket; once that ticket lands its fix, the carve-out must be deleted.
+Carrying unowned baseline failures across deliveries is a defect in the
+delivery process, not an accepted state.
+
 ## Paperclip Agents (with-ai)
 
 Any creation or update of an agent under `with-ai/agents/` is governed by
