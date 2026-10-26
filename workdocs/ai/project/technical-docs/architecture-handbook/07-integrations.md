@@ -2,7 +2,7 @@
 
 This chapter documents the `@decaf-ts/integrations` package: the cross-cutting "glue" layer that sits above the core persistence/transport packages and below application code. It provides provider-agnostic abstractions for binary blobs and secrets, provisioning helpers for Keycloak and Kibana, a NestJS-friendly auth handler, an org-based multi-tenant authorization scaffold, declarative feature flags, a dynamic object loader, BI dashboard embed plugins, and Docker compose orchestration. The graph execution engine and its NestJS backend are **no longer part of this package**: since the graph legacy cutover (SAA-503) the backend/metadata graph layer lives solely in the standalone `@decaf-ts/as-graph` package — a standalone server entry (`bin.as-graph-server` → `lib/cjs/nest/graph/main.cjs`) plus the `./shared` contract subpath (see the [Design Specification — Graph Design](../design-specification/08-graph-design.md)).
 
-The package is pre-1.0 (`0.7.0`). Several subsystems contain stubs and divergent error models; those are noted where relevant and consolidated in the inaccuracies list at the end of this document. This chapter records what the package *is*, not what prior doc versions claimed.
+The package is pre-1.0 (`0.14.0`). Several subsystems contain stubs and divergent error models; those are noted where relevant and consolidated in the inaccuracies list at the end of this document. This chapter records what the package *is*, not what prior doc versions claimed.
 
 > **Scope note:** This chapter is grounded in the read-only research brief `workdocs/ai/project/technical-docs/_research-briefs/08-integrations.md`. The brief's own "Inaccuracies found" entries are reproduced verbatim in the final section. Nothing in the package was modified.
 
@@ -14,7 +14,7 @@ The package is pre-1.0 (`0.7.0`). Several subsystems contain stubs and divergent
 
 - **Package:** `@decaf-ts/integrations`, ESM (`"type": "module"`), `main = lib/index.js`.
 - **Description field:** absent from `package.json`; the root barrel self-describes the package as "Package entry point for shared integration helpers" (`src/index.ts:4`).
-- **Subpath exports (selected):** `.` (utils/namespaces/feature-flags), `./kibana`, `./docker`, `./keycloak`, `./nest`, `./loader`, `./namespaces`, `./feature-flags`, `./user-requests`, `./secrets` (+ per-provider secret subpaths), `./blob` (+ per-provider blob subpaths), `./plugins`, `./plugins/kibana`, `./plugins/superset` (`package.json`). The former `./graph`, `./graph/shared`, and `./nest/graph` subpaths were removed with the graph legacy cutover (SAA-503); the graph backend entry is now `@decaf-ts/as-graph` (`bin.as-graph-server`), and graph contracts are imported from `@decaf-ts/as-graph/shared`.
+- **Subpath exports (selected):** `.` (utils/namespaces/feature-flags), `./kibana`, `./docker`, `./keycloak`, `./nest`, `./loader`, `./namespaces`, `./feature-flags`, `./user-requests`, `./secrets` (+ per-provider secret subpaths), `./blob` (+ per-provider blob subpaths), `./comms` (+ per-provider `./comms/{email,gmail,slack,teams,telegram,discord,whatsapp,outlook}`), `./io` (+ per-provider `./io/{airtable,google-sheets,graphql,spreadsheet,confluence,jira,google-docs,microsoft-excel,microsoft-sharepoint}`), `./devops` (+ `./devops/{github,gitlab}`), `./calendar` (+ `./calendar/google-calendar`), `./sftp`, `./redis`, `./shared/http`, `./plugins`, `./plugins/kibana`, `./plugins/superset` (`package.json`). The former `./graph`, `./graph/shared`, and `./nest/graph` subpaths were removed with the graph legacy cutover (SAA-503); the graph backend entry is now `@decaf-ts/as-graph` (`bin.as-graph-server`), and graph contracts are imported from `@decaf-ts/as-graph/shared`.
 
 The root `src/index.ts` re-exports only `./utils`, `./namespaces`, and `./feature-flags`, plus build-time version placeholders (`VERSION`/`COMMIT`/`FULL_VERSION`/`PACKAGE_NAME`) (`src/index.ts:6-16`). All other subsystems are reachable only through their explicit subpaths.
 
@@ -603,7 +603,7 @@ Test layout mirrors `src/`: `tests/unit/<subsystem>/`, `tests/integration/`, `te
 - Graph execution is not an integrations surface anymore: import contracts from `@decaf-ts/as-graph/shared` and boot the backend via `@decaf-ts/as-graph` `bin.as-graph-server` (see §11).
 - Keycloak/Kibana services require `initialize(config)` and an `isProduction()`-aware TLS setting; supply `isProduction: () => false` in tests (the config type omits this field — inaccuracies §keycloak-30, §kibana-36).
 - BI plugins are org-agnostic; Superset is pinned to 6.1.x via a hard-named patch script. `boot:plugins:*` only materializes files; the real build happens inside `docker compose build`.
-- Maturity: package is `0.7.0` (pre-1.0); several subsystems have stubs (IPFS postgres/local-json indexes, Superset manifest "stub" wording) and divergent error models (cloud secret providers throw Decaf errors while 1Password/model throw `SecretError` — inaccuracy §secrets-26).
+- Maturity: package is `0.14.0` (pre-1.0); several subsystems have stubs (IPFS postgres/local-json indexes, Superset manifest "stub" wording) and divergent error models (cloud secret providers throw Decaf errors while 1Password/model throw `SecretError` — inaccuracy §secrets-26).
 
 ---
 

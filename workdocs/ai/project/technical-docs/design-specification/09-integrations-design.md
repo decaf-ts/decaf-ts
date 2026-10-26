@@ -1,10 +1,10 @@
 # 09 — Integrations Design
 
-**Scope:** the `@decaf-ts/integrations` package — provider-agnostic blob store, model-backed + cloud secrets, Keycloak provisioning + auth, Kibana provisioning, feature flags, namespaces authorization scaffold, dynamic object loader, BI dashboard embed plugins, Docker compose orchestration, namespaced credential management over encrypted-at-rest model secrets, a filesystem-backed infrastructure-credential secret store, the namespace RLS bootstrap, non-Environment node service variants, and the nodemailer-backed SMTP client.
+**Scope:** the `@decaf-ts/integrations` package — provider-agnostic blob store, model-backed + cloud secrets, Keycloak provisioning + auth, Kibana provisioning, feature flags, namespaces authorization scaffold, dynamic object loader, BI dashboard embed plugins, Docker compose orchestration, namespaced credential management over encrypted-at-rest model secrets, a filesystem-backed infrastructure-credential secret store, the namespace RLS bootstrap, non-Environment node service variants, the nodemailer-backed SMTP client, and the SaaS vendor client services over `HttpApiService` (`./comms/{discord,whatsapp,outlook}`, `./io/{confluence,jira,google-docs,microsoft-excel,microsoft-sharepoint}`, `./calendar/google-calendar`, booted hermetically via `./shared/http`'s `bootWithoutEnvironment` — the service layer the Stage 5c `@decaf-ts/as-graph` vendor nodes are built on).
 
 The architecture is detailed in the [Architecture Handbook](../architecture-handbook/07-integrations.md).
 
-> This design is grounded in the read-only research brief `workdocs/ai/project/technical-docs/_research-briefs/08-integrations.md`. Where the brief is thin on a subsystem, this document says so explicitly rather than fabricating. The package is pre-1.0 (`0.7.0`); several subsystems carry stubs and divergent error models (consolidated in the handbook's inaccuracies section).
+> This design is grounded in the read-only research brief `workdocs/ai/project/technical-docs/_research-briefs/08-integrations.md`. Where the brief is thin on a subsystem, this document says so explicitly rather than fabricating. The package is pre-1.0 (`0.14.0`); several subsystems carry stubs and divergent error models (consolidated in the handbook's inaccuracies section).
 
 ---
 

@@ -32,19 +32,36 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 | `nest` subpath | `@decaf-ts/as-graph/nest` (`src/nest/graph/`) | `GraphExecutionModule.forRoot`, catalogue/workflow/run controllers, `GraphExecutorRegistryFactory`. |
 | `mastra` subpath | `@decaf-ts/as-graph/mastra` (`src/mastra/`) | Mastra execution backend: `MastraGraphExecutionBackend`, the workflow compiler, condition/event bridges, resume guard, and the `MASTRA_FEATURE_CAPABILITIES` capability table — plus the SAA-836 S1 backend contract: `MastraModelSchemaConverter` (`mastraSchemaFromModel`/`mastraModelFromSchema`, the single decaf↔mastra schema conversion path over `@decaf-ts/as-zod`), `MastraStructuredOutput` (the JSON-safe structured-output definition/resolution contract), and `MastraEnvironment` (the `MASTRA__*` engine environment with the credential fail-closed gate, §16). |
 | `mastra/nodes` subpath | `@decaf-ts/as-graph/mastra/nodes` (`src/mastra/nodes/`) | Mastra-only node-kind registry (SAA-1141): the authoritative list of `core.agent[.*]` kinds, their declaration classes, and the step-handler factory for each. `createMastraNodeStepHandlers` filters host options to mastra-only kinds; `auditMastraNodeCoverage` / `assertMastraNodeCoverage` prove zero missing implementations. |
+| `dagster` subpath | `@decaf-ts/as-graph/dagster` (`src/dagster/`) | Read-only Dagster GraphQL client, event bridge, result mapper, capabilities, types and execution backend; no Python runtime dependency is bundled. |
 | `typeorm` subpath | `@decaf-ts/as-graph/typeorm` (`src/typeorm/`) | Durable production persistence (SAA-926 §6.4, §10.4): `createTypeormGraphAdapter({ dataSource })` builds and initializes a `@decaf-ts/for-typeorm` Postgres adapter for the as-graph decaf tables plus the mastra-layer decaf models, flavoured for the durable lane; postgres-only, `synchronize: false`, bootstrap-owned DDL, `jsonb`-pinned structured columns. |
 | Engine | `src/engine/` | `auth`, `catalog`, `errors`, `events`, `execution`, `loops`, `pinning`, `planning`, `registry`, `runs`, `snapshots`, `store`, `validation`, services. |
 | Node declarations | `src/node/` | `@node`-decorated built-in node classes per category (`triggers/`, `flow/`, `data/`, `io/`, `storage/`, `devops/`, `comms/`, `utility/`, `agents/`, `boundary/`), `base.ts`, `manifests.ts` (structural overlays). |
 | Locale assets | `assets/i18n/en.json` | Repo-root `assets/`; shipped via `package.json` `files`. |
 | Executor pairing | `src/engine/catalog/GraphBuiltInRegistrations.ts` | `registerBuiltInGraphNodes(catalogue)` pairs every built-in kind's compiled manifest with the executor derived from the node class (`executorOf` → `instantiate(graphNodeConfig(context.node))`). |
 
+Adapter entrypoints remain isolated: Mastra implementation imports are exposed
+only from `./mastra` and `./mastra/nodes`, and Dagster implementation imports
+only from `./dagster`. Runtime packages are recorded as development dependencies
+for this repository and optional peer dependencies for consumers; each host
+installs only the adapters and drivers it uses. `peerDependenciesMeta` marks
+all peer packages optional, and no runtime package is an auto-installed
+`dependencies` or `optionalDependencies` entry. Redis `^6.3.0` and the
+provider SDKs used by the built-in blob adapters (AWS S3, Azure Blob, and Google
+Cloud Storage) are development dependencies and optional peers. TypeORM's
+unused Redis peer is scoped to Redis `^6.3.0` by the repository override, so
+npm can resolve the test tree without disabling peer checks. The repository
+lockfile also pins `multer` to `^2.5.0` and `@azure/msal-node` to `^7.1.1`.
+
 Node kinds shipped (one `@node` class each, `src/node/**`): triggers
-`core.trigger.manual|webhook|schedule|event|form|chat|executeWorkflow`, flow
+`core.trigger.manual|webhook|schedule|event|form|chat|executeWorkflow|error|workflow|rabbitmq|redis|sse|postgres`, flow
 `core.flow.if|switch|delay|log|errorBoundary|humanApproval|break|executeSubWorkflow`,
 loops `core.loop.foreach|while|until`,
-data `core.data.set|merge|filter|splitOut|dateTime|dataTable|limit|sort|renameKeys`,
-io `core.io.httpRequest|respondToWebhook|extractFromFile|readPDF|readWriteFile`,
-utility `core.utility.map|code|utility-log`, boundary
+data `core.data.set|merge|filter|splitOut|dateTime|dataTable|limit|sort|renameKeys|aggregate|itemLists|compareDatasets|summarize|removeDuplicates`,
+io `core.io.httpRequest|respondToWebhook|extractFromFile|readPDF|readWriteFile|googleSheets|airtable|spreadsheetFile|graphql|convertToFile|html|htmlExtract|markdown|xml|readBinaryFile|readBinaryFiles|writeBinaryFile|microsoftExcel|confluence|jira|googleDocs|microsoftSharePoint|googleCalendar`,
+storage `core.storage.postgres|mySql|microsoftSql|redis|rabbitmq|s3|awsS3|googleCloudStorage|azureStorage`,
+comms `core.comms.slack|telegram|teams|gmail|emailSend|discord|whatsApp|microsoftOutlook`,
+devops `core.devops.crypto|jwt|executeCommand|ftp|github|gitlab`,
+utility `core.utility.map|code|log`, boundary
 `graph-input-value-node|graph-output-value-node`, and the mastra agent family
 (`src/node/agents/**`, category `Agent`): the agent node `core.agent` plus its
 `core.agent.*` family kinds — tools `core.agent.tool|toolSelector`, hooks
@@ -371,7 +388,7 @@ itself"):
 }
 ```
 
-Rules (all enforced on the working tree — 147 referenced `graph.node.*` keys,
+Rules (all enforced on the working tree — 1040 referenced `graph.node.*` keys,
 0 missing):
 
 1. **`ports: { <category>: { … } }`** — port wrapper locale keys are
@@ -1012,14 +1029,14 @@ references a missing parameter; credential requirements are malformed; the
 executor is absent; a port/parameter id is a prototype-pollution key.
 
 **Built-in registrations** (`GraphBuiltInRegistrations.ts`) pair every shipped
-kind: `core.trigger.manual|webhook|schedule|event|form|chat|executeWorkflow`,
+kind: `core.trigger.manual|webhook|schedule|event|form|chat|executeWorkflow|error|workflow|rabbitmq|redis|sse|postgres`,
 `core.flow.if|switch|delay|log|errorBoundary|humanApproval|break|executeSubWorkflow`,
 `core.loop.foreach|while|until`,
-`core.data.set|merge|filter|splitOut|dateTime|dataTable|limit|sort|renameKeys`,
-`core.io.httpRequest|respondToWebhook|extractFromFile|readPDF|readWriteFile|googleSheets|airtable|spreadsheetFile|graphql`,
-`core.storage.postgres|mySql|microsoftSql|redis|s3|awsS3|googleCloudStorage|azureStorage`,
+`core.data.set|merge|filter|splitOut|dateTime|dataTable|limit|sort|renameKeys|aggregate|itemLists|compareDatasets|summarize|removeDuplicates`,
+`core.io.httpRequest|respondToWebhook|extractFromFile|readPDF|readWriteFile|googleSheets|airtable|spreadsheetFile|graphql|convertToFile|html|htmlExtract|markdown|xml|readBinaryFile|readBinaryFiles|writeBinaryFile|microsoftExcel|confluence|jira|googleDocs|microsoftSharePoint|googleCalendar`,
+`core.storage.postgres|mySql|microsoftSql|redis|rabbitmq|s3|awsS3|googleCloudStorage|azureStorage`,
 `core.devops.crypto|jwt|executeCommand|ftp|github|gitlab`,
-`core.comms.slack|telegram|teams|gmail|emailSend`,
+`core.comms.slack|telegram|teams|gmail|emailSend|discord|whatsApp|microsoftOutlook`,
 `core.utility.code|map|log`, `graph-input-value-node|graph-output-value-node`,
 and `core.agent` plus its `core.agent.*` family kinds (R11).
 `GraphNodeManifestResolver` resolves per-instance effective manifests (dynamic
@@ -1037,6 +1054,104 @@ runs. `core.io.respondToWebhook` correlates its response through
 `core.flow.executeSubWorkflow` executes a saved (`workflowId`) or inline child
 document through `GraphExecutionEngine.execute`, propagating `parentRunId`, and
 emits the child result boundary.
+
+**Stage 5 families.** The Stage 5 additions (SAA-750) extend the general
+engine with three families.
+
+*Data/utility transforms (5a).* `core.data.aggregate` combines a field of many
+items into a list in a single item (`aggregateIndividualFields` vs
+`aggregateAllItemData`, with `allFields|specifiedFields|allFieldsExcept`
+inclusion), `core.data.itemLists` carries the six list operations
+(`concatenateItems|limit|removeDuplicates|sort|splitOutItems|summarize`) in
+one node, `core.data.compareDatasets` diffs two dataset inputs over field
+pairs with `allFields|allFieldsExcept|selectedFields` comparison and
+`preferInput1|preferInput2|mix|includeBoth` resolution,
+`core.data.summarize` applies the aggregate functions
+(`append|average|concatenate|count|countUnique|max|min|sum`) grouped by
+`fieldsToSplitBy` (separate items or one item), and
+`core.data.removeDuplicates` dedupes over all/excluding/selected fields and
+emits the discarded items alongside the result. They share the
+array-in/array-out helpers in `src/node/data/transform-utils.ts` (field
+preparation, loose equality, dedupe, sort, split, summarize). The IO
+transforms `core.io.convertToFile` (`csv|html|iCal|ods|rtf|xls|xlsx|toJson|toText|toBinary`),
+`core.io.html` (`generateHtmlTemplate|extractHtmlContent|convertToHtmlTable`
+over a JSON or binary source), `core.io.htmlExtract` (CSS-selector value
+extraction from an HTML document), `core.io.markdown`
+(`markdownToHtml|htmlToMarkdown` over `marked`/`turndown`), and
+`core.io.xml` (`jsonToXml|xmlToJson` over `xml2js`, with an optional dotted
+`destinationField` wrapper for the converted value; the `xmlToJson` direction
+is entity-guarded and size-capped, §10.5) operate on the item
+arrays like the data family; `core.io.readBinaryFile`,
+`core.io.readBinaryFiles` (glob), and `core.io.writeBinaryFile` move
+`BinaryFilePayload` values (base64 data + mime type, `utf8|base64|auto`
+decoding). The file nodes share `src/node/io/file-support.ts` — the same
+`GRAPH_FILE_IO_BASE` containment (§10.5) and `GRAPH_FILE_PATH_FORBIDDEN`
+fail-closed traversal/forbidden-directory rules as `core.io.readWriteFile`;
+`src/node/io/html-support.ts` holds the shared HTML table/extract/template
+helpers.
+
+*Eventing triggers + producer pairing (5b).* `core.trigger.rabbitmq`,
+`core.trigger.redis`, `core.trigger.sse`, and `core.trigger.postgres` are
+stream triggers: the run service starts the run, the trigger subscribes
+(RabbitMQ queue consume over `amqplib` with an optional durable
+queue/exchange-routing-key binding, Redis pub/sub channel patterns through
+the Stage 3a `@decaf-ts/integrations/redis` adapter with the same prefix
+scoping as `core.storage.redis`, an SSE endpoint through the `eventsource`
+client with URL-embedded Basic auth moved to an `Authorization` header, a
+Postgres `LISTEN` channel over `pg` with the same TLS policy as
+`core.storage.postgres`), and the run continues once the first event
+arrives. The shared wait contract (`src/node/triggers/support.ts`) bounds
+the wait by the node's `timeoutMs` (default 30 s), follows the run's abort
+signal (`GRAPH_TRIGGER_ABORTED` on cancellation, the kind's timeout code on
+budget exhaustion), cleans up the subscription on every exit path, and
+projects the payload (JSON-parsed on request, raw string otherwise). One
+message per run is consumed and acknowledged immediately — the run-based
+trigger contract. `core.trigger.error` is the payloadless entrypoint of an
+error workflow: the failed run's `workflow.failed`/`node.failed` events
+deliver the error context through the existing run/event boundary, and the
+node normalizes it into n8n's three blocks (`execution`, `workflow`, and the
+convenience `error` projection) — no engine-core change. `core.trigger.workflow`
+starts the workflow on its own lifecycle events (`activate|update`); a
+delivered event outside the configured `events` list fails closed, and with
+no delivered event the first configured event is assumed so a
+run-service-started run stays deterministic. n8n's Postgres
+table-row-change mode is deliberately not ported — it installs
+`AFTER INSERT/UPDATE/DELETE` triggers in the monitored database; hosts emit
+the same payload with `pg_notify('<channel>', '<json>')` instead. Pairing
+producers: `core.storage.rabbitmq` publishes a message to a queue or topic
+exchange over `amqplib` (exchange type defaults to `topic`; the amended R2
+direct-library allowance — no decaf AMQP service exists), firing
+`core.trigger.rabbitmq`; `core.storage.redis` with `operation: "publish"`
+covers the Redis side; SSE and Postgres producers are plain HTTP calls and
+`pg_notify` senders outside the catalogue.
+
+*SaaS vendor nodes (5c).* `core.comms.discord`, `core.comms.whatsApp`,
+`core.comms.microsoftOutlook`, `core.io.microsoftExcel`, `core.io.confluence`,
+`core.io.jira`, `core.io.googleDocs`, `core.io.microsoftSharePoint`, and
+`core.io.googleCalendar` are service-first ports over the
+`@decaf-ts/integrations` `0.14.0` service subpaths — `comms/discord`,
+`comms/whatsapp`, `comms/outlook`, `io/microsoft-excel`, `io/confluence`,
+`io/jira`, `io/google-docs`, `io/microsoft-sharepoint`,
+`calendar/google-calendar`, with `shared/http`'s `bootWithoutEnvironment`
+hermetic boot ([09-integrations-design §15](./09-integrations-design.md)) —
+each node importing exactly the
+subpath of its paired service (`DiscordService`, `WhatsAppService`,
+`MicrosoftOutlookService`, `MicrosoftExcelService`, `ConfluenceService`,
+`JiraService`, `GoogleDocsService`, `MicrosoftSharePointService`,
+`GoogleCalendarService`). Each kind owns one `operation` select over that
+service's surface (message/channel/reaction for Discord; text/template/media
+messages, read receipts, media lookup for WhatsApp; mail and calendar for
+Outlook; worksheet/range/table operations for Excel; spaces/pages/CQL search
+for Confluence; issue CRUD, comments, transitions, JQL search for Jira;
+document create/get/append/replace/batch-update for Docs; calendar and event
+CRUD for Calendar; site/list/list-item/drive-folder operations for
+SharePoint), requires the operation's mandatory fields, falls back to the
+`value` input where n8n does (message content, mail body), and treats an
+unknown `operation` as the kind's primary operation (n8n's own default
+operation) instead of failing. A throwaway service instance is initialized
+per execution and shut down in a `finally` block; credentials resolve
+through the ctx-bound node credential resolver below and never enter the
+document.
 
 Storage, DevOps, Comms, and credential-bearing IO kinds resolve credentials at
 execution time through the engine's ctx-bound `GraphNodeCredentialResolver`
@@ -1063,6 +1178,10 @@ or with an execution context lacking a resolvable principal, nothing is bound
 and RLS denies the protected credential
 reads (see [01-persistence-design §6](./01-persistence-design.md) and
 [09-integrations-design §7.7](./09-integrations-design.md)).
+The live RLS integration test records policy evaluations through `dblink`,
+which opens a second connection from inside PostgreSQL; its probe URI therefore
+uses `inet_server_addr()` and `inet_server_port()` from the active server
+connection rather than the test runner's Docker-published host address.
 Subject→principal resolution is an auth-priming concern on the privileged
 connection (`resolvePrincipalForSubject` via the integrations RLS helper
 `app_rls_principal_for_subject`); the execution context carries the resulting
@@ -1529,12 +1648,41 @@ workflow document ambient host privileges. The following guards are normative.
   (write, before `mkdir`) is `realpath`-resolved and re-checked, so a symlink
   cannot redirect an operation out of the root. Violations fail with
   `GRAPH_READ_WRITE_FILE_PATH_FORBIDDEN`; a missing read target fails with
-  `GRAPH_READ_WRITE_FILE_INVALID_PATH`.
-- **Literal prototype keys (`core.data.*`, C2).** The reserved-segment check
+  `GRAPH_READ_WRITE_FILE_INVALID_PATH`. The Stage 5 binary-file nodes
+  (`core.io.readBinaryFile|readBinaryFiles|writeBinaryFile`) enforce the
+  identical containment through the shared `src/node/io/file-support.ts`
+  (`resolveGraphFilePath`/`readGraphFilePayload`/`writeGraphFile`/
+  `graphGlobFiles`), failing with `GRAPH_FILE_PATH_FORBIDDEN`; the in-memory
+  conversion nodes (`core.io.convertToFile|html|htmlExtract|markdown|xml`)
+  never touch the filesystem.
+- **Reserved path segments (`core.data.*`, C2).** The reserved-segment check
   (`__proto__`, `constructor`, `prototype`) applies to dotted paths **and** to
-  literal keys (`dotNotation: false`). A literal `__proto__` assignment throws
-  `GRAPH_DATA_UNSAFE_PATH`; literal-key mode cannot reach a record's prototype
-  chain.
+  literal keys (`dotNotation: false`), centralized in `assertGraphDataSegment`
+  (`src/node/data/support.ts`) and enforced by the
+  `getGraphDataValue`/`setGraphDataValue`/`deleteGraphDataValue` routing: a
+  reserved segment fails closed with `GRAPH_DATA_UNSAFE_PATH` before any
+  access, so a configured path or literal key can never reach a record's
+  prototype chain. The Stage 5a transform utilities
+  (`src/node/data/transform-utils.ts`) apply the same guard at their
+  field-derived write sinks — signature normalization (`stableGraphKey`),
+  aggregate projection, and the summarize record/nesting keys — so a reserved
+  field name fails closed there too. Residual (SAA-1479, accepted):
+  `core.data.compareDatasets`' `mix`/`includeBoth` branches write output
+  records with plain key assignment and stay safe because the guarded
+  `getGraphDataValue` read always precedes those writes — protection by
+  ordering, not by construction; a hardening follow-up, not a guaranteed
+  invariant (§18).
+- **XML entity & input-size guards (`core.io.xml`, SAA-1479).** The
+  `xmlToJson` direction never hands attacker-controlled entity declarations to
+  `xml2js`: the input text is first capped at 10 MiB
+  (`GRAPH_XML_INPUT_TOO_LARGE`) and then rejected when it contains an entity
+  declaration (`GRAPH_XML_ENTITY_FORBIDDEN`, a case-insensitive literal
+  `<!ENTITY` scan) before parsing, so entity expansion cannot exhaust memory
+  or time. The scan is fail-closed and deliberately over-rejects benign input
+  that merely contains the `<!ENTITY` text (e.g. inside a comment or CDATA
+  section) — an accepted trade-off for keeping the parser entity-free. The
+  optional `destinationField` wrapper routes through the guarded
+  `setGraphDataValue` (C2).
 - **Plain-secret deny-list (stage 8, C3).** `GRAPH_PLAIN_SECRET_KEYS` includes
   the HTTP credential carriers `authorization`, `proxy-authorization`,
   `x-api-key`, `x-auth-token`, `cookie`, and `set-cookie`. Matching is
@@ -2535,13 +2683,13 @@ sequenceDiagram
 | `MASTRA__PERSISTENCE__CACHE__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the compiled-workflow cache layer (default `ram`; atomically invalidated on document fingerprint change). |
 | `MASTRA__PERSISTENCE__PINS__ADAPTER` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Storage adapter for the pinned-values layer (default `fs`; exposed for host value-store wiring — the mastra lane declares pinning `NOT-SUPPORTED`). |
 | `MASTRA__PERSISTENCE__FS__ROOT` | `MastraEnvironment` / `resolveMastraPersistenceConfig` | Base directory for the filesystem adapters' persisted data (default `var/as-graph-mastra`; a per-adapter-alias sub-directory is created automatically; git-ignored). |
-| `GRAPH_FILE_IO_BASE` | `core.io.readWriteFile` (`src/node/io/read-write-file/node.ts`) | Root directory every read/write is confined to (default: process cwd, §10.5). Absolute-looking `path` values are resolved relative to it; traversal, symlink escapes, `/etc`, `/proc`, `/root`, `~/.ssh`, and `workdocs` segments fail closed with `GRAPH_READ_WRITE_FILE_PATH_FORBIDDEN`. |
+| `GRAPH_FILE_IO_BASE` | `core.io.readWriteFile` (`src/node/io/read-write-file/node.ts`) and the Stage 5 binary-file nodes via `src/node/io/file-support.ts` | Root directory every read/write is confined to (default: process cwd, §10.5). Absolute-looking `path` values are resolved relative to it; traversal, symlink escapes, `/etc`, `/proc`, `/root`, `~/.ssh`, and `workdocs` segments fail closed — `GRAPH_READ_WRITE_FILE_PATH_FORBIDDEN` on the read/write-file node, `GRAPH_FILE_PATH_FORBIDDEN` on the shared `file-support` path (`resolveGraphFilePath`/`readGraphFilePayload`/`writeGraphFile`/`graphGlobFiles`, used by `core.io.readBinaryFile|readBinaryFiles|writeBinaryFile`). |
 | `GRAPH_DB_DRIVER` | `src/nest/graph/main.ts` | Selects the durable Postgres lane for the standalone host (§10.4): `postgres` boots the durable `@decaf-ts/for-typeorm` adapter; anything else keeps the development `RamAdapter` posture. |
 | `GRAPH_DB_URL` | `src/nest/graph/main.ts` | Full Postgres DSN for the durable lane — an alternative to the host/port/user/database parts plus the password file below. |
 | `GRAPH_DB_HOST` / `GRAPH_DB_PORT` / `GRAPH_DB_USER` / `GRAPH_DB_DATABASE` | `src/nest/graph/main.ts` | Durable-lane connection parts used when `GRAPH_DB_URL` is unset (port defaults `5432`); an incomplete set fails closed at boot. |
 | `GRAPH_DB_PASSWORD_FILE` | `src/nest/graph/main.ts` | Path of the Docker secret file carrying the `mastra_app` runtime password (default `/run/secrets/postgres_app_password`); the value is read only into the connection options and never logged. |
 | `GRAPH_DB_SCHEMA` | `src/nest/graph/main.ts` | Postgres schema owning the as-graph decaf tables (default `asgraph`). |
-| `GRAPH_CREDENTIAL_*` | *(removed)* | Not part of the node credential contract. Credential-bearing nodes resolve their `credentialRef` through the ctx-bound `GraphNodeCredentialResolver` and the Phase A `@decaf-ts/integrations` credential/secret services (see §8). Database and Redis secrets are plain strings; S3 credentials are `{accessKeyId,secretAccessKey,sessionToken?}`; GCS is a service-account JSON object; Azure is a connection string or `{connectionString}`; SFTP is a password or `{password,privateKey,passphrase}`; Slack/Telegram/Teams/Gmail/Email/GitHub/GitLab/Google-Sheets/Airtable/GraphQL use either a raw token or a JSON object carrying the vendor fields (`token`, `apiKey`, `endpoint`, `username`, `password`, `from`, `webhookUrl`, `baseId`). |
+| `GRAPH_CREDENTIAL_*` | *(removed)* | Not part of the node credential contract. Credential-bearing nodes resolve their `credentialRef` through the ctx-bound `GraphNodeCredentialResolver` and the Phase A `@decaf-ts/integrations` credential/secret services (see §8). Database, Redis, RabbitMQ, and Postgres-trigger secrets are plain strings (a bare secret or the matching JSON field); S3 credentials are `{accessKeyId,secretAccessKey,sessionToken?}`; GCS is a service-account JSON object; Azure is a connection string or `{connectionString}`; SFTP is a password or `{password,privateKey,passphrase}`; the SSE trigger's `token` credential is a bearer token; Slack/Telegram/Teams/Gmail/Email/GitHub/GitLab/Google-Sheets/Airtable/GraphQL use either a raw token or a JSON object carrying the vendor fields (`token`, `apiKey`, `endpoint`, `username`, `password`, `from`, `webhookUrl`, `baseId`); the Stage 5c vendor kinds use the same bare-token-or-JSON shape — Discord `{token}` (bot token), WhatsApp `{token, phoneNumberId?}`, Microsoft Outlook/Excel/SharePoint `{token}` (Graph), Confluence/Jira `{token, username?, baseUrl?}`, Google Docs `{token?, apiKey?}`, Google Calendar `{token?, apiKey?, calendarId?}` (the node's own `calendarId`/`baseUrl` wins over the credential's). |
 
 The graph engine itself reads no environment variables; the file IO node
 consults `GRAPH_FILE_IO_BASE` (§10.5), and credential-bearing storage, devops,
@@ -2654,3 +2802,10 @@ runEventClient.listen(created.runId, {
   host; the Mastra storage domain must still be configured explicitly and
   durably by the host (§10.3 storage wiring, verified through
   `backend.storageStatus`).
+- **Compare-datasets path safety is protection-by-ordering (SAA-1479
+  residual, accepted).** The `core.data.compareDatasets` `mix`/`includeBoth`
+  branches write output records with plain key assignment; the
+  reserved-segment guard (§10.5 C2) holds only because the guarded
+  `getGraphDataValue` read precedes those writes. A hardening follow-up
+  should route those writes through the guarded helpers so safety no longer
+  depends on operation order.
