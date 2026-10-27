@@ -27,7 +27,7 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 
 | Surface | Location | Contents |
 |:--------|:---------|:---------|
-| Package root | `@decaf-ts/as-graph` (`src/index.ts`) | Engine + node re-exports (backend convenience surface). |
+| Package root | `@decaf-ts/as-graph` (`src/index.ts`) | Engine + engine-neutral node re-exports (backend convenience surface); Mastra-dependent node classes are exported only by `@decaf-ts/as-graph/mastra/nodes`. |
 | `shared` subpath | `@decaf-ts/as-graph/shared` (`src/shared/graph/`) | Frontend-safe contracts: decorators, reader, constants, catalog (manifest/parameter schemas), document (canonical document model), persisted `GraphRunModel`/`GraphWorkflowModel`. |
 | `nest` subpath | `@decaf-ts/as-graph/nest` (`src/nest/graph/`) | `GraphExecutionModule.forRoot`, catalogue/workflow/run controllers, `GraphExecutorRegistryFactory`. |
 | `mastra` subpath | `@decaf-ts/as-graph/mastra` (`src/mastra/`) | Mastra execution backend: `MastraGraphExecutionBackend`, the workflow compiler, condition/event bridges, resume guard, and the `MASTRA_FEATURE_CAPABILITIES` capability table — plus the SAA-836 S1 backend contract: `MastraModelSchemaConverter` (`mastraSchemaFromModel`/`mastraModelFromSchema`, the single decaf↔mastra schema conversion path over `@decaf-ts/as-zod`), `MastraStructuredOutput` (the JSON-safe structured-output definition/resolution contract), and `MastraEnvironment` (the `MASTRA__*` engine environment with the credential fail-closed gate, §16). |
@@ -35,9 +35,12 @@ The architecture is detailed in the [Architecture Handbook](../architecture-hand
 | `dagster` subpath | `@decaf-ts/as-graph/dagster` (`src/dagster/`) | Read-only Dagster GraphQL client, event bridge, result mapper, capabilities, types and execution backend; no Python runtime dependency is bundled. |
 | `typeorm` subpath | `@decaf-ts/as-graph/typeorm` (`src/typeorm/`) | Durable production persistence (SAA-926 §6.4, §10.4): `createTypeormGraphAdapter({ dataSource })` builds and initializes a `@decaf-ts/for-typeorm` Postgres adapter for the as-graph decaf tables plus the mastra-layer decaf models, flavoured for the durable lane; postgres-only, `synchronize: false`, bootstrap-owned DDL, `jsonb`-pinned structured columns. |
 | Engine | `src/engine/` | `auth`, `catalog`, `errors`, `events`, `execution`, `loops`, `pinning`, `planning`, `registry`, `runs`, `snapshots`, `store`, `validation`, services. |
-| Node declarations | `src/node/` | `@node`-decorated built-in node classes per category (`triggers/`, `flow/`, `data/`, `io/`, `storage/`, `devops/`, `comms/`, `utility/`, `agents/`, `boundary/`), `base.ts`, `manifests.ts` (structural overlays). |
+| Engine-neutral node declarations | `src/node/` | `@node`-decorated built-in nodes per category (`triggers/`, `flow/`, `data/`, `io/`, `storage/`, `devops/`, `comms/`, `utility/`, `boundary/`), `base.ts`, and engine-neutral manifest overlays. No Mastra-dependent node declaration, implementation, or import belongs here. |
+| Basic demo fixtures | `src/workflows/basic/` (`@decaf-ts/as-graph/workflows`) | Engine-neutral demo workflows plus the shared fixture types/builders. The local/general engine seeds this registry only. |
+| Mastra capability fixtures | `src/workflows/mastra/` (`@decaf-ts/as-graph/workflows/mastra`) | One focused workflow per Mastra kind, focused composite workflows, the deterministic host fakes, and the `MASTRA_FEATURE_CAPABILITIES` coverage matrix. The Mastra engine seeds this registry only; importing or booting the basic set never loads a Mastra node implementation. |
+| Mastra-dependent node declarations and implementations | `src/mastra/nodes/` | All Mastra-dependent node classes, their executable behavior, Mastra-owned manifests/overlays, zones, and the authoritative Mastra node registry. |
 | Locale assets | `assets/i18n/en.json` | Repo-root `assets/`; shipped via `package.json` `files`. |
-| Executor pairing | `src/engine/catalog/GraphBuiltInRegistrations.ts` | `registerBuiltInGraphNodes(catalogue)` pairs every built-in kind's compiled manifest with the executor derived from the node class (`executorOf` → `instantiate(graphNodeConfig(context.node))`). |
+| Executor pairing | `src/engine/catalog/GraphBuiltInRegistrations.ts` and `src/mastra/nodes/` | Each engine composes only its owned node manifests and execution implementations. The local registry pairs engine-neutral classes with local executors; the Mastra registry pairs Mastra-owned classes with Mastra execution adapters that invoke the class `execute()` implementation. |
 
 Adapter entrypoints remain isolated: Mastra implementation imports are exposed
 only from `./mastra` and `./mastra/nodes`, and Dagster implementation imports
@@ -52,7 +55,7 @@ unused Redis peer is scoped to Redis `^6.3.0` by the repository override, so
 npm can resolve the test tree without disabling peer checks. The repository
 lockfile also pins `multer` to `^2.5.0` and `@azure/msal-node` to `^7.1.1`.
 
-Node kinds shipped (one `@node` class each, `src/node/**`): triggers
+Node kinds shipped (one `@node` class each; engine-neutral kinds in `src/node/**`, Mastra-dependent kinds in `src/mastra/nodes/**`): triggers
 `core.trigger.manual|webhook|schedule|event|form|chat|executeWorkflow|error|workflow|rabbitmq|redis|sse|postgres`, flow
 `core.flow.if|switch|delay|log|errorBoundary|humanApproval|break|executeSubWorkflow`,
 loops `core.loop.foreach|while|until`,
@@ -63,7 +66,7 @@ comms `core.comms.slack|telegram|teams|gmail|emailSend|discord|whatsApp|microsof
 devops `core.devops.crypto|jwt|executeCommand|ftp|github|gitlab`,
 utility `core.utility.map|code|log`, boundary
 `graph-input-value-node|graph-output-value-node`, and the mastra agent family
-(`src/node/agents/**`, category `Agent`): the agent node `core.agent` plus its
+(`src/mastra/nodes/**`, category `Agent`): the agent node `core.agent` plus its
 `core.agent.*` family kinds — tools `core.agent.tool|toolSelector`, hooks
 `core.agent.hook|toolDeny|delegationHook`, skills
 `core.agent.skill|skillSelector`, sandbox `core.agent.sandbox`, scorers
@@ -261,7 +264,7 @@ and declares its structural dependencies as `@connection()` ports grouped in
   (`GraphPortManifest.zone`, `src/shared/graph/catalog/GraphPortManifest.ts`)
   — **the manifest, not the renderer, is authoritative for zone placement**;
   a port without a zone stays on the default bottom row.
-- **The agent node's zones** (`src/node/agents/agent/node.ts`): `memory`
+- **The agent node's zones** (`src/mastra/nodes/agent/node.ts`): `memory`
   bottom-left (`bottom`/`start`/`0`), `scorers` top-right
   (`top`/`end`/`0`), `embedding` bottom-right (`bottom`/`end`/`0`),
   `hooks` top-middle (`top`/`center`/`0`) with `sandbox` (`top`/`center`/`1`)
@@ -276,7 +279,7 @@ and declares its structural dependencies as `@connection()` ports grouped in
   the `outputProcessors` zone its post-processor pipeline (guardrail kinds
   connect there, composing with the output processors — SAA-836 M5).
 - **Zone categories are canonical.** The zone category strings are the
-  `MASTRA_AGENT_ZONE` constants (`src/node/agents/zones.ts`): `memory`,
+  `MASTRA_AGENT_ZONE` constants (`src/mastra/nodes/zones.ts`): `memory`,
   `scorers`, `embedding`, `hooks`, `sandbox`, `tools`, `skill`,
   `inputProcessors`, `outputProcessors`. The seven mastra agent zones
   `memory`/`scorers`/`embedding`/`hooks`/`sandbox`/`tools`/`skill` are each
@@ -302,7 +305,7 @@ and declares its structural dependencies as `@connection()` ports grouped in
   category-less structural connections are unaffected. Combined with
   `allowedPortCategories` connection rules, a zone accepts only its matching
   family.
-- **The `core.agent.*` family kinds** (`src/node/agents/**`, all category
+- **The `core.agent.*` family kinds** (`src/mastra/nodes/**`, all category
   `Agent`, all requiring the mastra engine): `core.agent.tool` /
   `core.agent.toolSelector` (tools zone — one configured tool, or a dynamic
   selection among the connected tools), `core.agent.hook` /
@@ -352,6 +355,19 @@ and declares its structural dependencies as `@connection()` ports grouped in
   `prompt` input accepts placeholder expressions. The `structuredOutput`
   parameter carries the backend structured-output contract resolved per
   §10.3 (`MastraStructuredOutput`), not a free-form schema object.
+
+**R12 — Mastra node ownership and executable implementation.** Every node kind
+that requires the Mastra engine (`core.agent[.*]`) is declared and implemented
+under `src/mastra/nodes/`; engine-neutral node declarations remain under
+`src/node/`. A Mastra-dependent node class must not be added under `src/node/`. Every concrete Mastra node class implements its declared
+behavior in `execute()`. The Mastra compiler's step adapter invokes that same
+node implementation with run-scoped host services; it must not substitute an
+echo, identity fallback, unconsumed descriptor, or parallel duplicate
+implementation. Required but unavailable host services fail closed with a
+typed execution error. Node classes, manifests, and the Mastra registry are
+coverage-audited together; a missing executable implementation is a
+registration failure. This does not move renderer/UI code into this backend
+module.
 
 ### 0.3 Locale-key structure (normative)
 
@@ -593,7 +609,7 @@ semantics.
 
 The graph backend (contracts, engine, persistence) lives in the dedicated
 backend-only `as-graph` module (§0). The Angular editor in
-`for-angular/src/graph` imports the graph layer **only from
+`for-angular/src/diagrams/components/graph` imports the graph layer **only from
 `@decaf-ts/as-graph/shared`** and reaches the engine exclusively over
 HTTP/SSE.
 
@@ -669,7 +685,7 @@ the host explicitly enables the standalone anonymous tolerance
   `canAccessGraphResourcePayload` governs whether its sensitive payload
   members are served (§11.3).
 - **Engine-free shared contracts.** *Why:* browser bundles must carry no
-  engine/executor code. *Enforcing test:* `for-angular/src/graph/bundle-wall.spec.ts`
+  engine/executor code. *Enforcing test:* `for-angular/src/diagrams/components/graph/bundle-wall.spec.ts`
   (static import wall + runtime symbol wall over the production bundle).
 - **Graph as decorators, not a separate schema language** (authoring layer).
   *Why:* reusing `Model`/`Metadata`/`@uimodel` means ports, validation,
@@ -710,7 +726,7 @@ the host explicitly enables the standalone anonymous tolerance
           ┌─────────────────┴──────────────────┐
           │                                    │
 ┌─────────▼─────────────────────┐  ┌──────────▼──────────────────────┐
-│ for-angular/src/graph         │  │ as-graph/src/engine             │
+│ for-angular graph editor       │  │ as-graph/src/engine             │
 │  catalog/  (Angular services) │  │  catalog/          catalogue    │
 │  document/ (store + adapter)  │  │  validation/       nine-stage   │
 │  parameters/ (renderers)      │  │  runs/             run lifecycle│
@@ -1323,6 +1339,45 @@ The mastra backend translates the canonical document into a mastra workflow
 and runs it on a host-injected `@mastra/core` runtime, self-registering under
 the `mastra` flavour (`MASTRA_BACKEND_FLAVOUR`). `core.agent[.*]` kinds are
 mastra-only (§0.2 execution boundary); the local engine fails closed on them.
+
+**Graph parallelism translation.** Mastra compilation derives execution
+concurrency from the validated canonical graph dependencies, not node-array or
+canvas order. Independent ready branches are emitted through Mastra's native
+`parallel()` workflow operation; dependency barriers, fan-in routing, branch
+and loop semantics, cancellation, node identity, and event attribution are
+preserved. Nodes with a dependency path remain ordered. A topology that cannot
+be represented faithfully fails closed instead of silently compiling as a
+sequential workflow. Parallel groups honor the configured concurrency ceiling.
+The `parallel` capability is `SUPPORTED` only when this translation path is
+active and covered by the graph-to-Mastra conformance fixtures.
+
+**Demo workflow ownership.** Engine-neutral demo fixtures are registered under
+`src/workflows/basic/`; Mastra capability fixtures are registered separately
+under `src/workflows/mastra/`, with at least one target workflow per Mastra node
+kind and the required boundary ports/nodes. The two registries share only the
+fixture types/builders and a neutral matrix helper; their arrays are never
+merged into one global registry. Each Mastra fixture records a stable id, its
+target kind(s), engine, required host services, workflow document, inputs,
+expected status/outputs/events, and the capability rows it demonstrates — all
+JSON-safe, never executable functions on `GraphWorkflowDocument`. A coverage
+matrix accounts for every `MASTRA_FEATURE_CAPABILITIES` row with a workflow or a
+linked deterministic conformance scenario; unsupported capabilities show their
+fail-closed behavior and reason, and no row is omitted or implied by a
+neighbouring fixture. Local boot loads the basic set; Mastra boot loads the
+Mastra set (no shared listing without a documented product decision); Dagster
+lists deployed Dagster workflows/jobs and receives neither demo seed set.
+Deterministic host fakes (`src/workflows/mastra/host-fakes.ts`) make every Mastra
+fixture independently evaluable without provider credentials, external channels,
+databases, or network; provider-backed live tests are a separate opt-in layer.
+
+Fixture acceptance criteria (SAA-1545 §7 "Workflow sets"): every non-Mastra demo
+is in the basic set and contains no `core.agent[.*]` kind; every Mastra-owned
+kind is the explicit target of its own Mastra workflow with boundary ports
+present; the capability matrix covers every row including composite and
+intentionally unsupported/host-dependent capabilities; and each boot variant
+lists its own registry while Dagster lists deployed jobs only. The scoped
+migration specification is SAA-1545; this section is the delivered-system
+record and defers normative node rules to §0.
 
 **Environment boot.** The backend boots from Environment config only
 (`MastraEnvironment`, the `@decaf-ts/logging` accumulated environment):
@@ -2115,7 +2170,7 @@ constant generic `500` (SAA-135).
 
 ## 13. Angular Canonical Frontend
 
-The editor in `for-angular/src/graph` is manifest-driven and document-native
+The editor in `for-angular/src/diagrams/components/graph` is manifest-driven and document-native
 — no node constructors, no legacy config store, no rollout-flag mechanics
 reach the browser.
 
@@ -2236,7 +2291,7 @@ editor reaches the graph backend exclusively over HTTP/SSE.
   - **Other connection types** — placed per the **zone** their port declares
     (§0.2 R11): the manifest is authoritative (`GraphPortManifest.zone`,
     copied from `@connection({ zone })`), and
-    `for-angular/src/graph/port-zones.ts` mirrors the zone wire contract and
+    `for-angular/src/diagrams/components/graph/port-zones.ts` mirrors the zone wire contract and
     anchors each connection port handle to its declared side/align/order —
     zoned ports (the agent node's nine mastra zones) render on their declared
     edge, while a port without a zone stays on the legacy **bottom side**.
@@ -2331,7 +2386,7 @@ Mapping (editor-exposed option → declarative/builder path):
 | if/elseIf/while/until condition graphical OR code | `Condition = ConditionExpression \| CodeCondition` accepted by `GraphFlowBuilder.if/.elseIf/.while/.until`, carried in `parameters.condition`; `CodeCondition` executed by the if node and the loop condition evaluator through the registered `CodeSandboxEvaluator` (`as-graph/src/node/flow/if/node.ts`, `as-graph/src/engine/loops/GraphConditionEvaluator.ts`, `as-graph/src/engine/loops/ConditionEvaluator.ts`) |
 | Boundary ports (inputs/outputs, required, defaultValue, schema) | `.inputs/.outputs/.boundary` + `GraphWorkflowPortInstance` |
 | Port required-ness | `@required()` folded by the shared reader into the manifest `required` flag (node-authoring tier; not per-instance) |
-| Port visibility (`hidden`) / parameter visibility + gating | `hidden` port metadata, `type: "hidden"` parameters, and the declarative `visibility` DSL (`GraphVisibilityExpression`) on `GraphParameterDefinition` — evaluated by `for-angular/src/graph/parameters/GraphParameterVisibilityEvaluator.ts` (node-authoring tier) |
+| Port visibility (`hidden`) / parameter visibility + gating | `hidden` port metadata, `type: "hidden"` parameters, and the declarative `visibility` DSL (`GraphVisibilityExpression`) on `GraphParameterDefinition` — evaluated by `for-angular/src/diagrams/components/graph/parameters/GraphParameterVisibilityEvaluator.ts` (node-authoring tier) |
 | Port capability / connection rules | `GraphConnectionPolicy` on `@input`/`@output`/`@connection` — `allowSelf`, `allowMultiple`, `allowedNodeKinds`, `blockedNodeKinds`, `allowedPortCategories`, `maxConnections` (`as-graph/src/shared/graph/catalog/GraphConnectionPolicy.ts`) |
 | Delegate-to-port eligibility (`userControlled`/`configurable`) | `userControlled` port metadata (`as-graph/src/shared/graph/constants.ts`; §0.2 R5 #3) |
 | Dynamic port rules (`repeatFromParameter`) | manifest `dynamicPorts` (node-authoring tier) |
@@ -2572,7 +2627,7 @@ The mastra layer's UI half ships in `for-angular` alongside the editor:
   alternative (e.g. the optional `@ai-sdk/angular` peer); Storybook coverage
   (`src/stories/agent-chat.stories.ts`) mounts the component with a scripted
   transport so no backend is needed.
-- **Editor dark mode (`src/graph/styles/graph-theme.scss`).** The editor
+- **Editor dark mode (`src/diagrams/assets/theme/graph-theme.scss`).** The editor
   surfaces' palette is lifted into `--gx-*` custom properties (plus canvas
   `--ngd-*` remaps): `:root` carries the light values byte-identical to the
   literals they replaced (light mode pixel-for-pixel unchanged), and the
@@ -2657,6 +2712,8 @@ sequenceDiagram
 | Canonical state | Exactly one `GraphWorkflowDocument` represents current semantics; canvas mutations, Save, autosave, history, undo/redo, and Run all use it; the diagram is a projection. |
 | Added/removed node & edges | A node added from the palette executes with its edited literal; a removed node and its edges disappear from execution; drawn/deleted edges route data accordingly (12-step canvas→run E2E). |
 | Node catalogue | Every executable kind has a manifest+executor registration; the frontend receives serializable manifests without constructors; client definitions are rejected; manifest/executor drift fails fast at registration. |
+| Mastra nodes and demos | Every Mastra-dependent kind has a concrete `execute()` implementation under `src/mastra/nodes/` and an independently evaluable fixture in `src/workflows/mastra/`; engine-neutral demos stay under `src/workflows/basic/`; the capability matrix covers every `MASTRA_FEATURE_CAPABILITIES` row; local/Mastra boots list their own registries and Dagster lists deployed jobs. |
+| Mastra parallel translation | Independent canonical graph branches compile to Mastra native parallel groups; dependencies, joins, outputs, cancellation, errors, and observability remain correct. |
 | Parameter forms | All parameter control types render generically with JSON types retained end-to-end; visibility is declarative; dynamic options use authorized backend methods; binding modes are canonical instance state. |
 | Async runs | Run creation returns before completion (`202` + `eventsUrl`/`resultUrl`); events are live, ordered, replayable, reconnectable, and ownership-filtered server-side; cancellation emits a terminal event. |
 | Nested loops | Loop bodies are canonical documents recursing the same validation/resolution pipeline; loop bodies are independently acyclic. |
@@ -2669,7 +2726,7 @@ sequenceDiagram
 | Variable | Reader | Purpose |
 |:---------|:-------|:--------|
 | `GRAPH_BACKEND_PORT` (or `argv[2]`) | `src/nest/graph/main.ts` | Overrides the default graph backend port `3000`. |
-| `GRAPH_BACKEND_URL` | `for-angular/src/graph/execution/GraphExecutionService` | Base URL of the graph backend for browser clients. |
+| `GRAPH_BACKEND_URL` | `for-angular/src/diagrams/components/graph/execution/GraphExecutionService` | Base URL of the graph backend for browser clients. |
 | `MASTRA__ENGINE__ENABLED` | `MastraEnvironment` (`src/mastra/MastraEnvironment.ts`) | Enables the mastra engine lane (default `true`). `false` makes `MastraGraphExecutionBackend.initialize()` fail closed (`GRAPH_MASTRA_ENGINE_DISABLED`) instead of half-configuring an engine that must not run. |
 | `MASTRA__ENGINE__TERMINAL_TIMEOUT_MS` | `MastraEnvironment` | Default run-level terminal timeout for mastra runs in milliseconds (default `300000`); the backend uses it when the host does not set its own `terminalTimeoutMs`. |
 | `MASTRA__PROVIDER__ENDPOINT` | `MastraEnvironment` | Reserved provider config (declared in `MastraEnvironment`; not yet consumed — agents take their model from the node's `modelAdapter` parameter). Non-secret host config — sourced from `.env`. |
@@ -2761,7 +2818,7 @@ engine.observe({ refresh: async (event) => console.log(event.type, event.nodeId)
 ```
 
 ```typescript
-// Angular run path (for-angular/src/graph/runs)
+// Angular run path (for-angular/src/diagrams/components/graph/runs)
 const created = await runClient.createRun({ workflow: document, inputs });
 // → 202 { runId, eventsUrl, resultUrl }
 runEventClient.listen(created.runId, {
