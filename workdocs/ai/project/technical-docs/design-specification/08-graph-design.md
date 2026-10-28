@@ -1379,6 +1379,20 @@ lists its own registry while Dagster lists deployed jobs only. The scoped
 migration specification is SAA-1545; this section is the delivered-system
 record and defers normative node rules to §0.
 
+**Suspended-run status contract (SAA-1588).** `GraphExecutionStatus` carries a
+typed `SUSPENDED = "suspended"` member (a JSON-safe string enum value, so
+round-trip and serialization behavior is unchanged). The Mastra event bridge
+maps a `workflow-finish` whose `workflowStatus` is `suspended` to that status:
+it emits neither `workflow.completed`/`succeeded` nor `workflow.failed`, and the
+step-level `workflow.suspended` event remains the engine's suspend signal (its
+status is likewise `SUSPENDED`, not `PENDING`). A suspended run is a
+**non-terminal pause** awaiting external (HITL) input, so downstream status
+consumers treat it as paused rather than complete: `MastraGraphExecutionBackend`
+returns `SUSPENDED` instead of `SUCCEEDED`, `GraphRunExecutor` keeps the run in
+its non-terminal `running` run status (no terminal event, no `finishedAt`), and
+`GraphExecutionStateMapper` renders `SUSPENDED` as the `blocked` visual state.
+Callers must never read a suspended HITL run as a successful completion.
+
 **Environment boot.** The backend boots from Environment config only
 (`MastraEnvironment`, the `@decaf-ts/logging` accumulated environment):
 `initialize()` throws `GRAPH_MASTRA_ENGINE_DISABLED` when
@@ -1815,7 +1829,9 @@ Validation and execution then proceed asynchronously
 `ownerUser`, `status` (`queued | validating | running | succeeded | failed |
 cancelled`), timestamps, `result?`, `error?`, and the executed document's
 `documentFingerprint` (SHA-256 over a stable key-sorted serialization) for
-audit/reproducibility.
+audit/reproducibility. A run suspended for HITL input is not terminal and stays
+`running` until it is resumed or cancelled (§10.3 suspended-run status
+contract).
 
 The concurrent-run limit (`maxConcurrentRuns`) is enforced **per caller**:
 `GraphRunService` buckets in-flight runs by a caller key — the run's owner
