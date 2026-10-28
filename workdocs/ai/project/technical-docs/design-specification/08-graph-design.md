@@ -2230,7 +2230,12 @@ reach the browser.
   when SSE is unavailable, and stops after the terminal event; the SSE
   implementation is injectable so jsdom tests can drive it. The graph demo
   page runs the canonical path: `runClient.createRun({ workflow: document,
-  inputs })` from the current document-store snapshot.
+  inputs })` from the current document-store snapshot. The stored-result
+  readout seeds the DECAF-48 §4.6 inspection `state` per node result with
+  the `GraphExecutionStateMapper` suspended contract (§10.3) — `suspended`
+  renders `blocked`, not `idle`, agreeing with the live event fold — while
+  `cancelled` results keep the run lifecycle's `skipped` rendering (the
+  shared mapper maps `CANCELLED` to `idle`).
 - **Editing (`components/`).** The node edit modal, switch case editor, and
   node templates seed from the document's `GraphNodeInstance`/canvas data
   and save through the store (`GraphNodeEditResult`: nodeId, parameters,
